@@ -70,6 +70,19 @@ export function useRoleAuth() {
     return userRole === "Admin";
   };
 
+  const hasPermission = (permission: "read" | "write" | "delete"): boolean => {
+    switch (permission) {
+      case "read":
+        return canRead("general");
+      case "write":
+        return canWrite("general");
+      case "delete":
+        return canDelete("general");
+      default:
+        return false;
+    }
+  };
+
   return {
     user,
     userRole,
@@ -77,6 +90,7 @@ export function useRoleAuth() {
     isLoading,
     hasRole,
     hasAnyRole,
+    hasPermission,
     canRead,
     canWrite,
     canDelete,

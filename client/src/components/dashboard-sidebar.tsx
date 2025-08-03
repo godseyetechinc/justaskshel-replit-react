@@ -76,7 +76,7 @@ const menuItems: MenuItem[] = [
     roles: ["Admin", "Agent", "Member"]
   },
   {
-    id: "points",
+    id: "loyalty-points",
     label: "Loyalty Points",
     icon: Star,
     href: "/dashboard/points",
