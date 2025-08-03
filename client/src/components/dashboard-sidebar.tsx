@@ -55,14 +55,14 @@ const menuItems: MenuItem[] = [
     roles: ["Admin", "Agent", "Member"]
   },
   {
-    id: "applications",
+    id: "insurance-applications",
     label: "Applications",
     icon: FileText,
     href: "/dashboard/applications",
     roles: ["Admin", "Agent", "Member"]
   },
   {
-    id: "policies",
+    id: "insurance-policies",
     label: "Policies",
     icon: Shield,
     href: "/dashboard/policies",
@@ -90,46 +90,11 @@ const menuItems: MenuItem[] = [
     roles: ["Admin", "Agent", "Member"]
   },
   {
-    id: "applications",
-    label: "Applications",
-    icon: FileText,
-    href: "/dashboard/applications",
-    roles: ["Admin", "Agent", "Member"]
-  },
-  {
-    id: "policies",
-    label: "Insurance Policies",
-    icon: Shield,
-    href: "/dashboard/policies",
-    roles: ["Admin", "Agent", "Member"]
-  },
-  {
     id: "claims",
     label: "Claims Workflow",
     icon: FileText,
     href: "/dashboard/claims",
     roles: ["Admin", "Agent", "Member"]
-  },
-  {
-    id: "points",
-    label: "Points System",
-    icon: Star,
-    href: "/dashboard/points",
-    roles: ["Admin", "Agent", "Member"]
-  },
-  {
-    id: "applicants",
-    label: "Applicants",
-    icon: UserPlus,
-    href: "/dashboard/applicants",
-    roles: ["Admin", "Agent"]
-  },
-  {
-    id: "dependents",
-    label: "Applicant Dependents",
-    icon: UserX,
-    href: "/dashboard/applicant-dependents",
-    roles: ["Admin", "Agent"]
   },
   {
     id: "analytics",
