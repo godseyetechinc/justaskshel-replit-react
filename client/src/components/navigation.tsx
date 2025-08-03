@@ -1,6 +1,6 @@
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Shield, Menu, X } from "lucide-react";
+import { Shield, Menu, X, ChevronDown } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import {
@@ -19,9 +19,17 @@ export default function Navigation() {
 
   const navigation = [
     { name: "Home", href: "/" },
-    { name: "Insurance Types", href: "/insurance-types" },
     { name: "Compare Quotes", href: "/quotes" },
     { name: "Claims Assistance", href: "/claims-assistance" },
+  ];
+
+  const insuranceTypes = [
+    { name: "Life Insurance", href: "/life-insurance" },
+    { name: "Health Insurance", href: "/health-insurance" },
+    { name: "Dental Insurance", href: "/dental-insurance" },
+    { name: "Vision Insurance", href: "/vision-insurance" },
+    { name: "Hospital Indemnity", href: "/hospital-indemnity-insurance" },
+    { name: "Discount Health Plans", href: "/discount-health-insurance" },
   ];
 
   const isActive = (href: string) => {
@@ -61,6 +69,38 @@ export default function Navigation() {
                     </a>
                   </Link>
                 ))}
+                
+                {/* Insurance Types Dropdown */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      className={`px-3 py-2 text-sm font-medium transition-colors ${
+                        insuranceTypes.some(type => isActive(type.href))
+                          ? "text-primary border-b-2 border-primary"
+                          : "text-gray-500 hover:text-primary"
+                      }`}
+                    >
+                      Insurance Types
+                      <ChevronDown className="ml-1 h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-56">
+                    <DropdownMenuItem asChild>
+                      <Link href="/insurance-types">
+                        <a className="w-full">View All Insurance Types</a>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {insuranceTypes.map((type) => (
+                      <DropdownMenuItem key={type.name} asChild>
+                        <Link href={type.href}>
+                          <a className="w-full">{type.name}</a>
+                        </Link>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
           </div>
@@ -152,6 +192,37 @@ export default function Navigation() {
                   </a>
                 </Link>
               ))}
+              
+              {/* Insurance Types Section */}
+              <div className="pt-2">
+                <Link href="/insurance-types">
+                  <a
+                    className={`block px-3 py-2 text-base font-medium transition-colors ${
+                      isActive("/insurance-types")
+                        ? "text-primary bg-primary/10"
+                        : "text-gray-500 hover:text-primary hover:bg-gray-50"
+                    }`}
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    All Insurance Types
+                  </a>
+                </Link>
+                
+                {insuranceTypes.map((type) => (
+                  <Link key={type.name} href={type.href}>
+                    <a
+                      className={`block px-6 py-2 text-sm font-medium transition-colors ${
+                        isActive(type.href)
+                          ? "text-primary bg-primary/10"
+                          : "text-gray-400 hover:text-primary hover:bg-gray-50"
+                      }`}
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      {type.name}
+                    </a>
+                  </Link>
+                ))}
+              </div>
               
               {/* Mobile Auth Section */}
               <div className="mt-4 pt-4 border-t border-gray-200">

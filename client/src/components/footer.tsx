@@ -1,40 +1,32 @@
 import { Shield, Facebook, Twitter, Linkedin, Instagram } from "lucide-react";
+import { Link } from "wouter";
 
 export default function Footer() {
-  const footerSections = [
-    {
-      title: "Insurance Types",
-      links: [
-        "Life Insurance",
-        "Health Insurance", 
-        "Dental Insurance",
-        "Vision Insurance",
-        "Hospital Indemnity",
-        "Discount Health Plans",
-      ]
-    },
-    {
-      title: "Support",
-      links: [
-        "Claims Assistance",
-        "Customer Support",
-        "Insurance Advice", 
-        "Payment Help",
-        "Member Portal",
-        "FAQ",
-      ]
-    },
-    {
-      title: "Company",
-      links: [
-        "About Us",
-        "Privacy Policy",
-        "Terms of Service",
-        "Contact",
-        "Careers", 
-        "Press",
-      ]
-    }
+  const insuranceTypes = [
+    { name: "Life Insurance", href: "/life-insurance" },
+    { name: "Health Insurance", href: "/health-insurance" },
+    { name: "Dental Insurance", href: "/dental-insurance" },
+    { name: "Vision Insurance", href: "/vision-insurance" },
+    { name: "Hospital Indemnity", href: "/hospital-indemnity-insurance" },
+    { name: "Discount Health Plans", href: "/discount-health-insurance" },
+  ];
+
+  const supportLinks = [
+    { name: "Claims Assistance", href: "/claims-assistance" },
+    { name: "Compare Quotes", href: "/quotes" },
+    { name: "All Insurance Types", href: "/insurance-types" },
+    { name: "Customer Support", href: "#" },
+    { name: "Payment Help", href: "#" },
+    { name: "FAQ", href: "#" },
+  ];
+
+  const companyLinks = [
+    { name: "About Us", href: "#" },
+    { name: "Privacy Policy", href: "#" },
+    { name: "Terms of Service", href: "#" },
+    { name: "Contact", href: "#" },
+    { name: "Careers", href: "#" },
+    { name: "Press", href: "#" },
   ];
 
   return (
@@ -66,21 +58,57 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* Footer Links */}
-          {footerSections.map((section, index) => (
-            <div key={index}>
-              <h4 className="text-lg font-semibold mb-4">{section.title}</h4>
-              <ul className="space-y-2 text-gray-300">
-                {section.links.map((link, linkIndex) => (
-                  <li key={linkIndex}>
-                    <a href="#" className="hover:text-white transition-colors">
-                      {link}
+          {/* Insurance Types */}
+          <div>
+            <h4 className="text-lg font-semibold mb-4">Insurance Types</h4>
+            <ul className="space-y-2 text-gray-300">
+              {insuranceTypes.map((type) => (
+                <li key={type.name}>
+                  <Link href={type.href}>
+                    <a className="hover:text-white transition-colors">
+                      {type.name}
                     </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Support */}
+          <div>
+            <h4 className="text-lg font-semibold mb-4">Support</h4>
+            <ul className="space-y-2 text-gray-300">
+              {supportLinks.map((link) => (
+                <li key={link.name}>
+                  {link.href.startsWith("#") ? (
+                    <a href={link.href} className="hover:text-white transition-colors">
+                      {link.name}
+                    </a>
+                  ) : (
+                    <Link href={link.href}>
+                      <a className="hover:text-white transition-colors">
+                        {link.name}
+                      </a>
+                    </Link>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Company */}
+          <div>
+            <h4 className="text-lg font-semibold mb-4">Company</h4>
+            <ul className="space-y-2 text-gray-300">
+              {companyLinks.map((link) => (
+                <li key={link.name}>
+                  <a href={link.href} className="hover:text-white transition-colors">
+                    {link.name}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
 
         {/* Footer Bottom */}
