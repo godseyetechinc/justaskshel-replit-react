@@ -1,6 +1,6 @@
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Shield, Menu, X, ChevronDown } from "lucide-react";
+import { Shield, Menu, X, ChevronDown, Settings } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import jasBrandLogo from "@/assets/jas-brand-logo.svg";
@@ -118,7 +118,10 @@ export default function Navigation() {
             {isAuthenticated && user ? (
               <>
                 <Link href="/dashboard">
-                  <Button variant="ghost">Dashboard</Button>
+                  <Button variant="outline" size="sm">
+                    <Settings className="h-4 w-4 mr-2" />
+                    Dashboard
+                  </Button>
                 </Link>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -253,9 +256,10 @@ export default function Navigation() {
                   <>
                     <Link href="/dashboard">
                       <a
-                        className="block px-3 py-2 text-base font-medium text-gray-500 hover:text-primary hover:bg-gray-50"
+                        className="flex items-center px-3 py-2 text-base font-medium text-gray-700 hover:text-primary hover:bg-gray-50 rounded-md border border-gray-300"
                         onClick={() => setMobileMenuOpen(false)}
                       >
+                        <Settings className="h-4 w-4 mr-2" />
                         Dashboard
                       </a>
                     </Link>
