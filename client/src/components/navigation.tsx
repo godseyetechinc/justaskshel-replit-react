@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Shield, Menu, X, ChevronDown } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
+import jasBrandLogo from "@/assets/jas-brand-logo.svg";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,9 +46,13 @@ export default function Navigation() {
           {/* Logo */}
           <div className="flex items-center">
             <Link href="/">
-              <div className="flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity">
+              <div className="flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity flex items-center">
+                <img 
+                  src={jasBrandLogo} 
+                  alt="Reliable Insurance Solutions" 
+                  className="h-10 w-auto mr-3"
+                />
                 <h1 className="text-2xl font-medium text-primary">
-                  <Shield className="inline-block mr-2 h-8 w-8" />
                   InsureScope
                 </h1>
               </div>

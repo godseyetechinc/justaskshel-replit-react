@@ -1,5 +1,6 @@
 import { Shield, Facebook, Twitter, Linkedin, Instagram } from "lucide-react";
 import { Link } from "wouter";
+import jasBrandLogo from "@/assets/jas-brand-logo.svg";
 
 export default function Footer() {
   const insuranceTypes = [
@@ -36,7 +37,11 @@ export default function Footer() {
           {/* Company Info */}
           <div>
             <h3 className="text-2xl font-bold mb-4 flex items-center">
-              <Shield className="h-6 w-6 mr-2 text-primary" />
+              <img 
+                src={jasBrandLogo} 
+                alt="Reliable Insurance Solutions" 
+                className="h-8 w-auto mr-3"
+              />
               InsureScope
             </h3>
             <p className="text-gray-300 mb-6">

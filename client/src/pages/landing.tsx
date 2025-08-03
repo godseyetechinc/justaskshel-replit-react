@@ -6,6 +6,7 @@ import QuoteComparison from "@/components/quote-comparison";
 import DashboardPreview from "@/components/dashboard-preview";
 import ClaimsAssistanceSection from "@/components/claims-assistance-section";
 import Footer from "@/components/footer";
+import jasBrandLogo from "@/assets/jas-brand-logo.svg";
 
 export default function Landing() {
   return (
@@ -15,9 +16,13 @@ export default function Landing() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <div className="flex-shrink-0">
+              <div className="flex-shrink-0 flex items-center">
+                <img 
+                  src={jasBrandLogo} 
+                  alt="Reliable Insurance Solutions" 
+                  className="h-10 w-auto mr-3"
+                />
                 <h1 className="text-2xl font-bold text-primary">
-                  <Shield className="inline-block mr-2 h-8 w-8" />
                   InsureScope
                 </h1>
               </div>
