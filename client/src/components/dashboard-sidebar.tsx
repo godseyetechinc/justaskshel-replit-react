@@ -16,7 +16,8 @@ import {
   Home,
   Phone,
   Briefcase,
-  Key
+  Key,
+  Gift
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -81,7 +82,14 @@ const menuItems: MenuItem[] = [
     label: "Loyalty Points",
     icon: Star,
     href: "/dashboard/points",
-    roles: ["Admin", "Agent"]
+    roles: ["Admin", "Agent", "Member"]
+  },
+  {
+    id: "rewards-management",
+    label: "Rewards Management",
+    icon: Gift,
+    href: "/dashboard/rewards-management",
+    roles: ["Admin"]
   },
   {
     id: "dependents",

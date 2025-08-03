@@ -242,19 +242,104 @@ export const applications = pgTable("applications", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Points system - member rewards/points
-export const points = pgTable("points", {
+// Points system - member rewards/points transactions
+export const pointsTransactions = pgTable("points_transactions", {
   id: serial("id").primaryKey(),
-  userId: varchar("user_id").references(() => users.id),
-  memberId: integer("member_id").references(() => members.id),
-  pointsEarned: integer("points_earned").default(0),
-  pointsUsed: integer("points_used").default(0),
-  pointsBalance: integer("points_balance").default(0),
-  transactionType: varchar("transaction_type", { enum: ["Earned", "Redeemed", "Expired", "Adjustment"] }).notNull(),
-  description: text("description"),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  transactionType: varchar("transaction_type", { 
+    enum: ["Earned", "Redeemed", "Expired", "Adjustment", "Bonus", "Referral"] 
+  }).notNull(),
+  points: integer("points").notNull(), // positive for earned, negative for redeemed
+  description: text("description").notNull(),
+  category: varchar("category", { 
+    enum: ["Policy Purchase", "Claim Submission", "Referral", "Login", "Profile Complete", "Newsletter", "Review", "Survey", "Birthday", "Anniversary", "Redemption", "Adjustment", "Bonus"] 
+  }).notNull(),
   referenceId: varchar("reference_id"), // can reference policy, claim, etc.
+  referenceType: varchar("reference_type"), // policy, claim, referral, etc.
+  balanceAfter: integer("balance_after").notNull(),
   expiresAt: timestamp("expires_at"),
   createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Points summary for each user
+export const pointsSummary = pgTable("points_summary", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).unique().notNull(),
+  totalEarned: integer("total_earned").default(0),
+  totalRedeemed: integer("total_redeemed").default(0),
+  currentBalance: integer("current_balance").default(0),
+  lifetimeBalance: integer("lifetime_balance").default(0),
+  tierLevel: varchar("tier_level", { 
+    enum: ["Bronze", "Silver", "Gold", "Platinum", "Diamond"] 
+  }).default("Bronze"),
+  tierProgress: integer("tier_progress").default(0), // points toward next tier
+  nextTierThreshold: integer("next_tier_threshold").default(500),
+  lastEarnedAt: timestamp("last_earned_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Rewards catalog - what users can redeem points for
+export const rewards = pgTable("rewards", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 200 }).notNull(),
+  description: text("description"),
+  category: varchar("category", { 
+    enum: ["Discount", "Gift Card", "Premium Service", "Insurance Credit", "Merchandise", "Experience"] 
+  }).notNull(),
+  pointsCost: integer("points_cost").notNull(),
+  value: decimal("value", { precision: 10, scale: 2 }), // dollar value
+  imageUrl: varchar("image_url"),
+  availableQuantity: integer("available_quantity"),
+  isActive: boolean("is_active").default(true),
+  validFrom: timestamp("valid_from").defaultNow(),
+  validUntil: timestamp("valid_until"),
+  terms: text("terms"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// User reward redemptions
+export const rewardRedemptions = pgTable("reward_redemptions", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  rewardId: integer("reward_id").references(() => rewards.id).notNull(),
+  pointsTransactionId: integer("points_transaction_id").references(() => pointsTransactions.id),
+  pointsUsed: integer("points_used").notNull(),
+  status: varchar("status", { 
+    enum: ["Pending", "Approved", "Delivered", "Cancelled", "Expired"] 
+  }).default("Pending"),
+  redemptionCode: varchar("redemption_code", { length: 50 }),
+  deliveryMethod: varchar("delivery_method", { 
+    enum: ["Email", "Mail", "Digital", "Account Credit", "Instant"] 
+  }),
+  deliveryAddress: text("delivery_address"),
+  deliveredAt: timestamp("delivered_at"),
+  expiresAt: timestamp("expires_at"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Points earning rules
+export const pointsRules = pgTable("points_rules", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 200 }).notNull(),
+  description: text("description"),
+  category: varchar("category", { 
+    enum: ["Policy Purchase", "Claim Submission", "Referral", "Login", "Profile Complete", "Newsletter", "Review", "Survey", "Birthday", "Anniversary", "Bonus"] 
+  }).notNull(),
+  points: integer("points").notNull(),
+  maxPerPeriod: integer("max_per_period"), // max points per period
+  periodType: varchar("period_type", { 
+    enum: ["Daily", "Weekly", "Monthly", "Yearly", "Lifetime"] 
+  }),
+  isActive: boolean("is_active").default(true),
+  validFrom: timestamp("valid_from").defaultNow(),
+  validUntil: timestamp("valid_until"),
+  conditions: jsonb("conditions"), // additional conditions as JSON
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Applicants - individuals applying for insurance
@@ -310,16 +395,17 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   claims: many(claims),
   dependents: many(dependents),
   applications: many(applications),
-  points: many(points),
+  pointsTransactions: many(pointsTransactions),
+  pointsSummary: one(pointsSummary),
+  rewardRedemptions: many(rewardRedemptions),
   assignedContacts: many(contacts),
 }));
 
-export const membersRelations = relations(members, ({ one, many }) => ({
+export const membersRelations = relations(members, ({ one }) => ({
   user: one(users, {
     fields: [members.userId],
     references: [users.id],
   }),
-  points: many(points),
 }));
 
 export const contactsRelations = relations(contacts, ({ one, many }) => ({
@@ -370,16 +456,40 @@ export const applicantDependentsRelations = relations(applicantDependents, ({ on
   }),
 }));
 
-export const pointsRelations = relations(points, ({ one }) => ({
+export const pointsTransactionsRelations = relations(pointsTransactions, ({ one }) => ({
   user: one(users, {
-    fields: [points.userId],
+    fields: [pointsTransactions.userId],
     references: [users.id],
   }),
-  member: one(members, {
-    fields: [points.memberId],
-    references: [members.id],
+}));
+
+export const pointsSummaryRelations = relations(pointsSummary, ({ one }) => ({
+  user: one(users, {
+    fields: [pointsSummary.userId],
+    references: [users.id],
   }),
 }));
+
+export const rewardsRelations = relations(rewards, ({ many }) => ({
+  redemptions: many(rewardRedemptions),
+}));
+
+export const rewardRedemptionsRelations = relations(rewardRedemptions, ({ one }) => ({
+  user: one(users, {
+    fields: [rewardRedemptions.userId],
+    references: [users.id],
+  }),
+  reward: one(rewards, {
+    fields: [rewardRedemptions.rewardId],
+    references: [rewards.id],
+  }),
+  pointsTransaction: one(pointsTransactions, {
+    fields: [rewardRedemptions.pointsTransactionId],
+    references: [pointsTransactions.id],
+  }),
+}));
+
+export const pointsRulesRelations = relations(pointsRules, ({ }) => ({}));
 
 export const insuranceQuotesRelations = relations(insuranceQuotes, ({ one, many }) => ({
   user: one(users, {
@@ -504,8 +614,17 @@ export type Contact = typeof contacts.$inferSelect;
 export type InsertApplication = typeof applications.$inferInsert;
 export type Application = typeof applications.$inferSelect;
 
-export type InsertPoints = typeof points.$inferInsert;
-export type Points = typeof points.$inferSelect;
+// Points system types
+export type PointsTransaction = typeof pointsTransactions.$inferSelect;
+export type InsertPointsTransaction = typeof pointsTransactions.$inferInsert;
+export type PointsSummary = typeof pointsSummary.$inferSelect;
+export type InsertPointsSummary = typeof pointsSummary.$inferInsert;
+export type Reward = typeof rewards.$inferSelect;
+export type InsertReward = typeof rewards.$inferInsert;
+export type RewardRedemption = typeof rewardRedemptions.$inferSelect;
+export type InsertRewardRedemption = typeof rewardRedemptions.$inferInsert;
+export type PointsRule = typeof pointsRules.$inferSelect;
+export type InsertPointsRule = typeof pointsRules.$inferInsert;
 
 export type InsertApplicant = typeof applicants.$inferInsert;
 export type Applicant = typeof applicants.$inferSelect;
@@ -565,9 +684,34 @@ export const insertApplicationSchema = createInsertSchema(applications).omit({
   updatedAt: true,
 });
 
-export const insertPointsSchema = createInsertSchema(points).omit({
+// Points system Zod schemas
+export const insertPointsTransactionSchema = createInsertSchema(pointsTransactions).omit({
   id: true,
   createdAt: true,
+});
+
+export const insertPointsSummarySchema = createInsertSchema(pointsSummary).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertRewardSchema = createInsertSchema(rewards).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertRewardRedemptionSchema = createInsertSchema(rewardRedemptions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPointsRuleSchema = createInsertSchema(pointsRules).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
 });
 
 export const insertApplicantSchema = createInsertSchema(applicants).omit({

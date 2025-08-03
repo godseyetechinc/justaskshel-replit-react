@@ -13,7 +13,11 @@ import {
   insertMemberSchema,
   insertContactSchema,
   insertApplicationSchema,
-  insertPointsSchema,
+  insertPointsTransactionSchema,
+  insertPointsSummarySchema,
+  insertRewardSchema,
+  insertRewardRedemptionSchema,
+  insertPointsRuleSchema,
   insertApplicantSchema,
   insertApplicantDependentSchema,
   insertClaimDocumentSchema,
@@ -648,26 +652,185 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Points routes
-  app.get('/api/points', isAuthenticated, async (req: any, res) => {
+  // Points System Routes
+  
+  // Points Transactions
+  app.get('/api/points/transactions', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const points = await storage.getUserPoints(userId);
-      res.json(points);
+      const transactions = await storage.getUserPointsTransactions(userId);
+      res.json(transactions);
     } catch (error) {
-      console.error("Error fetching points:", error);
-      res.status(500).json({ message: "Failed to fetch points" });
+      console.error("Error fetching points transactions:", error);
+      res.status(500).json({ message: "Failed to fetch points transactions" });
     }
   });
 
-  app.post('/api/points', isAuthenticated, async (req: any, res) => {
+  app.post('/api/points/transactions', isAuthenticated, async (req: any, res) => {
     try {
-      const pointsData = insertPointsSchema.parse(req.body);
-      const points = await storage.createPoints(pointsData);
-      res.status(201).json(points);
+      const transactionData = insertPointsTransactionSchema.parse(req.body);
+      const transaction = await storage.createPointsTransaction(transactionData);
+      res.status(201).json(transaction);
     } catch (error) {
-      console.error("Error creating points:", error);
-      res.status(400).json({ message: "Failed to create points" });
+      console.error("Error creating points transaction:", error);
+      res.status(400).json({ message: "Failed to create points transaction" });
+    }
+  });
+
+  // Points Summary
+  app.get('/api/points/summary', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      let summary = await storage.getUserPointsSummary(userId);
+      if (!summary) {
+        summary = await storage.initializeUserPointsSummary(userId);
+      }
+      res.json(summary);
+    } catch (error) {
+      console.error("Error fetching points summary:", error);
+      res.status(500).json({ message: "Failed to fetch points summary" });
+    }
+  });
+
+  // Award points (for admin use)
+  app.post('/api/points/award', isAuthenticated, async (req: any, res) => {
+    try {
+      const { userId, points, category, description, referenceId, referenceType } = req.body;
+      const transaction = await storage.awardPoints(userId, points, category, description, referenceId, referenceType);
+      res.status(201).json(transaction);
+    } catch (error) {
+      console.error("Error awarding points:", error);
+      res.status(400).json({ message: "Failed to award points" });
+    }
+  });
+
+  // Rewards
+  app.get('/api/rewards', isAuthenticated, async (req: any, res) => {
+    try {
+      const rewards = await storage.getActiveRewards();
+      res.json(rewards);
+    } catch (error) {
+      console.error("Error fetching rewards:", error);
+      res.status(500).json({ message: "Failed to fetch rewards" });
+    }
+  });
+
+  app.get('/api/rewards/all', isAuthenticated, async (req: any, res) => {
+    try {
+      const rewards = await storage.getRewards();
+      res.json(rewards);
+    } catch (error) {
+      console.error("Error fetching all rewards:", error);
+      res.status(500).json({ message: "Failed to fetch rewards" });
+    }
+  });
+
+  app.post('/api/rewards', isAuthenticated, async (req: any, res) => {
+    try {
+      const rewardData = insertRewardSchema.parse(req.body);
+      const reward = await storage.createReward(rewardData);
+      res.status(201).json(reward);
+    } catch (error) {
+      console.error("Error creating reward:", error);
+      res.status(400).json({ message: "Failed to create reward" });
+    }
+  });
+
+  app.put('/api/rewards/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const rewardData = insertRewardSchema.partial().parse(req.body);
+      const reward = await storage.updateReward(parseInt(id), rewardData);
+      res.json(reward);
+    } catch (error) {
+      console.error("Error updating reward:", error);
+      res.status(400).json({ message: "Failed to update reward" });
+    }
+  });
+
+  app.delete('/api/rewards/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteReward(parseInt(id));
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting reward:", error);
+      res.status(500).json({ message: "Failed to delete reward" });
+    }
+  });
+
+  // Reward Redemptions
+  app.get('/api/redemptions', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const redemptions = await storage.getUserRedemptions(userId);
+      res.json(redemptions);
+    } catch (error) {
+      console.error("Error fetching redemptions:", error);
+      res.status(500).json({ message: "Failed to fetch redemptions" });
+    }
+  });
+
+  app.post('/api/redemptions', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { rewardId, pointsUsed } = req.body;
+      
+      // Validate reward exists and user has enough points
+      const reward = await storage.getRewardById(rewardId);
+      if (!reward) {
+        return res.status(404).json({ message: "Reward not found" });
+      }
+
+      const summary = await storage.getUserPointsSummary(userId);
+      if (!summary || summary.currentBalance < reward.pointsCost) {
+        return res.status(400).json({ message: "Insufficient points" });
+      }
+
+      // Create redemption transaction
+      const pointsTransaction = await storage.redeemPoints(
+        userId, 
+        reward.pointsCost, 
+        `Redeemed: ${reward.name}`, 
+        reward.id
+      );
+
+      // Create redemption record
+      const redemption = await storage.createRewardRedemption({
+        userId,
+        rewardId: reward.id,
+        pointsTransactionId: pointsTransaction.id,
+        pointsUsed: reward.pointsCost,
+        status: "Pending",
+        redemptionCode: `RDM-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`
+      });
+
+      res.status(201).json(redemption);
+    } catch (error) {
+      console.error("Error creating redemption:", error);
+      res.status(400).json({ message: "Failed to create redemption" });
+    }
+  });
+
+  // Points Rules (Admin only)
+  app.get('/api/points/rules', isAuthenticated, async (req: any, res) => {
+    try {
+      const rules = await storage.getActivePointsRules();
+      res.json(rules);
+    } catch (error) {
+      console.error("Error fetching points rules:", error);
+      res.status(500).json({ message: "Failed to fetch points rules" });
+    }
+  });
+
+  app.post('/api/points/rules', isAuthenticated, async (req: any, res) => {
+    try {
+      const ruleData = insertPointsRuleSchema.parse(req.body);
+      const rule = await storage.createPointsRule(ruleData);
+      res.status(201).json(rule);
+    } catch (error) {
+      console.error("Error creating points rule:", error);
+      res.status(400).json({ message: "Failed to create points rule" });
     }
   });
 

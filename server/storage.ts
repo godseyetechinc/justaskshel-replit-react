@@ -3,7 +3,11 @@ import {
   members,
   contacts,
   applications,
-  points,
+  pointsTransactions,
+  pointsSummary,
+  rewards,
+  rewardRedemptions,
+  pointsRules,
   applicants,
   applicantDependents,
   insuranceTypes,
@@ -25,8 +29,16 @@ import {
   type InsertContact,
   type Application,
   type InsertApplication,
-  type Points,
-  type InsertPoints,
+  type PointsTransaction,
+  type InsertPointsTransaction,
+  type PointsSummary,
+  type InsertPointsSummary,
+  type Reward,
+  type InsertReward,
+  type RewardRedemption,
+  type InsertRewardRedemption,
+  type PointsRule,
+  type InsertPointsRule,
   type Applicant,
   type InsertApplicant,
   type ApplicantDependent,
@@ -145,10 +157,42 @@ export interface IStorage {
   updateApplication(id: number, application: Partial<InsertApplication>): Promise<Application>;
   deleteApplication(id: number): Promise<void>;
 
-  // Points
-  createPoints(points: InsertPoints): Promise<Points>;
-  getUserPoints(userId: string): Promise<Points[]>;
-  getMemberPoints(memberId: number): Promise<Points[]>;
+  // Points System
+  // Points Transactions
+  createPointsTransaction(transaction: InsertPointsTransaction): Promise<PointsTransaction>;
+  getUserPointsTransactions(userId: string): Promise<PointsTransaction[]>;
+  getPointsTransactionById(id: number): Promise<PointsTransaction | undefined>;
+  
+  // Points Summary
+  getUserPointsSummary(userId: string): Promise<PointsSummary | undefined>;
+  updatePointsSummary(userId: string, update: Partial<InsertPointsSummary>): Promise<PointsSummary>;
+  initializeUserPointsSummary(userId: string): Promise<PointsSummary>;
+  
+  // Rewards
+  createReward(reward: InsertReward): Promise<Reward>;
+  getRewards(): Promise<Reward[]>;
+  getActiveRewards(): Promise<Reward[]>;
+  getRewardById(id: number): Promise<Reward | undefined>;
+  updateReward(id: number, reward: Partial<InsertReward>): Promise<Reward>;
+  deleteReward(id: number): Promise<void>;
+  
+  // Reward Redemptions
+  createRewardRedemption(redemption: InsertRewardRedemption): Promise<RewardRedemption>;
+  getUserRedemptions(userId: string): Promise<(RewardRedemption & { reward: Reward })[]>;
+  getRedemptionById(id: number): Promise<RewardRedemption | undefined>;
+  updateRedemption(id: number, redemption: Partial<InsertRewardRedemption>): Promise<RewardRedemption>;
+  
+  // Points Rules
+  createPointsRule(rule: InsertPointsRule): Promise<PointsRule>;
+  getPointsRules(): Promise<PointsRule[]>;
+  getActivePointsRules(): Promise<PointsRule[]>;
+  getPointsRuleByCategory(category: string): Promise<PointsRule | undefined>;
+  
+  // Points Management Helper Methods
+  awardPoints(userId: string, points: number, category: string, description: string, referenceId?: string, referenceType?: string): Promise<PointsTransaction>;
+  redeemPoints(userId: string, points: number, description: string, rewardId?: number): Promise<PointsTransaction>;
+  calculateTierLevel(totalPoints: number): Promise<{ tier: string; progress: number; nextThreshold: number }>;
+  processPointsExpiration(): Promise<void>;
 
   // Applicants
   createApplicant(applicant: InsertApplicant): Promise<Applicant>;
@@ -786,6 +830,273 @@ export class DatabaseStorage implements IStorage {
     }
 
     return steps;
+  }
+
+  // Points System Implementation
+  // Points Transactions
+  async createPointsTransaction(transaction: InsertPointsTransaction): Promise<PointsTransaction> {
+    const [result] = await db.insert(pointsTransactions).values(transaction).returning();
+    
+    // Update user's points summary
+    await this.updatePointsSummaryAfterTransaction(transaction.userId, transaction.points, transaction.transactionType);
+    
+    return result;
+  }
+
+  async getUserPointsTransactions(userId: string): Promise<PointsTransaction[]> {
+    return await db.select().from(pointsTransactions)
+      .where(eq(pointsTransactions.userId, userId))
+      .orderBy(desc(pointsTransactions.createdAt));
+  }
+
+  async getPointsTransactionById(id: number): Promise<PointsTransaction | undefined> {
+    const [transaction] = await db.select().from(pointsTransactions)
+      .where(eq(pointsTransactions.id, id));
+    return transaction;
+  }
+
+  // Points Summary
+  async getUserPointsSummary(userId: string): Promise<PointsSummary | undefined> {
+    const [summary] = await db.select().from(pointsSummary)
+      .where(eq(pointsSummary.userId, userId));
+    return summary;
+  }
+
+  async updatePointsSummary(userId: string, update: Partial<InsertPointsSummary>): Promise<PointsSummary> {
+    const [result] = await db.update(pointsSummary)
+      .set({ ...update, updatedAt: new Date() })
+      .where(eq(pointsSummary.userId, userId))
+      .returning();
+    return result;
+  }
+
+  async initializeUserPointsSummary(userId: string): Promise<PointsSummary> {
+    const [result] = await db.insert(pointsSummary)
+      .values({
+        userId,
+        totalEarned: 0,
+        totalRedeemed: 0,
+        currentBalance: 0,
+        lifetimeBalance: 0,
+        tierLevel: "Bronze",
+        tierProgress: 0,
+        nextTierThreshold: 500
+      })
+      .returning();
+    return result;
+  }
+
+  // Private helper method to update points summary after transactions
+  private async updatePointsSummaryAfterTransaction(userId: string, points: number, transactionType: string): Promise<void> {
+    let summary = await this.getUserPointsSummary(userId);
+    
+    if (!summary) {
+      summary = await this.initializeUserPointsSummary(userId);
+    }
+
+    const updates: Partial<InsertPointsSummary> = {};
+    
+    if (transactionType === "Earned" || transactionType === "Bonus" || transactionType === "Referral") {
+      updates.totalEarned = (summary.totalEarned || 0) + points;
+      updates.currentBalance = (summary.currentBalance || 0) + points;
+      updates.lifetimeBalance = (summary.lifetimeBalance || 0) + points;
+      updates.lastEarnedAt = new Date();
+    } else if (transactionType === "Redeemed") {
+      updates.totalRedeemed = (summary.totalRedeemed || 0) + Math.abs(points);
+      updates.currentBalance = (summary.currentBalance || 0) - Math.abs(points);
+    }
+
+    // Calculate tier progression
+    if (updates.lifetimeBalance !== undefined) {
+      const tierInfo = await this.calculateTierLevel(updates.lifetimeBalance);
+      updates.tierLevel = tierInfo.tier as any;
+      updates.tierProgress = tierInfo.progress;
+      updates.nextTierThreshold = tierInfo.nextThreshold;
+    }
+
+    await this.updatePointsSummary(userId, updates);
+  }
+
+  // Rewards
+  async createReward(reward: InsertReward): Promise<Reward> {
+    const [result] = await db.insert(rewards).values(reward).returning();
+    return result;
+  }
+
+  async getRewards(): Promise<Reward[]> {
+    return await db.select().from(rewards).orderBy(desc(rewards.createdAt));
+  }
+
+  async getActiveRewards(): Promise<Reward[]> {
+    return await db.select().from(rewards)
+      .where(eq(rewards.isActive, true))
+      .orderBy(rewards.pointsCost);
+  }
+
+  async getRewardById(id: number): Promise<Reward | undefined> {
+    const [reward] = await db.select().from(rewards)
+      .where(eq(rewards.id, id));
+    return reward;
+  }
+
+  async updateReward(id: number, reward: Partial<InsertReward>): Promise<Reward> {
+    const [result] = await db.update(rewards)
+      .set({ ...reward, updatedAt: new Date() })
+      .where(eq(rewards.id, id))
+      .returning();
+    return result;
+  }
+
+  async deleteReward(id: number): Promise<void> {
+    await db.delete(rewards).where(eq(rewards.id, id));
+  }
+
+  // Reward Redemptions
+  async createRewardRedemption(redemption: InsertRewardRedemption): Promise<RewardRedemption> {
+    const [result] = await db.insert(rewardRedemptions).values(redemption).returning();
+    return result;
+  }
+
+  async getUserRedemptions(userId: string): Promise<(RewardRedemption & { reward: Reward })[]> {
+    return await db.select()
+      .from(rewardRedemptions)
+      .leftJoin(rewards, eq(rewardRedemptions.rewardId, rewards.id))
+      .where(eq(rewardRedemptions.userId, userId))
+      .orderBy(desc(rewardRedemptions.createdAt)) as any;
+  }
+
+  async getRedemptionById(id: number): Promise<RewardRedemption | undefined> {
+    const [redemption] = await db.select().from(rewardRedemptions)
+      .where(eq(rewardRedemptions.id, id));
+    return redemption;
+  }
+
+  async updateRedemption(id: number, redemption: Partial<InsertRewardRedemption>): Promise<RewardRedemption> {
+    const [result] = await db.update(rewardRedemptions)
+      .set({ ...redemption, updatedAt: new Date() })
+      .where(eq(rewardRedemptions.id, id))
+      .returning();
+    return result;
+  }
+
+  // Points Rules
+  async createPointsRule(rule: InsertPointsRule): Promise<PointsRule> {
+    const [result] = await db.insert(pointsRules).values(rule).returning();
+    return result;
+  }
+
+  async getPointsRules(): Promise<PointsRule[]> {
+    return await db.select().from(pointsRules).orderBy(pointsRules.category);
+  }
+
+  async getActivePointsRules(): Promise<PointsRule[]> {
+    return await db.select().from(pointsRules)
+      .where(eq(pointsRules.isActive, true))
+      .orderBy(pointsRules.category);
+  }
+
+  async getPointsRuleByCategory(category: string): Promise<PointsRule | undefined> {
+    const [rule] = await db.select().from(pointsRules)
+      .where(and(
+        eq(pointsRules.category, category as any),
+        eq(pointsRules.isActive, true)
+      ));
+    return rule;
+  }
+
+  // Points Management Helper Methods
+  async awardPoints(
+    userId: string, 
+    points: number, 
+    category: string, 
+    description: string, 
+    referenceId?: string, 
+    referenceType?: string
+  ): Promise<PointsTransaction> {
+    const summary = await this.getUserPointsSummary(userId);
+    const balanceAfter = (summary?.currentBalance || 0) + points;
+
+    return await this.createPointsTransaction({
+      userId,
+      transactionType: "Earned",
+      points,
+      description,
+      category: category as any,
+      referenceId,
+      referenceType,
+      balanceAfter
+    });
+  }
+
+  async redeemPoints(
+    userId: string, 
+    points: number, 
+    description: string, 
+    rewardId?: number
+  ): Promise<PointsTransaction> {
+    const summary = await this.getUserPointsSummary(userId);
+    
+    if (!summary || summary.currentBalance < points) {
+      throw new Error("Insufficient points balance");
+    }
+
+    const balanceAfter = summary.currentBalance - points;
+
+    return await this.createPointsTransaction({
+      userId,
+      transactionType: "Redeemed",
+      points: -points, // Negative for redemption
+      description,
+      category: "Redemption",
+      referenceId: rewardId?.toString(),
+      referenceType: "reward",
+      balanceAfter
+    });
+  }
+
+  async calculateTierLevel(totalPoints: number): Promise<{ tier: string; progress: number; nextThreshold: number }> {
+    const tierThresholds = {
+      Bronze: 0,
+      Silver: 500,
+      Gold: 1500,
+      Platinum: 3000,
+      Diamond: 5000
+    };
+
+    let currentTier = "Bronze";
+    let nextThreshold = 500;
+
+    for (const [tier, threshold] of Object.entries(tierThresholds)) {
+      if (totalPoints >= threshold) {
+        currentTier = tier;
+      }
+    }
+
+    // Calculate next threshold
+    const tierKeys = Object.keys(tierThresholds);
+    const currentTierIndex = tierKeys.indexOf(currentTier);
+    if (currentTierIndex < tierKeys.length - 1) {
+      nextThreshold = Object.values(tierThresholds)[currentTierIndex + 1];
+    } else {
+      nextThreshold = totalPoints; // Already at highest tier
+    }
+
+    const currentThreshold = tierThresholds[currentTier as keyof typeof tierThresholds];
+    const progress = nextThreshold > totalPoints ? totalPoints - currentThreshold : nextThreshold - currentThreshold;
+
+    return { tier: currentTier, progress, nextThreshold };
+  }
+
+  async processPointsExpiration(): Promise<void> {
+    // Process expired points (points with expiresAt in the past)
+    const expiredTransactions = await db.select().from(pointsTransactions)
+      .where(and(
+        eq(pointsTransactions.transactionType, "Earned"),
+        // Add condition for expired points if needed
+      ));
+
+    // Implementation for processing expired points
+    // This would typically run as a scheduled job
   }
 }
 

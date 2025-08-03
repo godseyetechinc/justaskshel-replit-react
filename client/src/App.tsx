@@ -16,6 +16,7 @@ import ApplicationsPage from "@/pages/dashboard/applications";
 import PoliciesPage from "@/pages/dashboard/policies";
 import WishlistPage from "@/pages/dashboard/wishlist";
 import PointsPage from "@/pages/dashboard/points";
+import RewardsManagementPage from "@/pages/dashboard/rewards-management";
 import DependentsPage from "@/pages/dashboard/dependents";
 import UserManagementPage from "@/pages/dashboard/user-management";
 import PasswordManagementPage from "@/pages/dashboard/password-management";
@@ -60,6 +61,7 @@ function Router() {
           <Route path="/dashboard/policies" component={PoliciesPage} />
           <Route path="/dashboard/wishlist" component={WishlistPage} />
           <Route path="/dashboard/points" component={PointsPage} />
+          <Route path="/dashboard/rewards-management" component={RewardsManagementPage} />
           <Route path="/dashboard/dependents" component={DependentsPage} />
           <Route path="/dashboard/user-management" component={UserManagementPage} />
           <Route path="/dashboard/password-management" component={PasswordManagementPage} />
