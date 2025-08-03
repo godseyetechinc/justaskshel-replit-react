@@ -10,6 +10,13 @@ import Home from "@/pages/home";
 import Dashboard from "@/pages/dashboard";
 import MembersPage from "@/pages/dashboard/members";
 import ClaimsWorkflow from "@/pages/dashboard/claims-workflow";
+import ProfilePage from "@/pages/dashboard/profile";
+import ContactsPage from "@/pages/dashboard/contacts";
+import ApplicationsPage from "@/pages/dashboard/applications";
+import PoliciesPage from "@/pages/dashboard/policies";
+import WishlistPage from "@/pages/dashboard/wishlist";
+import PointsPage from "@/pages/dashboard/points";
+import DependentsPage from "@/pages/dashboard/dependents";
 import Quotes from "@/pages/quotes";
 import InsuranceTypes from "@/pages/insurance-types";
 import ClaimsAssistance from "@/pages/claims-assistance";
@@ -44,6 +51,13 @@ function Router() {
           <Route path="/dashboard" component={Dashboard} />
           <Route path="/dashboard/members" component={MembersPage} />
           <Route path="/dashboard/claims" component={ClaimsWorkflow} />
+          <Route path="/dashboard/profile" component={ProfilePage} />
+          <Route path="/dashboard/contacts" component={ContactsPage} />
+          <Route path="/dashboard/applications" component={ApplicationsPage} />
+          <Route path="/dashboard/policies" component={PoliciesPage} />
+          <Route path="/dashboard/wishlist" component={WishlistPage} />
+          <Route path="/dashboard/points" component={PointsPage} />
+          <Route path="/dashboard/dependents" component={DependentsPage} />
           <Route path="/quotes" component={Quotes} />
           <Route path="/insurance-types" component={InsuranceTypes} />
           <Route path="/claims-assistance" component={ClaimsAssistance} />

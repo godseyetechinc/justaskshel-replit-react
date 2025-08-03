@@ -60,6 +60,9 @@ export interface IStorage {
   // User operations - mandatory for Replit Auth
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
+  updateUserProfile(id: string, userData: Partial<UpsertUser>): Promise<User>;
+  getAllUsers(): Promise<User[]>;
+  createDefaultAdminUser(): Promise<User | null>;
   
   // Insurance types
   getInsuranceTypes(): Promise<InsuranceType[]>;
@@ -181,6 +184,43 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return user;
+  }
+
+  async updateUserProfile(id: string, userData: Partial<UpsertUser>): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ ...userData, updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    return user;
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return await db.select().from(users).orderBy(desc(users.createdAt));
+  }
+
+  async createDefaultAdminUser(): Promise<User | null> {
+    // Check if admin already exists
+    const existingAdmin = await db.select().from(users).where(eq(users.role, "Admin")).limit(1);
+    if (existingAdmin.length > 0) {
+      return existingAdmin[0];
+    }
+
+    // Create default admin user
+    const [adminUser] = await db
+      .insert(users)
+      .values({
+        id: "admin-default-user",
+        email: "admin@insurescope.com",
+        firstName: "System",
+        lastName: "Administrator",
+        role: "Admin",
+        isActive: true,
+      })
+      .onConflictDoNothing()
+      .returning();
+    
+    return adminUser || null;
   }
 
   // Insurance types

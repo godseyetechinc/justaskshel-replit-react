@@ -52,7 +52,42 @@ const menuItems: MenuItem[] = [
     label: "Contacts",
     icon: Phone,
     href: "/dashboard/contacts",
+    roles: ["Admin", "Agent", "Member"]
+  },
+  {
+    id: "applications",
+    label: "Applications",
+    icon: FileText,
+    href: "/dashboard/applications",
+    roles: ["Admin", "Agent", "Member"]
+  },
+  {
+    id: "policies",
+    label: "Policies",
+    icon: Shield,
+    href: "/dashboard/policies",
+    roles: ["Admin", "Agent", "Member"]
+  },
+  {
+    id: "wishlist",
+    label: "Wishlist",
+    icon: Star,
+    href: "/dashboard/wishlist",
+    roles: ["Admin", "Agent", "Member"]
+  },
+  {
+    id: "points",
+    label: "Loyalty Points",
+    icon: Star,
+    href: "/dashboard/points",
     roles: ["Admin", "Agent"]
+  },
+  {
+    id: "dependents",
+    label: "Dependents",
+    icon: Users,
+    href: "/dashboard/dependents",
+    roles: ["Admin", "Agent", "Member"]
   },
   {
     id: "applications",
@@ -109,6 +144,13 @@ const menuItems: MenuItem[] = [
     icon: Settings,
     href: "/dashboard/user-management",
     roles: ["Admin"]
+  },
+  {
+    id: "profile",
+    label: "My Profile",
+    icon: UserCheck,
+    href: "/dashboard/profile",
+    roles: ["Admin", "Agent", "Member"]
   }
 ];
 

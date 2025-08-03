@@ -37,6 +37,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put('/api/auth/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.updateUserProfile(userId, req.body);
+      res.json(user);
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
+
+  // Initialize default admin user on startup
+  app.post('/api/admin/init', async (req, res) => {
+    try {
+      const adminUser = await storage.createDefaultAdminUser();
+      if (adminUser) {
+        res.json({ message: "Default admin user created", user: adminUser });
+      } else {
+        res.json({ message: "Default admin user already exists" });
+      }
+    } catch (error) {
+      console.error("Error creating default admin user:", error);
+      res.status(500).json({ message: "Failed to create default admin user" });
+    }
+  });
+
   // Insurance types
   app.get('/api/insurance-types', async (req, res) => {
     try {
