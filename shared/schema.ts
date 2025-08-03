@@ -109,11 +109,61 @@ export const claims = pgTable("claims", {
   userId: varchar("user_id").references(() => users.id),
   policyId: integer("policy_id").references(() => policies.id),
   claimNumber: varchar("claim_number", { length: 50 }).notNull(),
+  title: varchar("title", { length: 200 }).notNull(),
   description: text("description"),
+  claimType: varchar("claim_type", { length: 50 }).notNull(), // medical, dental, vision, life, disability
+  incidentDate: timestamp("incident_date").notNull(),
   amount: decimal("amount", { precision: 10, scale: 2 }),
-  status: varchar("status", { length: 20 }).default("pending"),
-  submittedAt: timestamp("submitted_at").defaultNow(),
+  estimatedAmount: decimal("estimated_amount", { precision: 10, scale: 2 }),
+  status: varchar("status", { length: 20 }).default("draft"), // draft, submitted, under_review, approved, denied, paid, closed
+  priority: varchar("priority", { length: 20 }).default("normal"), // low, normal, high, urgent
+  assignedAgent: varchar("assigned_agent").references(() => users.id),
+  submittedAt: timestamp("submitted_at"),
+  reviewedAt: timestamp("reviewed_at"),
   processedAt: timestamp("processed_at"),
+  paidAt: timestamp("paid_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Claims documents table for file attachments
+export const claimDocuments = pgTable("claim_documents", {
+  id: serial("id").primaryKey(),
+  claimId: integer("claim_id").references(() => claims.id).notNull(),
+  fileName: varchar("file_name", { length: 255 }).notNull(),
+  fileType: varchar("file_type", { length: 50 }).notNull(),
+  fileSize: integer("file_size"),
+  documentType: varchar("document_type", { length: 50 }).notNull(), // medical_record, receipt, police_report, photo, other
+  uploadedBy: varchar("uploaded_by").references(() => users.id),
+  uploadedAt: timestamp("uploaded_at").defaultNow(),
+  isRequired: boolean("is_required").default(false),
+  status: varchar("status", { length: 20 }).default("pending"), // pending, approved, rejected
+});
+
+// Claims communications/notes table
+export const claimCommunications = pgTable("claim_communications", {
+  id: serial("id").primaryKey(),
+  claimId: integer("claim_id").references(() => claims.id).notNull(),
+  userId: varchar("user_id").references(() => users.id),
+  messageType: varchar("message_type", { length: 50 }).notNull(), // note, message, system_update, status_change
+  subject: varchar("subject", { length: 200 }),
+  message: text("message").notNull(),
+  isInternal: boolean("is_internal").default(false), // internal notes vs customer communications
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Claims workflow steps
+export const claimWorkflowSteps = pgTable("claim_workflow_steps", {
+  id: serial("id").primaryKey(),
+  claimId: integer("claim_id").references(() => claims.id).notNull(),
+  stepName: varchar("step_name", { length: 100 }).notNull(),
+  stepDescription: text("step_description"),
+  status: varchar("status", { length: 20 }).notNull(), // pending, in_progress, completed, skipped
+  assignedTo: varchar("assigned_to").references(() => users.id),
+  dueDate: timestamp("due_date"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Dependents
@@ -376,7 +426,7 @@ export const policiesRelations = relations(policies, ({ one, many }) => ({
   claims: many(claims),
 }));
 
-export const claimsRelations = relations(claims, ({ one }) => ({
+export const claimsRelations = relations(claims, ({ one, many }) => ({
   user: one(users, {
     fields: [claims.userId],
     references: [users.id],
@@ -384,6 +434,46 @@ export const claimsRelations = relations(claims, ({ one }) => ({
   policy: one(policies, {
     fields: [claims.policyId],
     references: [policies.id],
+  }),
+  assignedAgent: one(users, {
+    fields: [claims.assignedAgent],
+    references: [users.id],
+  }),
+  documents: many(claimDocuments),
+  communications: many(claimCommunications),
+  workflowSteps: many(claimWorkflowSteps),
+}));
+
+export const claimDocumentsRelations = relations(claimDocuments, ({ one }) => ({
+  claim: one(claims, {
+    fields: [claimDocuments.claimId],
+    references: [claims.id],
+  }),
+  uploadedBy: one(users, {
+    fields: [claimDocuments.uploadedBy],
+    references: [users.id],
+  }),
+}));
+
+export const claimCommunicationsRelations = relations(claimCommunications, ({ one }) => ({
+  claim: one(claims, {
+    fields: [claimCommunications.claimId],
+    references: [claims.id],
+  }),
+  user: one(users, {
+    fields: [claimCommunications.userId],
+    references: [users.id],
+  }),
+}));
+
+export const claimWorkflowStepsRelations = relations(claimWorkflowSteps, ({ one }) => ({
+  claim: one(claims, {
+    fields: [claimWorkflowSteps.claimId],
+    references: [claims.id],
+  }),
+  assignedTo: one(users, {
+    fields: [claimWorkflowSteps.assignedTo],
+    references: [users.id],
   }),
 }));
 
@@ -436,6 +526,15 @@ export type Policy = typeof policies.$inferSelect;
 
 export type InsertClaim = typeof claims.$inferInsert;
 export type Claim = typeof claims.$inferSelect;
+
+export type InsertClaimDocument = typeof claimDocuments.$inferInsert;
+export type ClaimDocument = typeof claimDocuments.$inferSelect;
+
+export type InsertClaimCommunication = typeof claimCommunications.$inferInsert;
+export type ClaimCommunication = typeof claimCommunications.$inferSelect;
+
+export type InsertClaimWorkflowStep = typeof claimWorkflowSteps.$inferInsert;
+export type ClaimWorkflowStep = typeof claimWorkflowSteps.$inferSelect;
 
 export type InsertDependent = typeof dependents.$inferInsert;
 export type Dependent = typeof dependents.$inferSelect;
@@ -498,7 +597,24 @@ export const insertPolicySchema = createInsertSchema(policies).omit({
 
 export const insertClaimSchema = createInsertSchema(claims).omit({
   id: true,
-  submittedAt: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertClaimDocumentSchema = createInsertSchema(claimDocuments).omit({
+  id: true,
+  uploadedAt: true,
+});
+
+export const insertClaimCommunicationSchema = createInsertSchema(claimCommunications).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertClaimWorkflowStepSchema = createInsertSchema(claimWorkflowSteps).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
 });
 
 export const insertDependentSchema = createInsertSchema(dependents).omit({

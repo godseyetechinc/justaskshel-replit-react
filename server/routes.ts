@@ -15,6 +15,9 @@ import {
   insertPointsSchema,
   insertApplicantSchema,
   insertApplicantDependentSchema,
+  insertClaimDocumentSchema,
+  insertClaimCommunicationSchema,
+  insertClaimWorkflowStepSchema,
 } from "@shared/schema";
 import { z } from "zod";
 
@@ -206,11 +209,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/claims', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const claims = await storage.getUserClaims(userId);
+      const userRole = req.user.role || "Member";
+      
+      let claims;
+      if (userRole === "Admin" || userRole === "Agent") {
+        claims = await storage.getAllClaims();
+      } else {
+        claims = await storage.getUserClaims(userId);
+      }
       res.json(claims);
     } catch (error) {
       console.error("Error fetching claims:", error);
       res.status(500).json({ message: "Failed to fetch claims" });
+    }
+  });
+
+  app.get('/api/claims/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const claim = await storage.getClaim(parseInt(id));
+      if (!claim) {
+        return res.status(404).json({ message: "Claim not found" });
+      }
+      res.json(claim);
+    } catch (error) {
+      console.error("Error fetching claim:", error);
+      res.status(500).json({ message: "Failed to fetch claim" });
     }
   });
 
@@ -220,8 +244,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = insertClaimSchema.parse({
         ...req.body,
         userId,
+        claimNumber: `CLM-${Date.now()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`,
       });
+      
       const claim = await storage.createClaim(validatedData);
+      
+      // Initialize workflow steps for the claim
+      if (claim.claimType) {
+        await storage.initializeClaimWorkflow(claim.id, claim.claimType);
+      }
+      
       res.status(201).json(claim);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -229,6 +261,123 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       console.error("Error creating claim:", error);
       res.status(500).json({ message: "Failed to create claim" });
+    }
+  });
+
+  app.put('/api/claims/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertClaimSchema.partial().parse(req.body);
+      const claim = await storage.updateClaim(parseInt(id), validatedData);
+      res.json(claim);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error("Error updating claim:", error);
+      res.status(500).json({ message: "Failed to update claim" });
+    }
+  });
+
+  // Claim Documents
+  app.get('/api/claims/:id/documents', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const documents = await storage.getClaimDocuments(parseInt(id));
+      res.json(documents);
+    } catch (error) {
+      console.error("Error fetching claim documents:", error);
+      res.status(500).json({ message: "Failed to fetch claim documents" });
+    }
+  });
+
+  app.post('/api/claims/:id/documents', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      const validatedData = insertClaimDocumentSchema.parse({
+        ...req.body,
+        claimId: parseInt(id),
+        uploadedBy: userId,
+      });
+      const document = await storage.uploadClaimDocument(validatedData);
+      res.status(201).json(document);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error("Error uploading document:", error);
+      res.status(500).json({ message: "Failed to upload document" });
+    }
+  });
+
+  app.delete('/api/claim-documents/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteClaimDocument(parseInt(id));
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting document:", error);
+      res.status(500).json({ message: "Failed to delete document" });
+    }
+  });
+
+  // Claim Communications
+  app.get('/api/claims/:id/communications', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const communications = await storage.getClaimCommunications(parseInt(id));
+      res.json(communications);
+    } catch (error) {
+      console.error("Error fetching claim communications:", error);
+      res.status(500).json({ message: "Failed to fetch claim communications" });
+    }
+  });
+
+  app.post('/api/claims/:id/communications', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      const validatedData = insertClaimCommunicationSchema.parse({
+        ...req.body,
+        claimId: parseInt(id),
+        userId,
+      });
+      const communication = await storage.addClaimCommunication(validatedData);
+      res.status(201).json(communication);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error("Error adding communication:", error);
+      res.status(500).json({ message: "Failed to add communication" });
+    }
+  });
+
+  // Claim Workflow Steps
+  app.get('/api/claims/:id/workflow', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const steps = await storage.getClaimWorkflowSteps(parseInt(id));
+      res.json(steps);
+    } catch (error) {
+      console.error("Error fetching workflow steps:", error);
+      res.status(500).json({ message: "Failed to fetch workflow steps" });
+    }
+  });
+
+  app.put('/api/workflow-steps/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertClaimWorkflowStepSchema.partial().parse(req.body);
+      const step = await storage.updateWorkflowStep(parseInt(id), validatedData);
+      res.json(step);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error("Error updating workflow step:", error);
+      res.status(500).json({ message: "Failed to update workflow step" });
     }
   });
 

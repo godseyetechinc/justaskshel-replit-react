@@ -1,0 +1,722 @@
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import DashboardLayout from "@/components/dashboard-layout";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { insertClaimSchema, insertClaimCommunicationSchema } from "@shared/schema";
+import { z } from "zod";
+import { 
+  FileText, 
+  MessageSquare, 
+  Clock, 
+  CheckCircle, 
+  AlertTriangle, 
+  Upload,
+  Plus,
+  Search,
+  Filter,
+  Eye,
+  Calendar,
+  User,
+  DollarSign,
+  Activity
+} from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { format } from "date-fns";
+
+const statusColors = {
+  draft: "bg-gray-500",
+  submitted: "bg-blue-500",
+  under_review: "bg-yellow-500",
+  approved: "bg-green-500",
+  denied: "bg-red-500",
+  paid: "bg-purple-500",
+  closed: "bg-gray-700"
+};
+
+const priorityColors = {
+  low: "bg-green-100 text-green-800",
+  normal: "bg-blue-100 text-blue-800",
+  high: "bg-orange-100 text-orange-800",
+  urgent: "bg-red-100 text-red-800"
+};
+
+const claimFormSchema = insertClaimSchema.extend({
+  incidentDate: z.string().min(1, "Incident date is required"),
+});
+
+const communicationFormSchema = insertClaimCommunicationSchema.omit({
+  claimId: true,
+  userId: true,
+  createdAt: true,
+});
+
+export default function ClaimsWorkflow() {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedClaim, setSelectedClaim] = useState<any>(null);
+  const [isNewClaimOpen, setIsNewClaimOpen] = useState(false);
+  const [isCommunicationOpen, setIsCommunicationOpen] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Fetch all claims
+  const { data: claims = [], isLoading } = useQuery({
+    queryKey: ["/api/claims"],
+  });
+
+  // Fetch selected claim details
+  const { data: claimDetails } = useQuery({
+    queryKey: ["/api/claims", selectedClaim?.id],
+    enabled: !!selectedClaim?.id,
+  });
+
+  // Fetch claim workflow steps
+  const { data: workflowSteps = [] } = useQuery({
+    queryKey: ["/api/claims", selectedClaim?.id, "workflow"],
+    enabled: !!selectedClaim?.id,
+  });
+
+  // Fetch claim communications
+  const { data: communications = [] } = useQuery({
+    queryKey: ["/api/claims", selectedClaim?.id, "communications"],
+    enabled: !!selectedClaim?.id,
+  });
+
+  // Fetch claim documents
+  const { data: documents = [] } = useQuery({
+    queryKey: ["/api/claims", selectedClaim?.id, "documents"],
+    enabled: !!selectedClaim?.id,
+  });
+
+  // Create new claim mutation
+  const createClaimMutation = useMutation({
+    mutationFn: async (data: any) => apiRequest("/api/claims", "POST", data),
+    onSuccess: () => {
+      toast({ title: "Success", description: "Claim created successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/claims"] });
+      setIsNewClaimOpen(false);
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to create claim", variant: "destructive" });
+    },
+  });
+
+  // Add communication mutation
+  const addCommunicationMutation = useMutation({
+    mutationFn: async (data: any) => 
+      apiRequest(`/api/claims/${selectedClaim.id}/communications`, "POST", data),
+    onSuccess: () => {
+      toast({ title: "Success", description: "Communication added successfully" });
+      queryClient.invalidateQueries({ 
+        queryKey: ["/api/claims", selectedClaim.id, "communications"] 
+      });
+      setIsCommunicationOpen(false);
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to add communication", variant: "destructive" });
+    },
+  });
+
+  // Update workflow step mutation
+  const updateWorkflowMutation = useMutation({
+    mutationFn: async ({ stepId, data }: { stepId: number; data: any }) => 
+      apiRequest(`/api/workflow-steps/${stepId}`, "PUT", data),
+    onSuccess: () => {
+      toast({ title: "Success", description: "Workflow step updated successfully" });
+      queryClient.invalidateQueries({ 
+        queryKey: ["/api/claims", selectedClaim.id, "workflow"] 
+      });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update workflow step", variant: "destructive" });
+    },
+  });
+
+  const newClaimForm = useForm({
+    resolver: zodResolver(claimFormSchema),
+    defaultValues: {
+      title: "",
+      description: "",
+      claimType: "",
+      incidentDate: "",
+      estimatedAmount: "",
+      priority: "normal",
+    },
+  });
+
+  const communicationForm = useForm({
+    resolver: zodResolver(communicationFormSchema),
+    defaultValues: {
+      subject: "",
+      message: "",
+      messageType: "message",
+      isInternal: false,
+    },
+  });
+
+  const onCreateClaim = (data: any) => {
+    createClaimMutation.mutate({
+      ...data,
+      incidentDate: new Date(data.incidentDate).toISOString(),
+      estimatedAmount: data.estimatedAmount ? parseFloat(data.estimatedAmount) : null,
+    });
+  };
+
+  const onAddCommunication = (data: any) => {
+    addCommunicationMutation.mutate(data);
+  };
+
+  const filteredClaims = claims.filter((claim: any) =>
+    claim.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    claim.claimNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    claim.claimType?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <DashboardLayout>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Claims Workflow</h1>
+            <p className="text-gray-600">Manage insurance claims with advanced workflow tracking</p>
+          </div>
+          <Dialog open={isNewClaimOpen} onOpenChange={setIsNewClaimOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-primary text-white hover:bg-primary/90">
+                <Plus className="h-4 w-4 mr-2" />
+                New Claim
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Create New Claim</DialogTitle>
+                <DialogDescription>
+                  Submit a new insurance claim with all required details
+                </DialogDescription>
+              </DialogHeader>
+              <Form {...newClaimForm}>
+                <form onSubmit={newClaimForm.handleSubmit(onCreateClaim)} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={newClaimForm.control}
+                      name="title"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Claim Title</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Brief description of claim" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={newClaimForm.control}
+                      name="claimType"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Claim Type</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select claim type" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="medical">Medical</SelectItem>
+                              <SelectItem value="dental">Dental</SelectItem>
+                              <SelectItem value="vision">Vision</SelectItem>
+                              <SelectItem value="life">Life Insurance</SelectItem>
+                              <SelectItem value="disability">Disability</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={newClaimForm.control}
+                      name="incidentDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Incident Date</FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={newClaimForm.control}
+                      name="estimatedAmount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Estimated Amount</FormLabel>
+                          <FormControl>
+                            <Input type="number" step="0.01" placeholder="0.00" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <FormField
+                    control={newClaimForm.control}
+                    name="priority"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Priority</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select priority" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="low">Low</SelectItem>
+                            <SelectItem value="normal">Normal</SelectItem>
+                            <SelectItem value="high">High</SelectItem>
+                            <SelectItem value="urgent">Urgent</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={newClaimForm.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Description</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Detailed description of the claim..." 
+                            className="min-h-[100px]"
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button type="button" variant="outline" onClick={() => setIsNewClaimOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={createClaimMutation.isPending}>
+                      {createClaimMutation.isPending ? "Creating..." : "Create Claim"}
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Claims List */}
+          <div className="lg:col-span-1">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Activity className="h-5 w-5" />
+                  Claims List
+                </CardTitle>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      placeholder="Search claims..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                  <Button variant="outline" size="sm">
+                    <Filter className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="space-y-2 max-h-[600px] overflow-y-auto">
+                  {isLoading ? (
+                    <div className="p-4 text-center text-gray-500">Loading claims...</div>
+                  ) : filteredClaims.length === 0 ? (
+                    <div className="p-4 text-center text-gray-500">No claims found</div>
+                  ) : (
+                    filteredClaims.map((claim: any) => (
+                      <div
+                        key={claim.id}
+                        className={`p-4 border-b cursor-pointer hover:bg-gray-50 transition-colors ${
+                          selectedClaim?.id === claim.id ? "bg-blue-50 border-blue-200" : ""
+                        }`}
+                        onClick={() => setSelectedClaim(claim)}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h4 className="font-medium text-sm truncate">{claim.title}</h4>
+                              <Badge className={`text-xs ${priorityColors[claim.priority as keyof typeof priorityColors]}`}>
+                                {claim.priority}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-gray-600 mb-2">{claim.claimNumber}</p>
+                            <div className="flex items-center justify-between">
+                              <Badge className={`text-xs text-white ${statusColors[claim.status as keyof typeof statusColors]}`}>
+                                {claim.status.replace('_', ' ')}
+                              </Badge>
+                              <span className="text-xs text-gray-500 uppercase">{claim.claimType}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Claim Details */}
+          <div className="lg:col-span-2">
+            {selectedClaim ? (
+              <Tabs defaultValue="overview" className="space-y-4">
+                <TabsList className="grid w-full grid-cols-4">
+                  <TabsTrigger value="overview">Overview</TabsTrigger>
+                  <TabsTrigger value="workflow">Workflow</TabsTrigger>
+                  <TabsTrigger value="communications">Communications</TabsTrigger>
+                  <TabsTrigger value="documents">Documents</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="overview">
+                  <Card>
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle className="flex items-center gap-2">
+                            <Eye className="h-5 w-5" />
+                            Claim Details
+                          </CardTitle>
+                          <CardDescription>{selectedClaim.claimNumber}</CardDescription>
+                        </div>
+                        <Badge className={`${statusColors[selectedClaim.status as keyof typeof statusColors]} text-white`}>
+                          {selectedClaim.status.replace('_', ' ')}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <div className="grid grid-cols-2 gap-6">
+                        <div className="space-y-4">
+                          <div>
+                            <label className="text-sm font-medium text-gray-700">Title</label>
+                            <p className="text-sm text-gray-900">{selectedClaim.title}</p>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-gray-700">Claim Type</label>
+                            <p className="text-sm text-gray-900 capitalize">{selectedClaim.claimType}</p>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-gray-700">Priority</label>
+                            <Badge className={`${priorityColors[selectedClaim.priority as keyof typeof priorityColors]} text-xs`}>
+                              {selectedClaim.priority}
+                            </Badge>
+                          </div>
+                        </div>
+                        <div className="space-y-4">
+                          <div>
+                            <label className="text-sm font-medium text-gray-700">Incident Date</label>
+                            <p className="text-sm text-gray-900">
+                              {selectedClaim.incidentDate ? format(new Date(selectedClaim.incidentDate), 'MMM dd, yyyy') : 'N/A'}
+                            </p>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-gray-700">Estimated Amount</label>
+                            <p className="text-sm text-gray-900">
+                              {selectedClaim.estimatedAmount ? `$${parseFloat(selectedClaim.estimatedAmount).toFixed(2)}` : 'N/A'}
+                            </p>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-gray-700">Created</label>
+                            <p className="text-sm text-gray-900">
+                              {format(new Date(selectedClaim.createdAt), 'MMM dd, yyyy')}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Description</label>
+                        <p className="text-sm text-gray-900 mt-1">{selectedClaim.description || 'No description provided'}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="workflow">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Activity className="h-5 w-5" />
+                        Workflow Progress
+                      </CardTitle>
+                      <CardDescription>Track the progress of your claim through each step</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {workflowSteps.map((step: any, index: number) => (
+                          <div key={step.id} className="flex items-start gap-4">
+                            <div className="flex flex-col items-center">
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium ${
+                                step.status === 'completed' ? 'bg-green-500' :
+                                step.status === 'in_progress' ? 'bg-blue-500' :
+                                step.status === 'pending' ? 'bg-gray-400' : 'bg-gray-300'
+                              }`}>
+                                {step.status === 'completed' ? (
+                                  <CheckCircle className="h-4 w-4" />
+                                ) : step.status === 'in_progress' ? (
+                                  <Clock className="h-4 w-4" />
+                                ) : (
+                                  index + 1
+                                )}
+                              </div>
+                              {index < workflowSteps.length - 1 && (
+                                <div className="w-0.5 h-12 bg-gray-300 mt-2"></div>
+                              )}
+                            </div>
+                            <div className="flex-1 pb-8">
+                              <div className="flex items-center justify-between">
+                                <h4 className="font-medium text-gray-900">{step.stepName}</h4>
+                                <Badge variant="outline" className="text-xs">
+                                  {step.status.replace('_', ' ')}
+                                </Badge>
+                              </div>
+                              <p className="text-sm text-gray-600 mt-1">{step.stepDescription}</p>
+                              {step.completedAt && (
+                                <p className="text-xs text-gray-500 mt-2">
+                                  Completed {format(new Date(step.completedAt), 'MMM dd, yyyy HH:mm')}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="communications">
+                  <Card>
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle className="flex items-center gap-2">
+                            <MessageSquare className="h-5 w-5" />
+                            Communications
+                          </CardTitle>
+                          <CardDescription>Messages and updates for this claim</CardDescription>
+                        </div>
+                        <Dialog open={isCommunicationOpen} onOpenChange={setIsCommunicationOpen}>
+                          <DialogTrigger asChild>
+                            <Button size="sm">
+                              <Plus className="h-4 w-4 mr-2" />
+                              Add Message
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Add Communication</DialogTitle>
+                              <DialogDescription>
+                                Add a message or note to this claim
+                              </DialogDescription>
+                            </DialogHeader>
+                            <Form {...communicationForm}>
+                              <form onSubmit={communicationForm.handleSubmit(onAddCommunication)} className="space-y-4">
+                                <FormField
+                                  control={communicationForm.control}
+                                  name="subject"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Subject</FormLabel>
+                                      <FormControl>
+                                        <Input placeholder="Message subject" {...field} />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                                <FormField
+                                  control={communicationForm.control}
+                                  name="messageType"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Type</FormLabel>
+                                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl>
+                                          <SelectTrigger>
+                                            <SelectValue placeholder="Select type" />
+                                          </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                          <SelectItem value="message">Message</SelectItem>
+                                          <SelectItem value="note">Note</SelectItem>
+                                          <SelectItem value="system_update">System Update</SelectItem>
+                                          <SelectItem value="status_change">Status Change</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                                <FormField
+                                  control={communicationForm.control}
+                                  name="message"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Message</FormLabel>
+                                      <FormControl>
+                                        <Textarea 
+                                          placeholder="Your message..." 
+                                          className="min-h-[100px]"
+                                          {...field} 
+                                        />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                                <div className="flex justify-end gap-2">
+                                  <Button type="button" variant="outline" onClick={() => setIsCommunicationOpen(false)}>
+                                    Cancel
+                                  </Button>
+                                  <Button type="submit" disabled={addCommunicationMutation.isPending}>
+                                    {addCommunicationMutation.isPending ? "Adding..." : "Add Message"}
+                                  </Button>
+                                </div>
+                              </form>
+                            </Form>
+                          </DialogContent>
+                        </Dialog>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {communications.length === 0 ? (
+                          <p className="text-center text-gray-500 py-8">No communications yet</p>
+                        ) : (
+                          communications.map((comm: any) => (
+                            <div key={comm.id} className="border rounded-lg p-4">
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                  <User className="h-4 w-4 text-gray-400" />
+                                  <span className="font-medium text-sm">System User</span>
+                                  <Badge variant="outline" className="text-xs">
+                                    {comm.messageType.replace('_', ' ')}
+                                  </Badge>
+                                </div>
+                                <span className="text-xs text-gray-500">
+                                  {format(new Date(comm.createdAt), 'MMM dd, yyyy HH:mm')}
+                                </span>
+                              </div>
+                              {comm.subject && (
+                                <h4 className="font-medium text-sm mb-2">{comm.subject}</h4>
+                              )}
+                              <p className="text-sm text-gray-700">{comm.message}</p>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="documents">
+                  <Card>
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle className="flex items-center gap-2">
+                            <FileText className="h-5 w-5" />
+                            Documents
+                          </CardTitle>
+                          <CardDescription>Upload and manage claim documents</CardDescription>
+                        </div>
+                        <Button size="sm">
+                          <Upload className="h-4 w-4 mr-2" />
+                          Upload Document
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {documents.length === 0 ? (
+                          <div className="text-center py-8">
+                            <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                            <p className="text-gray-500">No documents uploaded yet</p>
+                            <Button variant="outline" className="mt-4">
+                              <Upload className="h-4 w-4 mr-2" />
+                              Upload First Document
+                            </Button>
+                          </div>
+                        ) : (
+                          documents.map((doc: any) => (
+                            <div key={doc.id} className="flex items-center justify-between p-3 border rounded-lg">
+                              <div className="flex items-center gap-3">
+                                <FileText className="h-5 w-5 text-gray-400" />
+                                <div>
+                                  <p className="font-medium text-sm">{doc.fileName}</p>
+                                  <p className="text-xs text-gray-500">
+                                    {doc.documentType.replace('_', ' ')} • {doc.fileSize ? `${(doc.fileSize / 1024).toFixed(1)} KB` : 'Unknown size'}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Badge className={`text-xs ${
+                                  doc.status === 'approved' ? 'bg-green-100 text-green-800' :
+                                  doc.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                                  'bg-yellow-100 text-yellow-800'
+                                }`}>
+                                  {doc.status}
+                                </Badge>
+                                <Button variant="ghost" size="sm">
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </Tabs>
+            ) : (
+              <Card>
+                <CardContent className="flex items-center justify-center h-64">
+                  <div className="text-center">
+                    <Activity className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-500">Select a claim to view details</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
+      </div>
+    </DashboardLayout>
+  );
+}

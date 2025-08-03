@@ -9,6 +9,7 @@ import Landing from "@/pages/landing";
 import Home from "@/pages/home";
 import Dashboard from "@/pages/dashboard";
 import MembersPage from "@/pages/dashboard/members";
+import ClaimsWorkflow from "@/pages/dashboard/claims-workflow";
 import Quotes from "@/pages/quotes";
 import InsuranceTypes from "@/pages/insurance-types";
 import ClaimsAssistance from "@/pages/claims-assistance";
@@ -42,6 +43,7 @@ function Router() {
           <Route path="/" component={Home} />
           <Route path="/dashboard" component={Dashboard} />
           <Route path="/dashboard/members" component={MembersPage} />
+          <Route path="/dashboard/claims" component={ClaimsWorkflow} />
           <Route path="/quotes" component={Quotes} />
           <Route path="/insurance-types" component={InsuranceTypes} />
           <Route path="/claims-assistance" component={ClaimsAssistance} />

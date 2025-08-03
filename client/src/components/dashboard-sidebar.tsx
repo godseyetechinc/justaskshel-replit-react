@@ -69,6 +69,13 @@ const menuItems: MenuItem[] = [
     roles: ["Admin", "Agent", "Member"]
   },
   {
+    id: "claims",
+    label: "Claims Workflow",
+    icon: FileText,
+    href: "/dashboard/claims",
+    roles: ["Admin", "Agent", "Member"]
+  },
+  {
     id: "points",
     label: "Points System",
     icon: Star,

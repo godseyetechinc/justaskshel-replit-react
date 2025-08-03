@@ -13,6 +13,9 @@ import {
   wishlist,
   policies,
   claims,
+  claimDocuments,
+  claimCommunications,
+  claimWorkflowSteps,
   dependents,
   type User,
   type UpsertUser,
@@ -40,6 +43,12 @@ import {
   type InsertPolicy,
   type Claim,
   type InsertClaim,
+  type ClaimDocument,
+  type InsertClaimDocument,
+  type ClaimCommunication,
+  type InsertClaimCommunication,
+  type ClaimWorkflowStep,
+  type InsertClaimWorkflowStep,
   type Dependent,
   type InsertDependent,
 } from "@shared/schema";
@@ -85,7 +94,25 @@ export interface IStorage {
   
   // Claims
   createClaim(claim: InsertClaim): Promise<Claim>;
+  updateClaim(id: number, claim: Partial<InsertClaim>): Promise<Claim>;
+  getClaim(id: number): Promise<Claim | undefined>;
   getUserClaims(userId: string): Promise<(Claim & { policy: Policy & { quote: InsuranceQuote & { type: InsuranceType } } })[]>;
+  getAllClaims(): Promise<Claim[]>;
+  
+  // Claim Documents
+  uploadClaimDocument(document: InsertClaimDocument): Promise<ClaimDocument>;
+  getClaimDocuments(claimId: number): Promise<ClaimDocument[]>;
+  deleteClaimDocument(id: number): Promise<void>;
+  
+  // Claim Communications
+  addClaimCommunication(communication: InsertClaimCommunication): Promise<ClaimCommunication>;
+  getClaimCommunications(claimId: number): Promise<ClaimCommunication[]>;
+  
+  // Claim Workflow Steps
+  createWorkflowStep(step: InsertClaimWorkflowStep): Promise<ClaimWorkflowStep>;
+  updateWorkflowStep(id: number, step: Partial<InsertClaimWorkflowStep>): Promise<ClaimWorkflowStep>;
+  getClaimWorkflowSteps(claimId: number): Promise<ClaimWorkflowStep[]>;
+  initializeClaimWorkflow(claimId: number, claimType: string): Promise<ClaimWorkflowStep[]>;
   
   // Dependents
   createDependent(dependent: InsertDependent): Promise<Dependent>;
@@ -370,6 +397,24 @@ export class DatabaseStorage implements IStorage {
     return newClaim;
   }
 
+  async updateClaim(id: number, claim: Partial<InsertClaim>): Promise<Claim> {
+    const [updatedClaim] = await db
+      .update(claims)
+      .set({ ...claim, updatedAt: new Date() })
+      .where(eq(claims.id, id))
+      .returning();
+    return updatedClaim;
+  }
+
+  async getClaim(id: number): Promise<Claim | undefined> {
+    const [claim] = await db.select().from(claims).where(eq(claims.id, id));
+    return claim;
+  }
+
+  async getAllClaims(): Promise<Claim[]> {
+    return await db.select().from(claims).orderBy(desc(claims.createdAt));
+  }
+
   async getUserClaims(userId: string): Promise<(Claim & { policy: Policy & { quote: InsuranceQuote & { type: InsuranceType } } })[]> {
     return await db
       .select({
@@ -585,6 +630,107 @@ export class DatabaseStorage implements IStorage {
 
   async deleteApplicantDependent(id: number): Promise<void> {
     await db.delete(applicantDependents).where(eq(applicantDependents.id, id));
+  }
+
+  // Claim Documents
+  async uploadClaimDocument(document: InsertClaimDocument): Promise<ClaimDocument> {
+    const [newDocument] = await db.insert(claimDocuments).values(document).returning();
+    return newDocument;
+  }
+
+  async getClaimDocuments(claimId: number): Promise<ClaimDocument[]> {
+    return await db.select().from(claimDocuments).where(eq(claimDocuments.claimId, claimId));
+  }
+
+  async deleteClaimDocument(id: number): Promise<void> {
+    await db.delete(claimDocuments).where(eq(claimDocuments.id, id));
+  }
+
+  // Claim Communications
+  async addClaimCommunication(communication: InsertClaimCommunication): Promise<ClaimCommunication> {
+    const [newCommunication] = await db.insert(claimCommunications).values(communication).returning();
+    return newCommunication;
+  }
+
+  async getClaimCommunications(claimId: number): Promise<ClaimCommunication[]> {
+    return await db.select().from(claimCommunications)
+      .where(eq(claimCommunications.claimId, claimId))
+      .orderBy(desc(claimCommunications.createdAt));
+  }
+
+  // Claim Workflow Steps
+  async createWorkflowStep(step: InsertClaimWorkflowStep): Promise<ClaimWorkflowStep> {
+    const [newStep] = await db.insert(claimWorkflowSteps).values(step).returning();
+    return newStep;
+  }
+
+  async updateWorkflowStep(id: number, step: Partial<InsertClaimWorkflowStep>): Promise<ClaimWorkflowStep> {
+    const [updatedStep] = await db
+      .update(claimWorkflowSteps)
+      .set({ ...step, updatedAt: new Date() })
+      .where(eq(claimWorkflowSteps.id, id))
+      .returning();
+    return updatedStep;
+  }
+
+  async getClaimWorkflowSteps(claimId: number): Promise<ClaimWorkflowStep[]> {
+    return await db.select().from(claimWorkflowSteps)
+      .where(eq(claimWorkflowSteps.claimId, claimId))
+      .orderBy(claimWorkflowSteps.createdAt);
+  }
+
+  async initializeClaimWorkflow(claimId: number, claimType: string): Promise<ClaimWorkflowStep[]> {
+    // Define workflow steps based on claim type
+    const workflowTemplates = {
+      medical: [
+        { stepName: "Initial Review", stepDescription: "Review claim submission and documentation" },
+        { stepName: "Medical Review", stepDescription: "Medical professional reviews claim details" },
+        { stepName: "Verification", stepDescription: "Verify medical records and treatment" },
+        { stepName: "Approval Decision", stepDescription: "Final approval or denial decision" },
+        { stepName: "Payment Processing", stepDescription: "Process approved claim payment" }
+      ],
+      dental: [
+        { stepName: "Initial Review", stepDescription: "Review claim submission and documentation" },
+        { stepName: "Dental Review", stepDescription: "Dental professional reviews claim details" },
+        { stepName: "Approval Decision", stepDescription: "Final approval or denial decision" },
+        { stepName: "Payment Processing", stepDescription: "Process approved claim payment" }
+      ],
+      vision: [
+        { stepName: "Initial Review", stepDescription: "Review claim submission and documentation" },
+        { stepName: "Vision Review", stepDescription: "Vision care professional reviews claim details" },
+        { stepName: "Approval Decision", stepDescription: "Final approval or denial decision" },
+        { stepName: "Payment Processing", stepDescription: "Process approved claim payment" }
+      ],
+      life: [
+        { stepName: "Initial Review", stepDescription: "Review claim submission and documentation" },
+        { stepName: "Investigation", stepDescription: "Investigate claim circumstances" },
+        { stepName: "Documentation Review", stepDescription: "Review all required documentation" },
+        { stepName: "Approval Decision", stepDescription: "Final approval or denial decision" },
+        { stepName: "Payment Processing", stepDescription: "Process approved claim payment" }
+      ],
+      disability: [
+        { stepName: "Initial Review", stepDescription: "Review claim submission and documentation" },
+        { stepName: "Medical Evaluation", stepDescription: "Medical evaluation of disability claim" },
+        { stepName: "Vocational Assessment", stepDescription: "Assess work capability and vocational factors" },
+        { stepName: "Approval Decision", stepDescription: "Final approval or denial decision" },
+        { stepName: "Payment Setup", stepDescription: "Setup ongoing disability payments" }
+      ]
+    };
+
+    const template = workflowTemplates[claimType.toLowerCase() as keyof typeof workflowTemplates] || workflowTemplates.medical;
+    
+    const steps: ClaimWorkflowStep[] = [];
+    for (const [index, stepTemplate] of template.entries()) {
+      const step = await this.createWorkflowStep({
+        claimId,
+        stepName: stepTemplate.stepName,
+        stepDescription: stepTemplate.stepDescription,
+        status: index === 0 ? "in_progress" : "pending"
+      });
+      steps.push(step);
+    }
+
+    return steps;
   }
 }
 
