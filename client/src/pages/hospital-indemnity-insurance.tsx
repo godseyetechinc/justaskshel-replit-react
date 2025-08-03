@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Building2, Shield, DollarSign, Users, CheckCircle, AlertCircle, FileText, Calculator, Heart, Zap } from "lucide-react";
 import { Link } from "wouter";
+import Navigation from "@/components/navigation";
 
 export default function HospitalIndemnityInsurance() {
   const coverageBenefits = [
@@ -138,6 +139,7 @@ export default function HospitalIndemnityInsurance() {
 
   return (
     <div className="min-h-screen bg-background">
+      <Navigation />
       {/* Hero Section */}
       <div className="bg-gradient-to-br from-primary/10 to-primary/5 py-16">
         <div className="container mx-auto px-4">
