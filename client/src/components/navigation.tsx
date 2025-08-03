@@ -21,7 +21,7 @@ export default function Navigation() {
   const navigation = [
     { name: "Home", href: "/" },
     { name: "Compare Quotes", href: "/quotes" },
-    { name: "Claims Assistance", href: "/claims-assistance" },
+    { name: "Claims", href: "/claims-assistance" },
   ];
 
   const insuranceTypes = [
@@ -40,16 +40,19 @@ export default function Navigation() {
   };
 
   return (
-    <nav className="bg-white sticky top-0 z-50" style={{ boxShadow: 'var(--elevation-2)' }}>
+    <nav
+      className="bg-white sticky top-0 z-50"
+      style={{ boxShadow: "var(--elevation-2)" }}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <div className="flex items-center">
             <Link href="/">
               <div className="flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity flex items-center">
-                <img 
-                  src={jasBrandLogo} 
-                  alt="Reliable Insurance Solutions" 
+                <img
+                  src={jasBrandLogo}
+                  alt="Reliable Insurance Solutions"
                   className="h-10 w-auto mr-3"
                 />
                 <h1 className="text-2xl font-medium text-primary">
@@ -57,7 +60,7 @@ export default function Navigation() {
                 </h1>
               </div>
             </Link>
-            
+
             {/* Desktop Navigation */}
             <div className="hidden md:block ml-10">
               <div className="flex items-baseline space-x-4">
@@ -74,19 +77,19 @@ export default function Navigation() {
                     </a>
                   </Link>
                 ))}
-                
+
                 {/* Insurance Types Dropdown */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="ghost"
                       className={`px-4 py-2 text-sm font-medium transition-all duration-200 rounded-md ${
-                        insuranceTypes.some(type => isActive(type.href))
+                        insuranceTypes.some((type) => isActive(type.href))
                           ? "text-white bg-primary shadow-md"
                           : "text-gray-700 hover:text-primary hover:bg-gray-50"
                       }`}
                     >
-                      Insurance Types
+                      Insurance
                       <ChevronDown className="ml-1 h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -119,11 +122,19 @@ export default function Navigation() {
                 </Link>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                    <Button
+                      variant="ghost"
+                      className="relative h-8 w-8 rounded-full"
+                    >
                       <Avatar className="h-8 w-8">
-                        <AvatarImage src={user.profileImageUrl || ""} alt={user.firstName || "User"} />
+                        <AvatarImage
+                          src={user.profileImageUrl || ""}
+                          alt={user.firstName || "User"}
+                        />
                         <AvatarFallback>
-                          {user.firstName?.charAt(0) || user.email?.charAt(0) || "U"}
+                          {user.firstName?.charAt(0) ||
+                            user.email?.charAt(0) ||
+                            "U"}
                         </AvatarFallback>
                       </Avatar>
                     </Button>
@@ -131,7 +142,9 @@ export default function Navigation() {
                   <DropdownMenuContent className="w-56" align="end" forceMount>
                     <div className="flex flex-col space-y-1 p-2">
                       <p className="text-sm font-medium leading-none">
-                        {user.firstName || user.lastName ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : 'User'}
+                        {user.firstName || user.lastName
+                          ? `${user.firstName || ""} ${user.lastName || ""}`.trim()
+                          : "User"}
                       </p>
                       <p className="text-xs leading-none text-muted-foreground">
                         {user.email}
@@ -145,7 +158,9 @@ export default function Navigation() {
                       <Link href="/quotes">My Quotes</Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => window.location.href = '/api/logout'}>
+                    <DropdownMenuItem
+                      onClick={() => (window.location.href = "/api/logout")}
+                    >
                       Log out
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -153,10 +168,13 @@ export default function Navigation() {
               </>
             ) : (
               <>
-                <Button variant="ghost" onClick={() => window.location.href = '/api/login'}>
+                <Button
+                  variant="ghost"
+                  onClick={() => (window.location.href = "/api/login")}
+                >
                   Sign In
                 </Button>
-                <Button onClick={() => window.location.href = '/api/login'}>
+                <Button onClick={() => (window.location.href = "/api/login")}>
                   Get Started
                 </Button>
               </>
@@ -197,7 +215,7 @@ export default function Navigation() {
                   </a>
                 </Link>
               ))}
-              
+
               {/* Insurance Types Section */}
               <div className="pt-2">
                 <Link href="/insurance-types">
@@ -212,7 +230,7 @@ export default function Navigation() {
                     All Insurance Types
                   </a>
                 </Link>
-                
+
                 {insuranceTypes.map((type) => (
                   <Link key={type.name} href={type.href}>
                     <a
@@ -228,7 +246,7 @@ export default function Navigation() {
                   </Link>
                 ))}
               </div>
-              
+
               {/* Mobile Auth Section */}
               <div className="mt-4 pt-4 border-t border-gray-200">
                 {isAuthenticated && user ? (
@@ -253,7 +271,7 @@ export default function Navigation() {
                       className="block w-full text-left px-3 py-2 text-base font-medium text-gray-500 hover:text-primary hover:bg-gray-50"
                       onClick={() => {
                         setMobileMenuOpen(false);
-                        window.location.href = '/api/logout';
+                        window.location.href = "/api/logout";
                       }}
                     >
                       Sign Out
@@ -265,7 +283,7 @@ export default function Navigation() {
                       className="block w-full text-left px-3 py-2 text-base font-medium text-gray-500 hover:text-primary hover:bg-gray-50"
                       onClick={() => {
                         setMobileMenuOpen(false);
-                        window.location.href = '/api/login';
+                        window.location.href = "/api/login";
                       }}
                     >
                       Sign In
@@ -274,7 +292,7 @@ export default function Navigation() {
                       className="block w-full text-left px-3 py-2 text-base font-medium text-primary hover:bg-primary/10"
                       onClick={() => {
                         setMobileMenuOpen(false);
-                        window.location.href = '/api/login';
+                        window.location.href = "/api/login";
                       }}
                     >
                       Get Started
