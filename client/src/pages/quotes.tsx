@@ -132,8 +132,8 @@ export default function Quotes() {
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">Compare Insurance Quotes</h1>
-          <p className="text-lg text-gray-600">Find the perfect insurance coverage for your needs</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-4">Compare Coverage Quotes</h1>
+          <p className="text-lg text-gray-600">Find the perfect coverage for your needs</p>
         </div>
 
         {/* Search Form */}
@@ -144,7 +144,7 @@ export default function Quotes() {
           <CardContent>
             <div className="grid md:grid-cols-4 gap-4 mb-6">
               <div>
-                <Label htmlFor="insuranceType">Insurance Type</Label>
+                <Label htmlFor="coverageType">Coverage Type</Label>
                 <Select value={searchFilters.typeId} onValueChange={(value) => setSearchFilters(prev => ({ ...prev, typeId: value }))}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select Type" />

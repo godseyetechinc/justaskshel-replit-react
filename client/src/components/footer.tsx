@@ -42,7 +42,7 @@ export default function Footer() {
                 alt="Reliable Insurance Solutions" 
                 className="h-8 w-auto mr-3"
               />
-              InsureScope
+              JustAskShel
             </h3>
             <p className="text-gray-300 mb-6">
               Your trusted partner for affordable, comprehensive insurance coverage with expert guidance every step of the way.
@@ -119,7 +119,7 @@ export default function Footer() {
         {/* Footer Bottom */}
         <div className="border-t border-gray-800 mt-12 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
-            <p className="text-gray-400">&copy; 2023 InsureScope. All rights reserved.</p>
+            <p className="text-gray-400">&copy; 2023 JustAskShel. All rights reserved.</p>
             <div className="flex items-center space-x-6 mt-4 md:mt-0 text-gray-400">
               <div className="flex items-center">
                 <Shield className="h-4 w-4 mr-2 text-green-400" />

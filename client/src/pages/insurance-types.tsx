@@ -39,7 +39,7 @@ const getInsuranceTypeUrl = (typeName: string): string => {
   return urlMap[typeName] || "/insurance-types";
 };
 
-export default function InsuranceTypes() {
+export default function CoverageTypes() {
   const { data: insuranceTypes = [], isLoading } = useQuery({
     queryKey: ["/api/insurance-types"],
   });
@@ -182,10 +182,10 @@ export default function InsuranceTypes() {
         {/* Hero Section */}
         <div className="text-center mb-16">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Insurance Coverage Options
+            Coverage Options
           </h1>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Explore our comprehensive range of insurance products designed to protect you and your family
+            Explore our comprehensive range of coverage options designed to protect you and your family
           </p>
         </div>
 

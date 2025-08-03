@@ -46,8 +46,8 @@ export default function HeroSection() {
           <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-4xl mx-auto">
             <div className="grid md:grid-cols-4 gap-4 mb-6">
               <div>
-                <Label htmlFor="insuranceType" className="block text-sm font-medium text-gray-700 mb-2">
-                  Insurance Type
+                <Label htmlFor="coverageType" className="block text-sm font-medium text-gray-700 mb-2">
+                  Coverage Type
                 </Label>
                 <Select value={searchFilters.typeId} onValueChange={(value) => setSearchFilters(prev => ({ ...prev, typeId: value }))}>
                   <SelectTrigger className="w-full">

@@ -93,7 +93,7 @@ export default function Home() {
                     className="h-10 w-auto mr-3"
                   />
                   <h1 className="text-2xl font-medium text-primary">
-                    InsureScope
+                    JustAskShel
                   </h1>
                 </div>
               </Link>

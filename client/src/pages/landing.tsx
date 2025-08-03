@@ -23,13 +23,13 @@ export default function Landing() {
                   className="h-10 w-auto mr-3"
                 />
                 <h1 className="text-2xl font-bold text-primary">
-                  InsureScope
+                  JustAskShel
                 </h1>
               </div>
               <div className="hidden md:block ml-10">
                 <div className="flex items-baseline space-x-4">
                   <a href="#" className="text-gray-900 hover:text-primary px-3 py-2 text-sm font-medium">Home</a>
-                  <a href="#insurance-types" className="text-gray-500 hover:text-primary px-3 py-2 text-sm font-medium">Insurance Types</a>
+                  <a href="#insurance-types" className="text-gray-500 hover:text-primary px-3 py-2 text-sm font-medium">Coverage Types</a>
                   <a href="#compare" className="text-gray-500 hover:text-primary px-3 py-2 text-sm font-medium">Compare Quotes</a>
                   <a href="#claims" className="text-gray-500 hover:text-primary px-3 py-2 text-sm font-medium">Claims Assistance</a>
                 </div>

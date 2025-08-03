@@ -1,8 +1,11 @@
 # Overview
 
-InsureScope is a comprehensive insurance comparison and management platform that helps users find, compare, and manage insurance policies across multiple types including life, health, dental, vision, and hospital indemnity insurance. The platform provides quote comparison tools, policy management dashboards, claims assistance, and wishlist functionality to streamline the insurance shopping and management experience.
+JustAskShel is a comprehensive insurance comparison and management platform that helps users find, compare, and manage insurance policies across multiple types including life, health, dental, vision, and hospital indemnity insurance. The platform provides quote comparison tools, policy management dashboards, claims assistance, and wishlist functionality to streamline the insurance shopping and management experience.
 
 ## Recent Updates (August 2025)
+- **Application Rebranding**: Renamed application from "InsureScope" to "JustAskShel" with updated branding throughout the platform
+- **Terminology Consistency**: Updated all references from "Insurance Types" to "Coverage Types" across the application for improved clarity
+- **Header Menu Styling**: Applied consistent dashboard-style header menu styling across all pages for unified user experience
 - **Default Admin User**: Created system administrator account (admin@insurescope.com) with full system access
 - **Comprehensive CRUD Operations**: Implemented full create, read, update, delete functionality for all database entities with role-based access control
 - **Enhanced User Profile Management**: Added profile editing page with comprehensive user information fields (phone, address, date of birth, etc.)
