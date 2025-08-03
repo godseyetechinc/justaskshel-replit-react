@@ -32,11 +32,11 @@ export default function Home() {
     { name: "Claims", href: "/claims-assistance" },
   ];
 
-  const insuranceTypes = [
-    { name: "Life Insurance", href: "/life-insurance" },
-    { name: "Health Insurance", href: "/health-insurance" },
-    { name: "Dental Insurance", href: "/dental-insurance" },
-    { name: "Vision Insurance", href: "/vision-insurance" },
+  const coverageTypes = [
+    { name: "Life Coverage", href: "/life-insurance" },
+    { name: "Health Coverage", href: "/health-insurance" },
+    { name: "Dental Coverage", href: "/dental-insurance" },
+    { name: "Vision Coverage", href: "/vision-insurance" },
     { name: "Hospital Indemnity", href: "/hospital-indemnity-insurance" },
     { name: "Discount Health Plans", href: "/discount-health-insurance" },
   ];
@@ -115,29 +115,29 @@ export default function Home() {
                     </Link>
                   ))}
 
-                  {/* Insurance Types Dropdown */}
+                  {/* Coverage Types Dropdown */}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
                         variant="ghost"
                         className={`px-4 py-2 text-sm font-medium transition-all duration-200 rounded-md ${
-                          insuranceTypes.some((type) => isActive(type.href))
+                          coverageTypes.some((type) => isActive(type.href))
                             ? "text-white bg-primary shadow-md"
                             : "text-gray-700 hover:text-primary hover:bg-gray-50"
                         }`}
                       >
-                        Insurance
+                        Coverage
                         <ChevronDown className="ml-1 h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent className="w-56">
                       <DropdownMenuItem asChild>
                         <Link href="/insurance-types">
-                          <a className="w-full">View All Insurance Types</a>
+                          <a className="w-full">View All Coverage Types</a>
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      {insuranceTypes.map((type) => (
+                      {coverageTypes.map((type) => (
                         <DropdownMenuItem key={type.name} asChild>
                           <Link href={type.href}>
                             <a className="w-full">{type.name}</a>
@@ -227,8 +227,8 @@ export default function Home() {
                 ))}
                 
                 <div className="border-t border-gray-200 pt-2 mt-2">
-                  <p className="px-3 py-2 text-sm font-medium text-gray-500">Insurance Types</p>
-                  {insuranceTypes.map((type) => (
+                  <p className="px-3 py-2 text-sm font-medium text-gray-500">Coverage Types</p>
+                  {coverageTypes.map((type) => (
                     <Link key={type.name} href={type.href}>
                       <a
                         className="block px-3 py-2 text-sm text-gray-700 hover:text-primary hover:bg-gray-50 rounded-md ml-4"

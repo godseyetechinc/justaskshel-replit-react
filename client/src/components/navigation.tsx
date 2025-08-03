@@ -24,11 +24,11 @@ export default function Navigation() {
     { name: "Claims", href: "/claims-assistance" },
   ];
 
-  const insuranceTypes = [
-    { name: "Life Insurance", href: "/life-insurance" },
-    { name: "Health Insurance", href: "/health-insurance" },
-    { name: "Dental Insurance", href: "/dental-insurance" },
-    { name: "Vision Insurance", href: "/vision-insurance" },
+  const coverageTypes = [
+    { name: "Life Coverage", href: "/life-insurance" },
+    { name: "Health Coverage", href: "/health-insurance" },
+    { name: "Dental Coverage", href: "/dental-insurance" },
+    { name: "Vision Coverage", href: "/vision-insurance" },
     { name: "Hospital Indemnity", href: "/hospital-indemnity-insurance" },
     { name: "Discount Health Plans", href: "/discount-health-insurance" },
   ];
@@ -78,29 +78,29 @@ export default function Navigation() {
                   </Link>
                 ))}
 
-                {/* Insurance Types Dropdown */}
+                {/* Coverage Types Dropdown */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="ghost"
                       className={`px-4 py-2 text-sm font-medium transition-all duration-200 rounded-md ${
-                        insuranceTypes.some((type) => isActive(type.href))
+                        coverageTypes.some((type) => isActive(type.href))
                           ? "text-white bg-primary shadow-md"
                           : "text-gray-700 hover:text-primary hover:bg-gray-50"
                       }`}
                     >
-                      Insurance
+                      Coverage
                       <ChevronDown className="ml-1 h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="w-56">
                     <DropdownMenuItem asChild>
                       <Link href="/insurance-types">
-                        <a className="w-full">View All Insurance Types</a>
+                        <a className="w-full">View All Coverage Types</a>
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    {insuranceTypes.map((type) => (
+                    {coverageTypes.map((type) => (
                       <DropdownMenuItem key={type.name} asChild>
                         <Link href={type.href}>
                           <a className="w-full">{type.name}</a>
@@ -216,7 +216,7 @@ export default function Navigation() {
                 </Link>
               ))}
 
-              {/* Insurance Types Section */}
+              {/* Coverage Types Section */}
               <div className="pt-2">
                 <Link href="/insurance-types">
                   <a
@@ -227,11 +227,11 @@ export default function Navigation() {
                     }`}
                     onClick={() => setMobileMenuOpen(false)}
                   >
-                    All Insurance Types
+                    All Coverage Types
                   </a>
                 </Link>
 
-                {insuranceTypes.map((type) => (
+                {coverageTypes.map((type) => (
                   <Link key={type.name} href={type.href}>
                     <a
                       className={`block px-6 py-2 text-sm font-medium transition-colors ${

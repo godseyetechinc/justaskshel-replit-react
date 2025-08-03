@@ -3,11 +3,11 @@ import { Link } from "wouter";
 import jasBrandLogo from "@/assets/jas-brand-logo.svg";
 
 export default function Footer() {
-  const insuranceTypes = [
-    { name: "Life Insurance", href: "/life-insurance" },
-    { name: "Health Insurance", href: "/health-insurance" },
-    { name: "Dental Insurance", href: "/dental-insurance" },
-    { name: "Vision Insurance", href: "/vision-insurance" },
+  const coverageTypes = [
+    { name: "Life Coverage", href: "/life-insurance" },
+    { name: "Health Coverage", href: "/health-insurance" },
+    { name: "Dental Coverage", href: "/dental-insurance" },
+    { name: "Vision Coverage", href: "/vision-insurance" },
     { name: "Hospital Indemnity", href: "/hospital-indemnity-insurance" },
     { name: "Discount Health Plans", href: "/discount-health-insurance" },
   ];
@@ -15,7 +15,7 @@ export default function Footer() {
   const supportLinks = [
     { name: "Claims Assistance", href: "/claims-assistance" },
     { name: "Compare Quotes", href: "/quotes" },
-    { name: "All Insurance Types", href: "/insurance-types" },
+    { name: "All Coverage Types", href: "/insurance-types" },
     { name: "Customer Support", href: "#" },
     { name: "Payment Help", href: "#" },
     { name: "FAQ", href: "#" },
@@ -63,11 +63,11 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* Insurance Types */}
+          {/* Coverage Types */}
           <div>
-            <h4 className="text-lg font-semibold mb-4">Insurance Types</h4>
+            <h4 className="text-lg font-semibold mb-4">Coverage Types</h4>
             <ul className="space-y-2 text-gray-300">
-              {insuranceTypes.map((type) => (
+              {coverageTypes.map((type) => (
                 <li key={type.name}>
                   <Link href={type.href}>
                     <span className="hover:text-white transition-colors cursor-pointer">
