@@ -5,6 +5,7 @@ import { Separator } from "@/components/ui/separator";
 import { Heart, Shield, DollarSign, Users, CheckCircle, AlertCircle, FileText, Calculator, CreditCard, Percent } from "lucide-react";
 import { Link } from "wouter";
 import Navigation from "@/components/navigation";
+import Footer from "@/components/footer";
 
 export default function DiscountHealthInsurance() {
   const discountFeatures = [
@@ -404,6 +405,7 @@ export default function DiscountHealthInsurance() {
           </Card>
         </section>
       </div>
+      <Footer />
     </div>
   );
 }

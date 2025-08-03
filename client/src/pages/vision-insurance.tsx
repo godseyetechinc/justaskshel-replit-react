@@ -5,6 +5,7 @@ import { Separator } from "@/components/ui/separator";
 import { Eye, Shield, DollarSign, Users, CheckCircle, AlertCircle, FileText, Calculator, Glasses, Zap } from "lucide-react";
 import { Link } from "wouter";
 import Navigation from "@/components/navigation";
+import Footer from "@/components/footer";
 
 export default function VisionInsurance() {
   const eyeExamBenefits = [
@@ -536,6 +537,7 @@ export default function VisionInsurance() {
           </Card>
         </section>
       </div>
+      <Footer />
     </div>
   );
 }

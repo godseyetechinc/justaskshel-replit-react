@@ -5,6 +5,7 @@ import { Separator } from "@/components/ui/separator";
 import { Heart, Shield, DollarSign, Users, CheckCircle, AlertCircle, FileText, Calculator, Stethoscope, Pill, Activity } from "lucide-react";
 import { Link } from "wouter";
 import Navigation from "@/components/navigation";
+import Footer from "@/components/footer";
 
 export default function HealthInsurance() {
   const hmoFeatures = [
@@ -442,6 +443,7 @@ export default function HealthInsurance() {
           </Card>
         </section>
       </div>
+      <Footer />
     </div>
   );
 }

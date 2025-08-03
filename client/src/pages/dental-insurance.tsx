@@ -5,6 +5,7 @@ import { Separator } from "@/components/ui/separator";
 import { Smile, Shield, DollarSign, Users, CheckCircle, AlertCircle, FileText, Calculator, Crown, Zap, Heart } from "lucide-react";
 import { Link } from "wouter";
 import Navigation from "@/components/navigation";
+import Footer from "@/components/footer";
 
 export default function DentalInsurance() {
   const preventiveServices = [
@@ -456,6 +457,7 @@ export default function DentalInsurance() {
           </Card>
         </section>
       </div>
+      <Footer />
     </div>
   );
 }

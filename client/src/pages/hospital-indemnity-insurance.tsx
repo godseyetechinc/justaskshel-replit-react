@@ -5,6 +5,7 @@ import { Separator } from "@/components/ui/separator";
 import { Building2, Shield, DollarSign, Users, CheckCircle, AlertCircle, FileText, Calculator, Heart, Zap } from "lucide-react";
 import { Link } from "wouter";
 import Navigation from "@/components/navigation";
+import Footer from "@/components/footer";
 
 export default function HospitalIndemnityInsurance() {
   const coverageBenefits = [
@@ -458,6 +459,7 @@ export default function HospitalIndemnityInsurance() {
           </Card>
         </section>
       </div>
+      <Footer />
     </div>
   );
 }

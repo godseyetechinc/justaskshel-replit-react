@@ -5,6 +5,7 @@ import { Separator } from "@/components/ui/separator";
 import { Shield, Heart, DollarSign, Users, CheckCircle, AlertCircle, FileText, Calculator } from "lucide-react";
 import { Link } from "wouter";
 import Navigation from "@/components/navigation";
+import Footer from "@/components/footer";
 
 export default function LifeInsurance() {
   const termLifeBenefits = [
@@ -351,6 +352,7 @@ export default function LifeInsurance() {
           </Card>
         </section>
       </div>
+      <Footer />
     </div>
   );
 }
