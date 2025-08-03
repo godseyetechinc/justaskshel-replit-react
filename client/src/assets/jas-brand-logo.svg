@@ -1,61 +1,70 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg width="240" height="60" viewBox="0 0 240 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+<svg width="280" height="60" viewBox="0 0 280 60" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#52861A;stop-opacity:1" />
-      <stop offset="50%" style="stop-color:#4A7B18;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#426E16;stop-opacity:1" />
+    <!-- Enhanced gradients matching original green -->
+    <linearGradient id="personGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4CAF50;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#43A047;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#388E3C;stop-opacity:1" />
     </linearGradient>
+    
+    <!-- Text gradient using site's primary color -->
     <linearGradient id="textGradient" x1="0%" y1="0%" x2="100%" y2="0%">
       <stop offset="0%" style="stop-color:#52861A;stop-opacity:1" />
       <stop offset="100%" style="stop-color:#426E16;stop-opacity:1" />
     </linearGradient>
-    <filter id="dropShadow" x="-30%" y="-30%" width="160%" height="160%">
-      <feDropShadow dx="1" dy="2" stdDeviation="2" flood-color="rgba(0,0,0,0.15)"/>
+    
+    <!-- Professional drop shadow -->
+    <filter id="iconShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="1" dy="2" stdDeviation="2" flood-color="rgba(0,0,0,0.2)"/>
     </filter>
+    
+    <!-- Text shadow for depth -->
     <filter id="textShadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0.5" dy="1" stdDeviation="1" flood-color="rgba(0,0,0,0.1)"/>
+      <feDropShadow dx="0.5" dy="1" stdDeviation="1" flood-color="rgba(0,0,0,0.15)"/>
     </filter>
   </defs>
   
-  <!-- Professional figure icon - enhanced from original -->
-  <g transform="translate(8, 8)" filter="url(#dropShadow)">
-    <!-- Head with refined proportions -->
-    <circle cx="22" cy="12" r="7" fill="url(#logoGradient)" stroke="#ffffff" stroke-width="0.8"/>
+  <!-- Professional person icon - faithful to original design -->
+  <g transform="translate(5, 5)" filter="url(#iconShadow)">
+    <!-- Head - circular with clean proportions -->
+    <circle cx="25" cy="15" r="8.5" fill="url(#personGradient)" stroke="none"/>
     
-    <!-- Enhanced glasses -->
-    <circle cx="19.5" cy="11.5" r="2.5" fill="none" stroke="#ffffff" stroke-width="1.2"/>
-    <circle cx="24.5" cy="11.5" r="2.5" fill="none" stroke="#ffffff" stroke-width="1.2"/>
-    <line x1="22" y1="11.5" x2="22" y2="11.5" stroke="#ffffff" stroke-width="1"/>
-    <line x1="17" y1="11.5" x2="15" y2="11" stroke="#ffffff" stroke-width="1"/>
-    <line x1="27" y1="11.5" x2="29" y2="11" stroke="#ffffff" stroke-width="1"/>
+    <!-- Glasses - key feature from original -->
+    <circle cx="21.5" cy="14" r="3.2" fill="none" stroke="#ffffff" stroke-width="2"/>
+    <circle cx="28.5" cy="14" r="3.2" fill="none" stroke="#ffffff" stroke-width="2"/>
+    <!-- Bridge of glasses -->
+    <line x1="24.7" y1="14" x2="25.3" y2="14" stroke="#ffffff" stroke-width="1.5"/>
+    <!-- Temple arms -->
+    <line x1="18.3" y1="14" x2="16" y2="13" stroke="#ffffff" stroke-width="1.5"/>
+    <line x1="31.7" y1="14" x2="34" y2="13" stroke="#ffffff" stroke-width="1.5"/>
     
-    <!-- Professional suit body -->
-    <path d="M15 20 L15 40 L29 40 L29 20 L27 19 L22 19 L17 19 Z" 
-          fill="url(#logoGradient)" stroke="#ffffff" stroke-width="0.8"/>
+    <!-- Professional suit jacket - matching original outline -->
+    <path d="M16 24 Q16 23 17 23 L21 23 L25 21 L29 23 L33 23 Q34 23 34 24 L34 45 Q34 46 33 46 L17 46 Q16 46 16 45 Z" 
+          fill="url(#personGradient)" stroke="none"/>
     
-    <!-- Professional tie -->
-    <path d="M21 19 L21 32 L23 32 L23 19 Z" fill="#ffffff" opacity="0.9"/>
-    <path d="M21.5 19 L21.5 20.5 L22.5 20.5 L22.5 19 Z" fill="#ffffff" opacity="0.7"/>
+    <!-- Suit lapels - distinctive V-shape from original -->
+    <path d="M17 23 L20 26 L20 32 L17 29 Z" fill="#ffffff" fill-opacity="0.3"/>
+    <path d="M33 23 L30 26 L30 32 L33 29 Z" fill="#ffffff" fill-opacity="0.3"/>
     
-    <!-- Suit lapels and collar -->
-    <path d="M17 19 L19 21 L19 26 L17 24 Z" fill="#ffffff" opacity="0.4"/>
-    <path d="M27 19 L25 21 L25 26 L27 24 Z" fill="#ffffff" opacity="0.4"/>
+    <!-- Shirt and tie - central professional detail -->
+    <path d="M21 23 L21 40 L29 40 L29 23 Z" fill="#ffffff" fill-opacity="0.8"/>
+    <!-- Tie -->
+    <path d="M24 23 L24 35 L26 35 L26 23 Z" fill="url(#personGradient)" fill-opacity="0.8"/>
     
-    <!-- Collar detail -->
-    <path d="M19 19 L22 17 L25 19" fill="none" stroke="#ffffff" stroke-width="0.8" opacity="0.6"/>
+    <!-- Collar lines -->
+    <path d="M21 23 L25 21 L29 23" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-opacity="0.7"/>
+    
+    <!-- Professional details - shirt buttons -->
+    <circle cx="25" cy="28" r="0.8" fill="url(#personGradient)" fill-opacity="0.6"/>
+    <circle cx="25" cy="32" r="0.8" fill="url(#personGradient)" fill-opacity="0.6"/>
   </g>
   
-  <!-- "Reliable" text with enhanced typography -->
-  <text x="60" y="32" font-family="Roboto, system-ui, sans-serif" font-size="22" font-weight="500" 
+  <!-- "Reliable" text - enhanced typography -->
+  <text x="70" y="35" font-family="Roboto, 'Segoe UI', system-ui, sans-serif" font-size="28" font-weight="600" 
         fill="url(#textGradient)" text-anchor="start" filter="url(#textShadow)">Reliable</text>
   
-  <!-- Enhanced subtitle -->
-  <text x="60" y="46" font-family="Roboto, system-ui, sans-serif" font-size="11" font-weight="400" 
-        fill="#666666" text-anchor="start" letter-spacing="0.5px">Insurance Solutions</text>
-        
-  <!-- Professional accent elements -->
-  <circle cx="190" cy="15" r="2" fill="url(#logoGradient)" opacity="0.3"/>
-  <circle cx="200" cy="20" r="1.5" fill="url(#logoGradient)" opacity="0.2"/>
-  <circle cx="210" cy="25" r="1" fill="url(#logoGradient)" opacity="0.15"/>
+  <!-- Subtitle maintaining brand message -->
+  <text x="70" y="50" font-family="Roboto, 'Segoe UI', system-ui, sans-serif" font-size="12" font-weight="400" 
+        fill="#666666" text-anchor="start" letter-spacing="0.8px">Insurance Solutions</text>
 </svg>
