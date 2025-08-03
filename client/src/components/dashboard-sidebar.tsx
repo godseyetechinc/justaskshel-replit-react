@@ -15,7 +15,8 @@ import {
   X,
   Home,
   Phone,
-  Briefcase
+  Briefcase,
+  Key
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -109,6 +110,13 @@ const menuItems: MenuItem[] = [
     icon: Settings,
     href: "/dashboard/user-management",
     roles: ["Admin"]
+  },
+  {
+    id: "password-management",
+    label: "Password Management",
+    icon: Key,
+    href: "/dashboard/password-management",
+    roles: ["Admin", "Agent", "Member"]
   },
   {
     id: "profile",

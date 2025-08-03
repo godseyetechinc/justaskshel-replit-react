@@ -70,9 +70,9 @@ export default function Footer() {
               {insuranceTypes.map((type) => (
                 <li key={type.name}>
                   <Link href={type.href}>
-                    <a className="hover:text-white transition-colors">
+                    <span className="hover:text-white transition-colors cursor-pointer">
                       {type.name}
-                    </a>
+                    </span>
                   </Link>
                 </li>
               ))}
@@ -91,9 +91,9 @@ export default function Footer() {
                     </a>
                   ) : (
                     <Link href={link.href}>
-                      <a className="hover:text-white transition-colors">
+                      <span className="hover:text-white transition-colors cursor-pointer">
                         {link.name}
-                      </a>
+                      </span>
                     </Link>
                   )}
                 </li>

@@ -33,6 +33,7 @@ export const users = pgTable("users", {
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
+  password: varchar("password", { length: 255 }), // Hashed password
   role: varchar("role", { enum: ["Admin", "Agent", "Member", "Visitor"] }).default("Member"),
   isActive: boolean("is_active").default(true),
   phone: varchar("phone", { length: 20 }),

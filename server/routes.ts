@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
+import bcrypt from "bcryptjs";
 import {
   insertInsuranceQuoteSchema,
   insertSelectedQuoteSchema,
@@ -34,6 +35,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  // Change password route
+  app.post('/api/auth/change-password', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { currentPassword, newPassword } = req.body;
+
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ message: "Current password and new password are required" });
+      }
+
+      // Get user from database
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // For users without existing passwords (OAuth users), skip current password check
+      if (user.password) {
+        const isValidPassword = await bcrypt.compare(currentPassword, user.password);
+        if (!isValidPassword) {
+          return res.status(400).json({ message: "Current password is incorrect" });
+        }
+      }
+
+      // Hash new password
+      const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+
+      // Update password
+      await storage.updateUserPassword(userId, hashedNewPassword);
+
+      res.json({ message: "Password updated successfully" });
+    } catch (error) {
+      console.error("Error changing password:", error);
+      res.status(500).json({ message: "Failed to change password" });
+    }
+  });
+
+  // Initialize default admin user
+  app.post('/api/initialize-admin', async (req, res) => {
+    try {
+      const adminUser = await storage.createDefaultAdminUser();
+      if (adminUser) {
+        res.json({ 
+          message: "Default admin user created successfully",
+          email: "admin@insurescope.com",
+          password: "Admin#pass1" 
+        });
+      } else {
+        res.json({ message: "Admin user already exists" });
+      }
+    } catch (error) {
+      console.error("Error creating admin user:", error);
+      res.status(500).json({ message: "Failed to create admin user" });
     }
   });
 

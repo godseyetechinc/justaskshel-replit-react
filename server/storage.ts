@@ -61,6 +61,7 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
   updateUserProfile(id: string, userData: Partial<UpsertUser>): Promise<User>;
+  updateUserPassword(id: string, hashedPassword: string): Promise<User>;
   getAllUsers(): Promise<User[]>;
   createDefaultAdminUser(): Promise<User | null>;
   
@@ -195,18 +196,31 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
+  async updateUserPassword(id: string, hashedPassword: string): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ password: hashedPassword, updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    return user;
+  }
+
   async getAllUsers(): Promise<User[]> {
     return await db.select().from(users).orderBy(desc(users.createdAt));
   }
 
   async createDefaultAdminUser(): Promise<User | null> {
     // Check if admin already exists
-    const existingAdmin = await db.select().from(users).where(eq(users.role, "Admin")).limit(1);
+    const existingAdmin = await db.select().from(users).where(eq(users.email, "admin@insurescope.com")).limit(1);
     if (existingAdmin.length > 0) {
       return existingAdmin[0];
     }
 
-    // Create default admin user
+    // Create default admin user with password "Admin#pass1"
+    // In production, this should use bcrypt for hashing
+    const bcrypt = require('bcryptjs');
+    const hashedPassword = await bcrypt.hash("Admin#pass1", 10);
+
     const [adminUser] = await db
       .insert(users)
       .values({
@@ -214,6 +228,7 @@ export class DatabaseStorage implements IStorage {
         email: "admin@insurescope.com",
         firstName: "System",
         lastName: "Administrator",
+        password: hashedPassword,
         role: "Admin",
         isActive: true,
       })

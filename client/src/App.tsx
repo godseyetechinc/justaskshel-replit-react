@@ -17,6 +17,9 @@ import PoliciesPage from "@/pages/dashboard/policies";
 import WishlistPage from "@/pages/dashboard/wishlist";
 import PointsPage from "@/pages/dashboard/points";
 import DependentsPage from "@/pages/dashboard/dependents";
+import UserManagementPage from "@/pages/dashboard/user-management";
+import PasswordManagementPage from "@/pages/dashboard/password-management";
+import AnalyticsPage from "@/pages/dashboard/analytics";
 import Quotes from "@/pages/quotes";
 import InsuranceTypes from "@/pages/insurance-types";
 import ClaimsAssistance from "@/pages/claims-assistance";
@@ -58,6 +61,9 @@ function Router() {
           <Route path="/dashboard/wishlist" component={WishlistPage} />
           <Route path="/dashboard/points" component={PointsPage} />
           <Route path="/dashboard/dependents" component={DependentsPage} />
+          <Route path="/dashboard/user-management" component={UserManagementPage} />
+          <Route path="/dashboard/password-management" component={PasswordManagementPage} />
+          <Route path="/dashboard/analytics" component={AnalyticsPage} />
           <Route path="/quotes" component={Quotes} />
           <Route path="/insurance-types" component={InsuranceTypes} />
           <Route path="/claims-assistance" component={ClaimsAssistance} />

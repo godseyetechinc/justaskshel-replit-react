@@ -1,8 +1,10 @@
 import { useAuth } from "@/hooks/useAuth";
 import { useRoleAuth } from "@/hooks/useRoleAuth";
+import { Button } from "@/components/ui/button";
 import DashboardSidebar from "./dashboard-sidebar";
 import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { Home } from "lucide-react";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -108,7 +110,21 @@ export default function DashboardLayout({
               <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
             </div>
             <div className="flex items-center space-x-4">
-              {/* Add any header actions here */}
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => window.location.href = '/'}
+              >
+                <Home className="h-4 w-4 mr-2" />
+                Public Home
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => window.location.href = '/api/logout'}
+              >
+                Sign Out
+              </Button>
             </div>
           </div>
         </header>
