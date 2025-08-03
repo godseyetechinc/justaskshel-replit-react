@@ -39,14 +39,14 @@ export default function Navigation() {
   };
 
   return (
-    <nav className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
+    <nav className="bg-white sticky top-0 z-50" style={{ boxShadow: 'var(--elevation-2)' }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <div className="flex items-center">
             <Link href="/">
-              <div className="flex-shrink-0 cursor-pointer">
-                <h1 className="text-2xl font-bold text-primary">
+              <div className="flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity">
+                <h1 className="text-2xl font-medium text-primary">
                   <Shield className="inline-block mr-2 h-8 w-8" />
                   InsureScope
                 </h1>
@@ -59,10 +59,10 @@ export default function Navigation() {
                 {navigation.map((item) => (
                   <Link key={item.name} href={item.href}>
                     <a
-                      className={`px-3 py-2 text-sm font-medium transition-colors ${
+                      className={`px-4 py-2 text-sm font-medium transition-all duration-200 rounded-md ${
                         isActive(item.href)
-                          ? "text-primary border-b-2 border-primary"
-                          : "text-gray-500 hover:text-primary"
+                          ? "text-white bg-primary shadow-md"
+                          : "text-gray-700 hover:text-primary hover:bg-gray-50"
                       }`}
                     >
                       {item.name}
@@ -75,10 +75,10 @@ export default function Navigation() {
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="ghost"
-                      className={`px-3 py-2 text-sm font-medium transition-colors ${
+                      className={`px-4 py-2 text-sm font-medium transition-all duration-200 rounded-md ${
                         insuranceTypes.some(type => isActive(type.href))
-                          ? "text-primary border-b-2 border-primary"
-                          : "text-gray-500 hover:text-primary"
+                          ? "text-white bg-primary shadow-md"
+                          : "text-gray-700 hover:text-primary hover:bg-gray-50"
                       }`}
                     >
                       Insurance Types

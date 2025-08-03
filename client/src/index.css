@@ -1,28 +1,50 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/icon?family=Material+Icons');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
+  /* Material Design 3 Color System */
   --background: hsl(0, 0%, 100%);
-  --foreground: hsl(20, 14.3%, 4.1%);
-  --muted: hsl(0, 0%, 96%);
-  --muted-foreground: hsl(0, 0%, 45%);
+  --foreground: hsl(240, 5%, 6%);
+  --muted: hsl(240, 4.8%, 95.9%);
+  --muted-foreground: hsl(240, 3.8%, 46.1%);
   --popover: hsl(0, 0%, 100%);
-  --popover-foreground: hsl(20, 14.3%, 4.1%);
+  --popover-foreground: hsl(240, 5%, 6%);
   --card: hsl(0, 0%, 100%);
-  --card-foreground: hsl(20, 14.3%, 4.1%);
-  --border: hsl(0, 0%, 90%);
-  --input: hsl(0, 0%, 90%);
-  --primary: hsl(83, 57%, 33%);
+  --card-foreground: hsl(240, 5%, 6%);
+  --border: hsl(240, 5.9%, 90%);
+  --input: hsl(240, 5.9%, 90%);
+  
+  /* Enhanced primary color with better contrast */
+  --primary: rgb(82, 134, 37);
   --primary-foreground: hsl(0, 0%, 100%);
-  --secondary: hsl(0, 0%, 96%);
-  --secondary-foreground: hsl(83, 57%, 33%);
-  --accent: hsl(83, 57%, 33%);
+  --primary-light: hsl(83, 40%, 45%);
+  --primary-dark: hsl(83, 70%, 25%);
+  
+  --secondary: hsl(240, 4.8%, 95.9%);
+  --secondary-foreground: hsl(240, 5.9%, 10%);
+  --accent: hsl(83, 40%, 45%);
   --accent-foreground: hsl(0, 0%, 100%);
   --destructive: hsl(0, 84.2%, 60.2%);
   --destructive-foreground: hsl(0, 0%, 100%);
-  --ring: hsl(83, 57%, 33%);
-  --radius: 0.5rem;
+  --ring: rgb(82, 134, 37);
+  
+  /* Material Design elevation shadows */
+  --elevation-1: 0px 1px 3px rgba(0, 0, 0, 0.12), 0px 1px 2px rgba(0, 0, 0, 0.24);
+  --elevation-2: 0px 3px 6px rgba(0, 0, 0, 0.16), 0px 3px 6px rgba(0, 0, 0, 0.23);
+  --elevation-3: 0px 10px 20px rgba(0, 0, 0, 0.19), 0px 6px 6px rgba(0, 0, 0, 0.23);
+  --elevation-4: 0px 14px 28px rgba(0, 0, 0, 0.25), 0px 10px 10px rgba(0, 0, 0, 0.22);
+  --elevation-5: 0px 19px 38px rgba(0, 0, 0, 0.30), 0px 15px 12px rgba(0, 0, 0, 0.22);
+  
+  --radius: 4px; /* Material Design standard border radius */
+  
+  /* High contrast text colors for primary background */
+  --on-primary: hsl(0, 0%, 100%);
+  --on-primary-container: hsl(240, 5%, 6%);
+  --primary-container: hsl(83, 45%, 85%);
 }
 
 .dark {
@@ -36,16 +58,15 @@
   --card-foreground: hsl(0, 0%, 98%);
   --border: hsl(240, 3.7%, 15.9%);
   --input: hsl(240, 3.7%, 15.9%);
-  --primary: hsl(83, 57%, 33%);
+  --primary: rgb(82, 134, 37);
   --primary-foreground: hsl(0, 0%, 100%);
   --secondary: hsl(240, 3.7%, 15.9%);
   --secondary-foreground: hsl(0, 0%, 98%);
-  --accent: hsl(83, 57%, 33%);
+  --accent: hsl(83, 40%, 45%);
   --accent-foreground: hsl(0, 0%, 100%);
   --destructive: hsl(0, 62.8%, 30.6%);
   --destructive-foreground: hsl(0, 0%, 98%);
-  --ring: hsl(83, 57%, 33%);
-  --radius: 0.5rem;
+  --ring: rgb(82, 134, 37);
 }
 
 @layer base {
@@ -54,6 +75,171 @@
   }
 
   body {
-    @apply font-sans antialiased bg-background text-foreground;
+    font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    @apply antialiased bg-background text-foreground;
+    line-height: 1.6;
+    letter-spacing: 0.5px;
+  }
+  
+  /* Material Design Typography Scale */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Roboto', sans-serif;
+    font-weight: 500;
+    line-height: 1.2;
+    letter-spacing: -0.5px;
+  }
+  
+  h1 { font-size: 2.5rem; font-weight: 300; }
+  h2 { font-size: 2rem; font-weight: 400; }
+  h3 { font-size: 1.75rem; font-weight: 400; }
+  h4 { font-size: 1.5rem; font-weight: 500; }
+  h5 { font-size: 1.25rem; font-weight: 500; }
+  h6 { font-size: 1rem; font-weight: 500; }
+}
+
+@layer components {
+  /* Material Design Button Styles */
+  .btn-material {
+    @apply inline-flex items-center justify-center rounded font-medium transition-all duration-200 ease-in-out;
+    box-shadow: var(--elevation-1);
+    text-transform: uppercase;
+    letter-spacing: 1.25px;
+    font-weight: 500;
+  }
+  
+  .btn-material:hover {
+    box-shadow: var(--elevation-2);
+    transform: translateY(-1px);
+  }
+  
+  .btn-material:active {
+    box-shadow: var(--elevation-1);
+    transform: translateY(0);
+  }
+  
+  /* High contrast text on primary background */
+  .text-on-primary {
+    color: var(--on-primary) !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  }
+  
+  .bg-primary-contrast {
+    background-color: var(--primary);
+    color: var(--on-primary);
+  }
+  
+  /* Material Design Card Styles */
+  .card-material {
+    @apply rounded-lg bg-card border border-border;
+    box-shadow: var(--elevation-1);
+    transition: box-shadow 0.2s ease-in-out;
+  }
+  
+  .card-material:hover {
+    box-shadow: var(--elevation-2);
+  }
+  
+  /* Enhanced contrast for primary colored elements */
+  .primary-section {
+    background-color: rgb(82, 134, 37);
+    color: white;
+  }
+  
+  .primary-section h1,
+  .primary-section h2,
+  .primary-section h3,
+  .primary-section h4,
+  .primary-section h5,
+  .primary-section h6,
+  .primary-section p,
+  .primary-section span,
+  .primary-section div {
+    color: white !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  }
+  
+  .primary-section .text-muted {
+    color: rgba(255, 255, 255, 0.9) !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  }
+  
+  /* High contrast text specifically for rgb(82, 134, 37) backgrounds */
+  .bg-primary {
+    background-color: rgb(82, 134, 37) !important;
+  }
+  
+  .bg-primary * {
+    color: white !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  }
+  
+  .bg-primary .btn,
+  .bg-primary button {
+    background-color: rgba(255, 255, 255, 0.15);
+    border: 2px solid white;
+    color: white !important;
+    backdrop-filter: blur(10px);
+  }
+  
+  .bg-primary .btn:hover,
+  .bg-primary button:hover {
+    background-color: white;
+    color: rgb(82, 134, 37) !important;
+    text-shadow: none;
+  }
+  
+  /* Material Design Input Styles */
+  .input-material {
+    @apply border-0 border-b-2 border-gray-300 bg-transparent px-0 py-2 focus:border-primary focus:ring-0;
+    transition: border-color 0.2s ease-in-out;
+  }
+  
+  /* Material Design Chip/Badge Styles */
+  .chip-material {
+    @apply inline-flex items-center rounded-full px-3 py-1 text-sm font-medium;
+    background-color: var(--primary-container);
+    color: var(--on-primary-container);
+  }
+  
+  /* Improved accessibility and contrast ratios */
+  .text-contrast-high {
+    color: white !important;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    font-weight: 500;
+  }
+  
+  .bg-primary-gradient {
+    background: linear-gradient(135deg, rgb(82, 134, 37) 0%, rgb(62, 104, 27) 100%);
+    color: white;
+  }
+  
+  .bg-primary-gradient * {
+    color: white !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  }
+  
+  /* Material Design Ripple Effect */
+  .ripple {
+    position: relative;
+    overflow: hidden;
+    transform: translate3d(0, 0, 0);
+  }
+  
+  .ripple:before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+  }
+  
+  .ripple:active:before {
+    width: 300px;
+    height: 300px;
   }
 }
