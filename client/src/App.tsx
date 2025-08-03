@@ -11,6 +11,12 @@ import Dashboard from "@/pages/dashboard";
 import Quotes from "@/pages/quotes";
 import InsuranceTypes from "@/pages/insurance-types";
 import ClaimsAssistance from "@/pages/claims-assistance";
+import LifeInsurance from "@/pages/life-insurance";
+import HealthInsurance from "@/pages/health-insurance";
+import DentalInsurance from "@/pages/dental-insurance";
+import VisionInsurance from "@/pages/vision-insurance";
+import DiscountHealthInsurance from "@/pages/discount-health-insurance";
+import HospitalIndemnityInsurance from "@/pages/hospital-indemnity-insurance";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -23,6 +29,12 @@ function Router() {
           <Route path="/insurance-types" component={InsuranceTypes} />
           <Route path="/quotes" component={Quotes} />
           <Route path="/claims-assistance" component={ClaimsAssistance} />
+          <Route path="/life-insurance" component={LifeInsurance} />
+          <Route path="/health-insurance" component={HealthInsurance} />
+          <Route path="/dental-insurance" component={DentalInsurance} />
+          <Route path="/vision-insurance" component={VisionInsurance} />
+          <Route path="/discount-health-insurance" component={DiscountHealthInsurance} />
+          <Route path="/hospital-indemnity-insurance" component={HospitalIndemnityInsurance} />
         </>
       ) : (
         <>
@@ -31,6 +43,12 @@ function Router() {
           <Route path="/quotes" component={Quotes} />
           <Route path="/insurance-types" component={InsuranceTypes} />
           <Route path="/claims-assistance" component={ClaimsAssistance} />
+          <Route path="/life-insurance" component={LifeInsurance} />
+          <Route path="/health-insurance" component={HealthInsurance} />
+          <Route path="/dental-insurance" component={DentalInsurance} />
+          <Route path="/vision-insurance" component={VisionInsurance} />
+          <Route path="/discount-health-insurance" component={DiscountHealthInsurance} />
+          <Route path="/hospital-indemnity-insurance" component={HospitalIndemnityInsurance} />
         </>
       )}
       <Route component={NotFound} />

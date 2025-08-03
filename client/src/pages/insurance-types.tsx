@@ -26,8 +26,21 @@ const iconMap = {
   percent: Percent,
 };
 
+// Helper function to get insurance type page URLs
+const getInsuranceTypeUrl = (typeName: string): string => {
+  const urlMap: Record<string, string> = {
+    "Life Insurance": "/life-insurance",
+    "Health Insurance": "/health-insurance", 
+    "Dental Insurance": "/dental-insurance",
+    "Vision Insurance": "/vision-insurance",
+    "Hospital Indemnity": "/hospital-indemnity-insurance",
+    "Discount Health Plans": "/discount-health-insurance",
+  };
+  return urlMap[typeName] || "/insurance-types";
+};
+
 export default function InsuranceTypes() {
-  const { data: insuranceTypes, isLoading } = useQuery({
+  const { data: insuranceTypes = [], isLoading } = useQuery({
     queryKey: ["/api/insurance-types"],
   });
 
@@ -187,7 +200,7 @@ export default function InsuranceTypes() {
           </div>
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {insuranceTypes?.map((type) => {
+            {insuranceTypes.map((type: any) => {
               const details = insuranceDetails[type.name as keyof typeof insuranceDetails];
               if (!details) return null;
               
@@ -255,9 +268,11 @@ export default function InsuranceTypes() {
                         </Button>
                       </Link>
                       
-                      <Button variant="outline" className="w-full">
-                        Learn More
-                      </Button>
+                      <Link href={getInsuranceTypeUrl(type.name)}>
+                        <Button variant="outline" className="w-full">
+                          Learn More
+                        </Button>
+                      </Link>
                     </div>
                   </CardContent>
                 </Card>
