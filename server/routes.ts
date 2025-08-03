@@ -9,6 +9,12 @@ import {
   insertPolicySchema,
   insertClaimSchema,
   insertDependentSchema,
+  insertMemberSchema,
+  insertContactSchema,
+  insertApplicationSchema,
+  insertPointsSchema,
+  insertApplicantSchema,
+  insertApplicantDependentSchema,
 } from "@shared/schema";
 import { z } from "zod";
 
@@ -264,6 +270,262 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error removing dependent:", error);
       res.status(500).json({ message: "Failed to remove dependent" });
+    }
+  });
+
+  // Members routes
+  app.get('/api/members', isAuthenticated, async (req: any, res) => {
+    try {
+      const members = await storage.getMembers();
+      res.json(members);
+    } catch (error) {
+      console.error("Error fetching members:", error);
+      res.status(500).json({ message: "Failed to fetch members" });
+    }
+  });
+
+  app.post('/api/members', isAuthenticated, async (req: any, res) => {
+    try {
+      const memberData = insertMemberSchema.parse(req.body);
+      const member = await storage.createMember(memberData);
+      res.status(201).json(member);
+    } catch (error) {
+      console.error("Error creating member:", error);
+      res.status(400).json({ message: "Failed to create member" });
+    }
+  });
+
+  app.put('/api/members/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const memberData = insertMemberSchema.partial().parse(req.body);
+      const member = await storage.updateMember(parseInt(id), memberData);
+      res.json(member);
+    } catch (error) {
+      console.error("Error updating member:", error);
+      res.status(400).json({ message: "Failed to update member" });
+    }
+  });
+
+  app.delete('/api/members/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteMember(parseInt(id));
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting member:", error);
+      res.status(500).json({ message: "Failed to delete member" });
+    }
+  });
+
+  // Contacts routes
+  app.get('/api/contacts', isAuthenticated, async (req: any, res) => {
+    try {
+      const contacts = await storage.getContacts();
+      res.json(contacts);
+    } catch (error) {
+      console.error("Error fetching contacts:", error);
+      res.status(500).json({ message: "Failed to fetch contacts" });
+    }
+  });
+
+  app.post('/api/contacts', isAuthenticated, async (req: any, res) => {
+    try {
+      const contactData = insertContactSchema.parse(req.body);
+      const contact = await storage.createContact(contactData);
+      res.status(201).json(contact);
+    } catch (error) {
+      console.error("Error creating contact:", error);
+      res.status(400).json({ message: "Failed to create contact" });
+    }
+  });
+
+  app.put('/api/contacts/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const contactData = insertContactSchema.partial().parse(req.body);
+      const contact = await storage.updateContact(parseInt(id), contactData);
+      res.json(contact);
+    } catch (error) {
+      console.error("Error updating contact:", error);
+      res.status(400).json({ message: "Failed to update contact" });
+    }
+  });
+
+  app.delete('/api/contacts/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteContact(parseInt(id));
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting contact:", error);
+      res.status(500).json({ message: "Failed to delete contact" });
+    }
+  });
+
+  // Applications routes
+  app.get('/api/applications', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const userRole = req.user.role || "Member";
+      
+      let applications;
+      if (userRole === "Admin" || userRole === "Agent") {
+        applications = await storage.getApplications();
+      } else {
+        applications = await storage.getUserApplications(userId);
+      }
+      res.json(applications);
+    } catch (error) {
+      console.error("Error fetching applications:", error);
+      res.status(500).json({ message: "Failed to fetch applications" });
+    }
+  });
+
+  app.post('/api/applications', isAuthenticated, async (req: any, res) => {
+    try {
+      const applicationData = insertApplicationSchema.parse(req.body);
+      const application = await storage.createApplication(applicationData);
+      res.status(201).json(application);
+    } catch (error) {
+      console.error("Error creating application:", error);
+      res.status(400).json({ message: "Failed to create application" });
+    }
+  });
+
+  app.put('/api/applications/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const applicationData = insertApplicationSchema.partial().parse(req.body);
+      const application = await storage.updateApplication(parseInt(id), applicationData);
+      res.json(application);
+    } catch (error) {
+      console.error("Error updating application:", error);
+      res.status(400).json({ message: "Failed to update application" });
+    }
+  });
+
+  app.delete('/api/applications/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteApplication(parseInt(id));
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting application:", error);
+      res.status(500).json({ message: "Failed to delete application" });
+    }
+  });
+
+  // Points routes
+  app.get('/api/points', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const points = await storage.getUserPoints(userId);
+      res.json(points);
+    } catch (error) {
+      console.error("Error fetching points:", error);
+      res.status(500).json({ message: "Failed to fetch points" });
+    }
+  });
+
+  app.post('/api/points', isAuthenticated, async (req: any, res) => {
+    try {
+      const pointsData = insertPointsSchema.parse(req.body);
+      const points = await storage.createPoints(pointsData);
+      res.status(201).json(points);
+    } catch (error) {
+      console.error("Error creating points:", error);
+      res.status(400).json({ message: "Failed to create points" });
+    }
+  });
+
+  // Applicants routes
+  app.get('/api/applicants', isAuthenticated, async (req: any, res) => {
+    try {
+      const applicants = await storage.getApplicants();
+      res.json(applicants);
+    } catch (error) {
+      console.error("Error fetching applicants:", error);
+      res.status(500).json({ message: "Failed to fetch applicants" });
+    }
+  });
+
+  app.post('/api/applicants', isAuthenticated, async (req: any, res) => {
+    try {
+      const applicantData = insertApplicantSchema.parse(req.body);
+      const applicant = await storage.createApplicant(applicantData);
+      res.status(201).json(applicant);
+    } catch (error) {
+      console.error("Error creating applicant:", error);
+      res.status(400).json({ message: "Failed to create applicant" });
+    }
+  });
+
+  app.put('/api/applicants/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const applicantData = insertApplicantSchema.partial().parse(req.body);
+      const applicant = await storage.updateApplicant(parseInt(id), applicantData);
+      res.json(applicant);
+    } catch (error) {
+      console.error("Error updating applicant:", error);
+      res.status(400).json({ message: "Failed to update applicant" });
+    }
+  });
+
+  app.delete('/api/applicants/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteApplicant(parseInt(id));
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting applicant:", error);
+      res.status(500).json({ message: "Failed to delete applicant" });
+    }
+  });
+
+  // Applicant Dependents routes
+  app.get('/api/applicant-dependents', isAuthenticated, async (req: any, res) => {
+    try {
+      const dependents = await storage.getApplicantDependents();
+      res.json(dependents);
+    } catch (error) {
+      console.error("Error fetching applicant dependents:", error);
+      res.status(500).json({ message: "Failed to fetch applicant dependents" });
+    }
+  });
+
+  app.post('/api/applicant-dependents', isAuthenticated, async (req: any, res) => {
+    try {
+      const dependentData = insertApplicantDependentSchema.parse(req.body);
+      const dependent = await storage.createApplicantDependent(dependentData);
+      res.status(201).json(dependent);
+    } catch (error) {
+      console.error("Error creating applicant dependent:", error);
+      res.status(400).json({ message: "Failed to create applicant dependent" });
+    }
+  });
+
+  app.put('/api/applicant-dependents/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const dependentData = insertApplicantDependentSchema.partial().parse(req.body);
+      const dependent = await storage.updateApplicantDependent(parseInt(id), dependentData);
+      res.json(dependent);
+    } catch (error) {
+      console.error("Error updating applicant dependent:", error);
+      res.status(400).json({ message: "Failed to update applicant dependent" });
+    }
+  });
+
+  app.delete('/api/applicant-dependents/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteApplicantDependent(parseInt(id));
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting applicant dependent:", error);
+      res.status(500).json({ message: "Failed to delete applicant dependent" });
     }
   });
 

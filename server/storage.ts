@@ -1,5 +1,11 @@
 import {
   users,
+  members,
+  contacts,
+  applications,
+  points,
+  applicants,
+  applicantDependents,
   insuranceTypes,
   insuranceProviders,
   insuranceQuotes,
@@ -10,6 +16,18 @@ import {
   dependents,
   type User,
   type UpsertUser,
+  type Member,
+  type InsertMember,
+  type Contact,
+  type InsertContact,
+  type Application,
+  type InsertApplication,
+  type Points,
+  type InsertPoints,
+  type Applicant,
+  type InsertApplicant,
+  type ApplicantDependent,
+  type InsertApplicantDependent,
   type InsuranceType,
   type InsuranceProvider,
   type InsuranceQuote,
@@ -73,6 +91,47 @@ export interface IStorage {
   createDependent(dependent: InsertDependent): Promise<Dependent>;
   getUserDependents(userId: string): Promise<Dependent[]>;
   removeDependent(id: number): Promise<void>;
+
+  // Members
+  createMember(member: InsertMember): Promise<Member>;
+  getMembers(): Promise<Member[]>;
+  getMemberById(id: number): Promise<Member | undefined>;
+  updateMember(id: number, member: Partial<InsertMember>): Promise<Member>;
+  deleteMember(id: number): Promise<void>;
+
+  // Contacts
+  createContact(contact: InsertContact): Promise<Contact>;
+  getContacts(): Promise<Contact[]>;
+  getContactById(id: number): Promise<Contact | undefined>;
+  updateContact(id: number, contact: Partial<InsertContact>): Promise<Contact>;
+  deleteContact(id: number): Promise<void>;
+
+  // Applications
+  createApplication(application: InsertApplication): Promise<Application>;
+  getApplications(): Promise<Application[]>;
+  getUserApplications(userId: string): Promise<Application[]>;
+  getApplicationById(id: number): Promise<Application | undefined>;
+  updateApplication(id: number, application: Partial<InsertApplication>): Promise<Application>;
+  deleteApplication(id: number): Promise<void>;
+
+  // Points
+  createPoints(points: InsertPoints): Promise<Points>;
+  getUserPoints(userId: string): Promise<Points[]>;
+  getMemberPoints(memberId: number): Promise<Points[]>;
+
+  // Applicants
+  createApplicant(applicant: InsertApplicant): Promise<Applicant>;
+  getApplicants(): Promise<Applicant[]>;
+  getApplicationApplicants(applicationId: number): Promise<Applicant[]>;
+  updateApplicant(id: number, applicant: Partial<InsertApplicant>): Promise<Applicant>;
+  deleteApplicant(id: number): Promise<void>;
+
+  // Applicant Dependents
+  createApplicantDependent(dependent: InsertApplicantDependent): Promise<ApplicantDependent>;
+  getApplicantDependents(): Promise<ApplicantDependent[]>;
+  getApplicationDependents(applicationId: number): Promise<ApplicantDependent[]>;
+  updateApplicantDependent(id: number, dependent: Partial<InsertApplicantDependent>): Promise<ApplicantDependent>;
+  deleteApplicantDependent(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -370,6 +429,162 @@ export class DatabaseStorage implements IStorage {
 
   async removeDependent(id: number): Promise<void> {
     await db.delete(dependents).where(eq(dependents.id, id));
+  }
+
+  // Members
+  async createMember(member: InsertMember): Promise<Member> {
+    const [newMember] = await db.insert(members).values(member).returning();
+    return newMember;
+  }
+
+  async getMembers(): Promise<Member[]> {
+    return await db.select().from(members).orderBy(desc(members.createdAt));
+  }
+
+  async getMemberById(id: number): Promise<Member | undefined> {
+    const [member] = await db.select().from(members).where(eq(members.id, id));
+    return member;
+  }
+
+  async updateMember(id: number, member: Partial<InsertMember>): Promise<Member> {
+    const [updatedMember] = await db
+      .update(members)
+      .set({ ...member, updatedAt: new Date() })
+      .where(eq(members.id, id))
+      .returning();
+    return updatedMember;
+  }
+
+  async deleteMember(id: number): Promise<void> {
+    await db.delete(members).where(eq(members.id, id));
+  }
+
+  // Contacts
+  async createContact(contact: InsertContact): Promise<Contact> {
+    const [newContact] = await db.insert(contacts).values(contact).returning();
+    return newContact;
+  }
+
+  async getContacts(): Promise<Contact[]> {
+    return await db.select().from(contacts).orderBy(desc(contacts.createdAt));
+  }
+
+  async getContactById(id: number): Promise<Contact | undefined> {
+    const [contact] = await db.select().from(contacts).where(eq(contacts.id, id));
+    return contact;
+  }
+
+  async updateContact(id: number, contact: Partial<InsertContact>): Promise<Contact> {
+    const [updatedContact] = await db
+      .update(contacts)
+      .set({ ...contact, updatedAt: new Date() })
+      .where(eq(contacts.id, id))
+      .returning();
+    return updatedContact;
+  }
+
+  async deleteContact(id: number): Promise<void> {
+    await db.delete(contacts).where(eq(contacts.id, id));
+  }
+
+  // Applications
+  async createApplication(application: InsertApplication): Promise<Application> {
+    const [newApplication] = await db.insert(applications).values(application).returning();
+    return newApplication;
+  }
+
+  async getApplications(): Promise<Application[]> {
+    return await db.select().from(applications).orderBy(desc(applications.createdAt));
+  }
+
+  async getUserApplications(userId: string): Promise<Application[]> {
+    return await db.select().from(applications).where(eq(applications.userId, userId)).orderBy(desc(applications.createdAt));
+  }
+
+  async getApplicationById(id: number): Promise<Application | undefined> {
+    const [application] = await db.select().from(applications).where(eq(applications.id, id));
+    return application;
+  }
+
+  async updateApplication(id: number, application: Partial<InsertApplication>): Promise<Application> {
+    const [updatedApplication] = await db
+      .update(applications)
+      .set({ ...application, updatedAt: new Date() })
+      .where(eq(applications.id, id))
+      .returning();
+    return updatedApplication;
+  }
+
+  async deleteApplication(id: number): Promise<void> {
+    await db.delete(applications).where(eq(applications.id, id));
+  }
+
+  // Points
+  async createPoints(pointsData: InsertPoints): Promise<Points> {
+    const [newPoints] = await db.insert(points).values(pointsData).returning();
+    return newPoints;
+  }
+
+  async getUserPoints(userId: string): Promise<Points[]> {
+    return await db.select().from(points).where(eq(points.userId, userId)).orderBy(desc(points.createdAt));
+  }
+
+  async getMemberPoints(memberId: number): Promise<Points[]> {
+    return await db.select().from(points).where(eq(points.memberId, memberId)).orderBy(desc(points.createdAt));
+  }
+
+  // Applicants
+  async createApplicant(applicant: InsertApplicant): Promise<Applicant> {
+    const [newApplicant] = await db.insert(applicants).values(applicant).returning();
+    return newApplicant;
+  }
+
+  async getApplicants(): Promise<Applicant[]> {
+    return await db.select().from(applicants).orderBy(desc(applicants.createdAt));
+  }
+
+  async getApplicationApplicants(applicationId: number): Promise<Applicant[]> {
+    return await db.select().from(applicants).where(eq(applicants.applicationId, applicationId));
+  }
+
+  async updateApplicant(id: number, applicant: Partial<InsertApplicant>): Promise<Applicant> {
+    const [updatedApplicant] = await db
+      .update(applicants)
+      .set({ ...applicant, updatedAt: new Date() })
+      .where(eq(applicants.id, id))
+      .returning();
+    return updatedApplicant;
+  }
+
+  async deleteApplicant(id: number): Promise<void> {
+    await db.delete(applicants).where(eq(applicants.id, id));
+  }
+
+  // Applicant Dependents
+  async createApplicantDependent(dependent: InsertApplicantDependent): Promise<ApplicantDependent> {
+    const [newDependent] = await db.insert(applicantDependents).values(dependent).returning();
+    return newDependent;
+  }
+
+  async getApplicantDependents(): Promise<ApplicantDependent[]> {
+    return await db.select().from(applicantDependents).orderBy(desc(applicantDependents.createdAt));
+  }
+
+  async getApplicationDependents(applicationId: number): Promise<ApplicantDependent[]> {
+    return await db.select().from(applicantDependents).where(eq(applicantDependents.applicationId, applicationId));
+  }
+
+  async updateApplicantDependent(id: number, dependent: Partial<InsertApplicantDependent>): Promise<ApplicantDependent> {
+    const [updatedDependent] = await db
+      .update(applicantDependents)
+      .set({ ...dependent, updatedAt: new Date() })
+      .where(eq(applicantDependents.id, id))
+      .returning();
+    return updatedDependent;
+  }
+
+  async deleteApplicantDependent(id: number): Promise<void> {
+    await db.delete(applicantDependents).where(eq(applicantDependents.id, id));
   }
 }
 

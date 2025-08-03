@@ -26,13 +26,15 @@ export const sessions = pgTable(
   (table) => [index("IDX_session_expire").on(table.expire)],
 );
 
-// User storage table - mandatory for Replit Auth
+// User storage table with role-based authorization - mandatory for Replit Auth
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   email: varchar("email").unique(),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
+  role: varchar("role", { enum: ["Admin", "Agent", "Member", "Visitor"] }).default("Member"),
+  isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -125,14 +127,201 @@ export const dependents = pgTable("dependents", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Members - extends users with additional member-specific information
+export const members = pgTable("members", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").unique().references(() => users.id),
+  memberNumber: varchar("member_number", { length: 20 }).unique().notNull(),
+  dateOfBirth: timestamp("date_of_birth"),
+  phone: varchar("phone", { length: 20 }),
+  address: text("address"),
+  city: varchar("city", { length: 50 }),
+  state: varchar("state", { length: 50 }),
+  zipCode: varchar("zip_code", { length: 10 }),
+  ssn: varchar("ssn", { length: 11 }), // encrypted
+  membershipStatus: varchar("membership_status", { enum: ["Active", "Inactive", "Suspended"] }).default("Active"),
+  membershipDate: timestamp("membership_date").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Contacts - general contact information
+export const contacts = pgTable("contacts", {
+  id: serial("id").primaryKey(),
+  type: varchar("type", { enum: ["Lead", "Customer", "Provider", "Agent"] }).notNull(),
+  firstName: varchar("first_name", { length: 50 }).notNull(),
+  lastName: varchar("last_name", { length: 50 }).notNull(),
+  email: varchar("email", { length: 100 }),
+  phone: varchar("phone", { length: 20 }),
+  company: varchar("company", { length: 100 }),
+  address: text("address"),
+  city: varchar("city", { length: 50 }),
+  state: varchar("state", { length: 50 }),
+  zipCode: varchar("zip_code", { length: 10 }),
+  notes: text("notes"),
+  status: varchar("status", { enum: ["Active", "Inactive", "Prospect"] }).default("Active"),
+  assignedAgent: varchar("assigned_agent").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Applications - insurance applications
+export const applications = pgTable("applications", {
+  id: serial("id").primaryKey(),
+  applicationNumber: varchar("application_number", { length: 30 }).unique().notNull(),
+  userId: varchar("user_id").references(() => users.id),
+  contactId: integer("contact_id").references(() => contacts.id),
+  insuranceTypeId: integer("insurance_type_id").references(() => insuranceTypes.id),
+  status: varchar("status", { enum: ["Draft", "Submitted", "Under Review", "Approved", "Rejected", "Withdrawn"] }).default("Draft"),
+  applicationData: jsonb("application_data"), // stores form data
+  submittedAt: timestamp("submitted_at"),
+  reviewedAt: timestamp("reviewed_at"),
+  reviewedBy: varchar("reviewed_by").references(() => users.id),
+  approvedAt: timestamp("approved_at"),
+  rejectedAt: timestamp("rejected_at"),
+  rejectionReason: text("rejection_reason"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Points system - member rewards/points
+export const points = pgTable("points", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id),
+  memberId: integer("member_id").references(() => members.id),
+  pointsEarned: integer("points_earned").default(0),
+  pointsUsed: integer("points_used").default(0),
+  pointsBalance: integer("points_balance").default(0),
+  transactionType: varchar("transaction_type", { enum: ["Earned", "Redeemed", "Expired", "Adjustment"] }).notNull(),
+  description: text("description"),
+  referenceId: varchar("reference_id"), // can reference policy, claim, etc.
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Applicants - individuals applying for insurance
+export const applicants = pgTable("applicants", {
+  id: serial("id").primaryKey(),
+  applicationId: integer("application_id").references(() => applications.id),
+  isPrimary: boolean("is_primary").default(true),
+  firstName: varchar("first_name", { length: 50 }).notNull(),
+  lastName: varchar("last_name", { length: 50 }).notNull(),
+  dateOfBirth: timestamp("date_of_birth").notNull(),
+  gender: varchar("gender", { enum: ["Male", "Female", "Other"] }),
+  ssn: varchar("ssn", { length: 11 }), // encrypted
+  phone: varchar("phone", { length: 20 }),
+  email: varchar("email", { length: 100 }),
+  address: text("address"),
+  city: varchar("city", { length: 50 }),
+  state: varchar("state", { length: 50 }),
+  zipCode: varchar("zip_code", { length: 10 }),
+  occupation: varchar("occupation", { length: 100 }),
+  annualIncome: decimal("annual_income", { precision: 12, scale: 2 }),
+  healthStatus: varchar("health_status", { enum: ["Excellent", "Good", "Fair", "Poor"] }),
+  smoker: boolean("smoker").default(false),
+  medicalHistory: jsonb("medical_history"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Applicant Dependents - dependents on applications
+export const applicantDependents = pgTable("applicant_dependents", {
+  id: serial("id").primaryKey(),
+  applicationId: integer("application_id").references(() => applications.id),
+  applicantId: integer("applicant_id").references(() => applicants.id),
+  firstName: varchar("first_name", { length: 50 }).notNull(),
+  lastName: varchar("last_name", { length: 50 }).notNull(),
+  dateOfBirth: timestamp("date_of_birth").notNull(),
+  gender: varchar("gender", { enum: ["Male", "Female", "Other"] }),
+  relationship: varchar("relationship", { length: 30 }).notNull(),
+  ssn: varchar("ssn", { length: 11 }), // encrypted
+  healthStatus: varchar("health_status", { enum: ["Excellent", "Good", "Fair", "Poor"] }),
+  smoker: boolean("smoker").default(false),
+  medicalHistory: jsonb("medical_history"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Relations
-export const usersRelations = relations(users, ({ many }) => ({
+export const usersRelations = relations(users, ({ one, many }) => ({
+  member: one(members),
   quotes: many(insuranceQuotes),
   selectedQuotes: many(selectedQuotes),
   wishlist: many(wishlist),
   policies: many(policies),
   claims: many(claims),
   dependents: many(dependents),
+  applications: many(applications),
+  points: many(points),
+  assignedContacts: many(contacts),
+}));
+
+export const membersRelations = relations(members, ({ one, many }) => ({
+  user: one(users, {
+    fields: [members.userId],
+    references: [users.id],
+  }),
+  points: many(points),
+}));
+
+export const contactsRelations = relations(contacts, ({ one, many }) => ({
+  assignedAgent: one(users, {
+    fields: [contacts.assignedAgent],
+    references: [users.id],
+  }),
+  applications: many(applications),
+}));
+
+export const applicationsRelations = relations(applications, ({ one, many }) => ({
+  user: one(users, {
+    fields: [applications.userId],
+    references: [users.id],
+  }),
+  contact: one(contacts, {
+    fields: [applications.contactId],
+    references: [contacts.id],
+  }),
+  insuranceType: one(insuranceTypes, {
+    fields: [applications.insuranceTypeId],
+    references: [insuranceTypes.id],
+  }),
+  reviewer: one(users, {
+    fields: [applications.reviewedBy],
+    references: [users.id],
+  }),
+  applicants: many(applicants),
+  applicantDependents: many(applicantDependents),
+}));
+
+export const applicantsRelations = relations(applicants, ({ one, many }) => ({
+  application: one(applications, {
+    fields: [applicants.applicationId],
+    references: [applications.id],
+  }),
+  dependents: many(applicantDependents),
+}));
+
+export const applicantDependentsRelations = relations(applicantDependents, ({ one }) => ({
+  application: one(applications, {
+    fields: [applicantDependents.applicationId],
+    references: [applications.id],
+  }),
+  applicant: one(applicants, {
+    fields: [applicantDependents.applicantId],
+    references: [applicants.id],
+  }),
+}));
+
+export const pointsRelations = relations(points, ({ one }) => ({
+  user: one(users, {
+    fields: [points.userId],
+    references: [users.id],
+  }),
+  member: one(members, {
+    fields: [points.memberId],
+    references: [members.id],
+  }),
 }));
 
 export const insuranceQuotesRelations = relations(insuranceQuotes, ({ one, many }) => ({
@@ -209,6 +398,24 @@ export const dependentsRelations = relations(dependents, ({ one }) => ({
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
 
+export type InsertMember = typeof members.$inferInsert;
+export type Member = typeof members.$inferSelect;
+
+export type InsertContact = typeof contacts.$inferInsert;
+export type Contact = typeof contacts.$inferSelect;
+
+export type InsertApplication = typeof applications.$inferInsert;
+export type Application = typeof applications.$inferSelect;
+
+export type InsertPoints = typeof points.$inferInsert;
+export type Points = typeof points.$inferSelect;
+
+export type InsertApplicant = typeof applicants.$inferInsert;
+export type Applicant = typeof applicants.$inferSelect;
+
+export type InsertApplicantDependent = typeof applicantDependents.$inferInsert;
+export type ApplicantDependent = typeof applicantDependents.$inferSelect;
+
 export type InsertInsuranceType = typeof insuranceTypes.$inferInsert;
 export type InsuranceType = typeof insuranceTypes.$inferSelect;
 
@@ -233,7 +440,42 @@ export type Claim = typeof claims.$inferSelect;
 export type InsertDependent = typeof dependents.$inferInsert;
 export type Dependent = typeof dependents.$inferSelect;
 
-// Zod schemas
+// Zod schemas for validation
+export const insertMemberSchema = createInsertSchema(members).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertContactSchema = createInsertSchema(contacts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertApplicationSchema = createInsertSchema(applications).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPointsSchema = createInsertSchema(points).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertApplicantSchema = createInsertSchema(applicants).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertApplicantDependentSchema = createInsertSchema(applicantDependents).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertInsuranceQuoteSchema = createInsertSchema(insuranceQuotes).omit({
   id: true,
   createdAt: true,
@@ -263,3 +505,13 @@ export const insertDependentSchema = createInsertSchema(dependents).omit({
   id: true,
   createdAt: true,
 });
+
+// Role-based authorization types
+export type UserRole = "Admin" | "Agent" | "Member" | "Visitor";
+
+export const ROLE_PERMISSIONS = {
+  Admin: ["read", "write", "delete", "manage_users", "manage_system"],
+  Agent: ["read", "write", "delete"],
+  Member: ["read", "write_own"],
+  Visitor: ["read_public"]
+} as const;
