@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Search, Heart, Check, Star } from "lucide-react";
+import quoteComparisonImage from "@assets/generated_images/Quote_comparison_dashboard_94f4b5f2.png";
 
 export default function Quotes() {
   const { isAuthenticated } = useAuth();
@@ -131,9 +132,19 @@ export default function Quotes() {
       <Navigation />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">Compare Coverage Quotes</h1>
-          <p className="text-lg text-gray-600">Find the perfect coverage for your needs</p>
+        <div className="grid lg:grid-cols-2 gap-12 items-center mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-4">Compare Coverage Quotes</h1>
+            <p className="text-lg text-gray-600">Find the perfect coverage for your needs</p>
+          </div>
+          
+          <div className="hidden lg:block">
+            <img 
+              src={quoteComparisonImage} 
+              alt="Quote comparison dashboard" 
+              className="rounded-xl shadow-lg w-full h-auto"
+            />
+          </div>
         </div>
 
         {/* Search Form */}

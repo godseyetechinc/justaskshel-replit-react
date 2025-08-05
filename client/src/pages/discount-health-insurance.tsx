@@ -6,6 +6,7 @@ import { Heart, Shield, DollarSign, Users, CheckCircle, AlertCircle, FileText, C
 import { Link } from "wouter";
 import Navigation from "@/components/navigation";
 import Footer from "@/components/footer";
+import discountHealthImage from "@assets/generated_images/Discount_health_savings_d4a79bb6.png";
 
 export default function DiscountHealthInsurance() {
   const discountFeatures = [

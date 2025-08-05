@@ -6,6 +6,7 @@ import { Building2, Shield, DollarSign, Users, CheckCircle, AlertCircle, FileTex
 import { Link } from "wouter";
 import Navigation from "@/components/navigation";
 import Footer from "@/components/footer";
+import hospitalIndemnityImage from "@assets/generated_images/Hospital_indemnity_coverage_b9aaf481.png";
 
 export default function HospitalIndemnityInsurance() {
   const coverageBenefits = [

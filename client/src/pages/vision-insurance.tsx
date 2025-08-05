@@ -6,6 +6,7 @@ import { Eye, Shield, DollarSign, Users, CheckCircle, AlertCircle, FileText, Cal
 import { Link } from "wouter";
 import Navigation from "@/components/navigation";
 import Footer from "@/components/footer";
+import visionInsuranceImage from "@assets/generated_images/Vision_insurance_clinic_737bf764.png";
 
 export default function VisionInsurance() {
   const eyeExamBenefits = [

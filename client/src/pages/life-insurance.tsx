@@ -6,6 +6,7 @@ import { Shield, Heart, DollarSign, Users, CheckCircle, AlertCircle, FileText, C
 import { Link } from "wouter";
 import Navigation from "@/components/navigation";
 import Footer from "@/components/footer";
+import lifeInsuranceImage from "@assets/generated_images/Life_insurance_protection_840e1749.png";
 
 export default function LifeInsurance() {
   const termLifeBenefits = [

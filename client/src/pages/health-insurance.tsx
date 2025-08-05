@@ -6,6 +6,7 @@ import { Heart, Shield, DollarSign, Users, CheckCircle, AlertCircle, FileText, C
 import { Link } from "wouter";
 import Navigation from "@/components/navigation";
 import Footer from "@/components/footer";
+import healthInsuranceImage from "@assets/generated_images/Health_insurance_coverage_9c7e720a.png";
 
 export default function HealthInsurance() {
   const hmoFeatures = [

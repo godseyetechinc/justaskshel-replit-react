@@ -6,6 +6,7 @@ import { Smile, Shield, DollarSign, Users, CheckCircle, AlertCircle, FileText, C
 import { Link } from "wouter";
 import Navigation from "@/components/navigation";
 import Footer from "@/components/footer";
+import dentalInsuranceImage from "@assets/generated_images/Dental_insurance_office_7270ce5f.png";
 
 export default function DentalInsurance() {
   const preventiveServices = [
