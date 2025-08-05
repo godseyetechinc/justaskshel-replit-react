@@ -51,31 +51,41 @@ export default function LifeInsurance() {
       {/* Hero Section */}
       <div className="bg-gradient-to-br from-primary/10 to-primary/5 py-16">
         <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto text-center">
-            <div className="flex justify-center mb-6">
-              <div className="p-4 bg-primary/10 rounded-full">
-                <Shield className="h-12 w-12 text-primary" />
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <div className="text-center lg:text-left">
+              <div className="flex justify-center lg:justify-start mb-6">
+                <div className="p-4 bg-primary/10 rounded-full">
+                  <Shield className="h-12 w-12 text-primary" />
+                </div>
+              </div>
+              <h1 className="text-4xl md:text-5xl font-bold mb-6">
+                Life Insurance Coverage
+              </h1>
+              <p className="text-xl text-muted-foreground mb-8">
+                Protect your family's financial future with comprehensive life insurance coverage. 
+                From term life to whole life and universal life policies, find the right protection 
+                for your unique needs and budget.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+                <Link href="/quotes">
+                  <Button size="lg" className="px-8">
+                    <Calculator className="mr-2 h-5 w-5" />
+                    Get Free Quotes
+                  </Button>
+                </Link>
+                <Button variant="outline" size="lg" className="px-8">
+                  <FileText className="mr-2 h-5 w-5" />
+                  Download Guide
+                </Button>
               </div>
             </div>
-            <h1 className="text-4xl md:text-5xl font-bold mb-6">
-              Life Insurance Coverage
-            </h1>
-            <p className="text-xl text-muted-foreground mb-8 max-w-3xl mx-auto">
-              Protect your family's financial future with comprehensive life insurance coverage. 
-              From term life to whole life and universal life policies, find the right protection 
-              for your unique needs and budget.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/quotes">
-                <Button size="lg" className="px-8">
-                  <Calculator className="mr-2 h-5 w-5" />
-                  Get Free Quotes
-                </Button>
-              </Link>
-              <Button variant="outline" size="lg" className="px-8">
-                <FileText className="mr-2 h-5 w-5" />
-                Download Guide
-              </Button>
+            
+            <div className="hidden lg:block">
+              <img 
+                src={lifeInsuranceImage} 
+                alt="Life insurance protection" 
+                className="rounded-2xl shadow-xl w-full h-auto"
+              />
             </div>
           </div>
         </div>
