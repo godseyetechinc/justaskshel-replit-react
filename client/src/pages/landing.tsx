@@ -6,7 +6,7 @@ import QuoteComparison from "@/components/quote-comparison";
 import DashboardPreview from "@/components/dashboard-preview";
 import ClaimsAssistanceSection from "@/components/claims-assistance-section";
 import Footer from "@/components/footer";
-import jasBrandLogo from "@/assets/jas-brand-logo.svg";
+import jasBrandLogo from "@/assets/jas-brand-logo-new.png";
 
 export default function Landing() {
   return (
