@@ -6,6 +6,8 @@ JustAskShel is a comprehensive insurance comparison and management platform that
 - **Application Rebranding**: Renamed application from "InsureScope" to "JustAskShel" with updated branding throughout the platform
 - **Terminology Consistency**: Updated all references from "Insurance Types" to "Coverage Types" across the application for improved clarity
 - **Header Menu Styling**: Applied consistent dashboard-style header menu styling across all pages for unified user experience
+- **Dashboard Button Styling**: Updated Dashboard navigation link with outlined button styling and Settings icon for consistent visual hierarchy
+- **Documentation Synchronization**: Created comprehensive README.md from replit.md content with established synchronization process
 - **Default Admin User**: Created system administrator account (admin@insurescope.com) with full system access
 - **Comprehensive CRUD Operations**: Implemented full create, read, update, delete functionality for all database entities with role-based access control
 - **Enhanced User Profile Management**: Added profile editing page with comprehensive user information fields (phone, address, date of birth, etc.)
@@ -17,6 +19,16 @@ JustAskShel is a comprehensive insurance comparison and management platform that
 # User Preferences
 
 Preferred communication style: Simple, everyday language.
+
+# Documentation Management
+
+## README.md Synchronization
+The project maintains both `replit.md` (internal development context) and `README.md` (public Git repository documentation). These files should be kept synchronized:
+
+- **replit.md**: Contains detailed development context, user preferences, and technical architecture specific to Replit environment
+- **README.md**: Public-facing documentation with project overview, setup instructions, and contribution guidelines
+- **Sync Process**: When major updates occur to project features, architecture, or user preferences, both files should be updated to maintain consistency
+- **Content Focus**: README.md emphasizes setup and usage instructions, while replit.md focuses on development context and preferences
 
 # System Architecture
 
