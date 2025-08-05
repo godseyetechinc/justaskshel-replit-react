@@ -90,31 +90,41 @@ export default function DentalInsurance() {
       {/* Hero Section */}
       <div className="bg-gradient-to-br from-primary/10 to-primary/5 py-16">
         <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto text-center">
-            <div className="flex justify-center mb-6">
-              <div className="p-4 bg-primary/10 rounded-full">
-                <Smile className="h-12 w-12 text-primary" />
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <div className="text-center lg:text-left">
+              <div className="flex justify-center lg:justify-start mb-6">
+                <div className="p-4 bg-primary/10 rounded-full">
+                  <Smile className="h-12 w-12 text-primary" />
+                </div>
+              </div>
+              <h1 className="text-4xl md:text-5xl font-bold mb-6">
+                Dental Insurance Coverage
+              </h1>
+              <p className="text-xl text-muted-foreground mb-8">
+                Maintain your oral health with comprehensive dental insurance. 
+                From routine cleanings to major procedures, find affordable coverage 
+                that keeps your smile healthy and bright.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+                <Link href="/quotes">
+                  <Button size="lg" className="px-8">
+                    <Calculator className="mr-2 h-5 w-5" />
+                    Get Free Quotes
+                  </Button>
+                </Link>
+                <Button variant="outline" size="lg" className="px-8">
+                  <FileText className="mr-2 h-5 w-5" />
+                  Benefits Guide
+                </Button>
               </div>
             </div>
-            <h1 className="text-4xl md:text-5xl font-bold mb-6">
-              Dental Insurance Coverage
-            </h1>
-            <p className="text-xl text-muted-foreground mb-8 max-w-3xl mx-auto">
-              Maintain your oral health with comprehensive dental insurance. 
-              From routine cleanings to major procedures, find affordable coverage 
-              that keeps your smile healthy and bright.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/quotes">
-                <Button size="lg" className="px-8">
-                  <Calculator className="mr-2 h-5 w-5" />
-                  Get Free Quotes
-                </Button>
-              </Link>
-              <Button variant="outline" size="lg" className="px-8">
-                <FileText className="mr-2 h-5 w-5" />
-                Benefits Guide
-              </Button>
+            
+            <div className="hidden lg:block">
+              <img 
+                src={dentalInsuranceImage} 
+                alt="Dental insurance office" 
+                className="rounded-2xl shadow-xl w-full h-auto"
+              />
             </div>
           </div>
         </div>
