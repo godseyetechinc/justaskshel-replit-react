@@ -3,6 +3,8 @@
 JustAskShel is a comprehensive insurance comparison and management platform that helps users find, compare, and manage insurance policies across multiple types including life, health, dental, vision, and hospital indemnity insurance. The platform provides quote comparison tools, policy management dashboards, claims assistance, and wishlist functionality to streamline the insurance shopping and management experience.
 
 ## Recent Updates (August 2025)
+- **Visual Enhancement with Themed Images**: Added strategically placed, professionally themed placeholder images across all coverage pages (life, health, dental, vision, hospital indemnity, discount health) to enhance visual appeal and user engagement
+- **Hero Section Image Integration**: Implemented visually appealing two-column grid layouts with images on coverage pages for better user experience
 - **Application Rebranding**: Renamed application from "InsureScope" to "JustAskShel" with updated branding throughout the platform
 - **Terminology Consistency**: Updated all references from "Insurance Types" to "Coverage Types" across the application for improved clarity
 - **Header Menu Styling**: Applied consistent dashboard-style header menu styling across all pages for unified user experience

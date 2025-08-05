@@ -6,6 +6,7 @@ import { Heart, Shield, DollarSign, Users, CheckCircle, AlertCircle, FileText, C
 import { Link } from "wouter";
 import Navigation from "@/components/navigation";
 import Footer from "@/components/footer";
+import discountHealthImage from "@assets/generated_images/Discount_health_plans_d5cbd36e.png";
 
 export default function DiscountHealthInsurance() {
   const discountFeatures = [
@@ -86,31 +87,41 @@ export default function DiscountHealthInsurance() {
       {/* Hero Section */}
       <div className="bg-gradient-to-br from-primary/10 to-primary/5 py-16">
         <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto text-center">
-            <div className="flex justify-center mb-6">
-              <div className="p-4 bg-primary/10 rounded-full">
-                <Percent className="h-12 w-12 text-primary" />
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <div className="text-center lg:text-left">
+              <div className="flex justify-center lg:justify-start mb-6">
+                <div className="p-4 bg-primary/10 rounded-full">
+                  <Percent className="h-12 w-12 text-primary" />
+                </div>
+              </div>
+              <h1 className="text-4xl md:text-5xl font-bold mb-6">
+                Discount Health Plans
+              </h1>
+              <p className="text-xl text-muted-foreground mb-8">
+                Save money on healthcare services with discount health plans. 
+                Get immediate savings on medical care, prescriptions, dental, vision, 
+                and wellness services without deductibles or claim forms.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+                <Link href="/quotes">
+                  <Button size="lg" className="px-8">
+                    <Calculator className="mr-2 h-5 w-5" />
+                    Get Free Quotes
+                  </Button>
+                </Link>
+                <Button variant="outline" size="lg" className="px-8">
+                  <FileText className="mr-2 h-5 w-5" />
+                  Learn More
+                </Button>
               </div>
             </div>
-            <h1 className="text-4xl md:text-5xl font-bold mb-6">
-              Discount Health Plans
-            </h1>
-            <p className="text-xl text-muted-foreground mb-8 max-w-3xl mx-auto">
-              Save money on healthcare services with discount health plans. 
-              Get immediate savings on medical care, prescriptions, dental, vision, 
-              and wellness services without deductibles or claim forms.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/quotes">
-                <Button size="lg" className="px-8">
-                  <Calculator className="mr-2 h-5 w-5" />
-                  Get Free Quotes
-                </Button>
-              </Link>
-              <Button variant="outline" size="lg" className="px-8">
-                <FileText className="mr-2 h-5 w-5" />
-                Learn More
-              </Button>
+            
+            <div className="hidden lg:block">
+              <img 
+                src={discountHealthImage} 
+                alt="Discount health savings" 
+                className="rounded-2xl shadow-xl w-full h-auto"
+              />
             </div>
           </div>
         </div>

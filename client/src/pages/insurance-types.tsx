@@ -16,6 +16,7 @@ import {
   Clock
 } from "lucide-react";
 import { Link } from "wouter";
+import coverageTypesImage from "@assets/generated_images/Coverage_types_overview_29ff16c8.png";
 
 const iconMap = {
   heart: Heart,
@@ -180,13 +181,23 @@ export default function CoverageTypes() {
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Hero Section */}
-        <div className="text-center mb-16">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Coverage Options
-          </h1>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Explore our comprehensive range of coverage options designed to protect you and your family
-          </p>
+        <div className="grid lg:grid-cols-2 gap-12 items-center mb-16">
+          <div className="text-center lg:text-left">
+            <h1 className="text-4xl font-bold text-gray-900 mb-4">
+              Coverage Options
+            </h1>
+            <p className="text-xl text-gray-600">
+              Explore our comprehensive range of coverage options designed to protect you and your family
+            </p>
+          </div>
+          
+          <div className="hidden lg:block">
+            <img 
+              src={coverageTypesImage} 
+              alt="Coverage types overview" 
+              className="rounded-xl shadow-lg w-full h-auto"
+            />
+          </div>
         </div>
 
         {/* Insurance Types Grid */}

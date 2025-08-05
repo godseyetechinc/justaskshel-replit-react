@@ -16,6 +16,7 @@ import {
   Search,
   DollarSign
 } from "lucide-react";
+import claimsAssistanceImage from "@assets/generated_images/Claims_assistance_support_aa5922bc.png";
 
 export default function ClaimsAssistance() {
   return (
@@ -24,13 +25,23 @@ export default function ClaimsAssistance() {
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Hero Section */}
-        <div className="text-center mb-16">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Expert Claims Assistance
-          </h1>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Our dedicated claims specialists guide you through every step of the process to ensure you get the maximum coverage you deserve
-          </p>
+        <div className="grid lg:grid-cols-2 gap-12 items-center mb-16">
+          <div className="text-center lg:text-left">
+            <h1 className="text-4xl font-bold text-gray-900 mb-4">
+              Expert Claims Assistance
+            </h1>
+            <p className="text-xl text-gray-600">
+              Our dedicated claims specialists guide you through every step of the process to ensure you get the maximum coverage you deserve
+            </p>
+          </div>
+          
+          <div className="hidden lg:block">
+            <img 
+              src={claimsAssistanceImage} 
+              alt="Claims assistance support" 
+              className="rounded-xl shadow-lg w-full h-auto"
+            />
+          </div>
         </div>
 
         {/* Claims Process */}
