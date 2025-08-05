@@ -22,9 +22,9 @@ export default function Footer() {
   ];
 
   const companyLinks = [
-    { name: "About Us", href: "#" },
-    { name: "Privacy Policy", href: "#" },
-    { name: "Terms of Service", href: "#" },
+    { name: "About Us", href: "/about-us" },
+    { name: "Privacy Policy", href: "/privacy-policy" },
+    { name: "Terms of Service", href: "/terms-of-service" },
     { name: "Contact", href: "#" },
     { name: "Careers", href: "#" },
     { name: "Press", href: "#" },
@@ -107,9 +107,17 @@ export default function Footer() {
             <ul className="space-y-2 text-gray-300">
               {companyLinks.map((link) => (
                 <li key={link.name}>
-                  <a href={link.href} className="hover:text-white transition-colors">
-                    {link.name}
-                  </a>
+                  {link.href.startsWith("#") ? (
+                    <a href={link.href} className="hover:text-white transition-colors">
+                      {link.name}
+                    </a>
+                  ) : (
+                    <Link href={link.href}>
+                      <span className="hover:text-white transition-colors cursor-pointer">
+                        {link.name}
+                      </span>
+                    </Link>
+                  )}
                 </li>
               ))}
             </ul>
@@ -119,7 +127,7 @@ export default function Footer() {
         {/* Footer Bottom */}
         <div className="border-t border-gray-800 mt-12 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
-            <p className="text-gray-400">&copy; 2023 JustAskShel. All rights reserved.</p>
+            <p className="text-gray-400">&copy; 2025 JustAskShel. All rights reserved.</p>
             <div className="flex items-center space-x-6 mt-4 md:mt-0 text-gray-400">
               <div className="flex items-center">
                 <Shield className="h-4 w-4 mr-2 text-green-400" />

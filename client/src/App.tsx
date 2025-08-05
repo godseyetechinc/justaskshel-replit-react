@@ -30,6 +30,9 @@ import DentalInsurance from "@/pages/dental-insurance";
 import VisionInsurance from "@/pages/vision-insurance";
 import DiscountHealthInsurance from "@/pages/discount-health-insurance";
 import HospitalIndemnityInsurance from "@/pages/hospital-indemnity-insurance";
+import AboutUs from "@/pages/about-us";
+import PrivacyPolicy from "@/pages/privacy-policy";
+import TermsOfService from "@/pages/terms-of-service";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -48,6 +51,9 @@ function Router() {
           <Route path="/vision-insurance" component={VisionInsurance} />
           <Route path="/discount-health-insurance" component={DiscountHealthInsurance} />
           <Route path="/hospital-indemnity-insurance" component={HospitalIndemnityInsurance} />
+          <Route path="/about-us" component={AboutUs} />
+          <Route path="/privacy-policy" component={PrivacyPolicy} />
+          <Route path="/terms-of-service" component={TermsOfService} />
         </>
       ) : (
         <>
@@ -75,6 +81,9 @@ function Router() {
           <Route path="/vision-insurance" component={VisionInsurance} />
           <Route path="/discount-health-insurance" component={DiscountHealthInsurance} />
           <Route path="/hospital-indemnity-insurance" component={HospitalIndemnityInsurance} />
+          <Route path="/about-us" component={AboutUs} />
+          <Route path="/privacy-policy" component={PrivacyPolicy} />
+          <Route path="/terms-of-service" component={TermsOfService} />
         </>
       )}
       <Route component={NotFound} />
