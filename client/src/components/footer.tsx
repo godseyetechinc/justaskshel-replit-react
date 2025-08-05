@@ -1,6 +1,6 @@
 import { Shield, Facebook, Twitter, Linkedin, Instagram } from "lucide-react";
 import { Link } from "wouter";
-import jasBrandLogo from "@/assets/jas-brand-logo-new.png";
+import jasBrandLogo from "@/assets/jas-brand-logo.svg";
 
 export default function Footer() {
   const coverageTypes = [

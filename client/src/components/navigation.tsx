@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Shield, Menu, X, ChevronDown, Settings } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
-import jasBrandLogo from "@/assets/jas-brand-logo-new.png";
+import jasBrandLogo from "@/assets/jas-brand-logo.svg";
 import {
   DropdownMenu,
   DropdownMenuContent,
