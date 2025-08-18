@@ -222,16 +222,6 @@ export default function Navigation() {
                     Get Started
                   </Button>
                 </Link>
-                <Button
-                  variant="outline"
-                  onClick={() => (window.location.href = "/api/login")}
-                  data-testid="button-nav-replit"
-                >
-                  <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm-1.5 6h3a3 3 0 0 1 0 6h-3V6zm0 12V12h3l3 6h-6z"/>
-                  </svg>
-                  Replit
-                </Button>
               </>
             )}
           </div>
@@ -327,32 +317,31 @@ export default function Navigation() {
                       className="block w-full text-left px-3 py-2 text-base font-medium text-gray-500 hover:text-primary hover:bg-gray-50"
                       onClick={() => {
                         setMobileMenuOpen(false);
-                        window.location.href = "/api/logout";
+                        logout();
                       }}
+                      disabled={isLoggingOut}
                     >
-                      Sign Out
+                      {isLoggingOut ? "Logging out..." : "Sign Out"}
                     </button>
                   </>
                 ) : (
                   <>
-                    <button
-                      className="block w-full text-left px-3 py-2 text-base font-medium text-gray-500 hover:text-primary hover:bg-gray-50"
-                      onClick={() => {
-                        setMobileMenuOpen(false);
-                        window.location.href = "/api/login";
-                      }}
-                    >
-                      Sign In
-                    </button>
-                    <button
-                      className="block w-full text-left px-3 py-2 text-base font-medium text-primary hover:bg-primary/10"
-                      onClick={() => {
-                        setMobileMenuOpen(false);
-                        window.location.href = "/api/login";
-                      }}
-                    >
-                      Get Started
-                    </button>
+                    <Link href="/login">
+                      <a
+                        className="block px-3 py-2 text-base font-medium text-gray-500 hover:text-primary hover:bg-gray-50"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        Sign In
+                      </a>
+                    </Link>
+                    <Link href="/signup">
+                      <a
+                        className="block px-3 py-2 text-base font-medium text-primary hover:bg-primary/10"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        Get Started
+                      </a>
+                    </Link>
                   </>
                 )}
               </div>
