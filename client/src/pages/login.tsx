@@ -8,7 +8,13 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
@@ -31,7 +37,7 @@ export default function Login() {
   });
 
   const loginMutation = useMutation({
-    mutationFn: (data: LoginFormData) => 
+    mutationFn: (data: LoginFormData) =>
       apiRequest("/api/auth/login", {
         method: "POST",
         body: JSON.stringify(data),
@@ -70,13 +76,14 @@ export default function Login() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">Welcome Back</CardTitle>
-          <CardDescription>
-            Sign in to your JustAskShel account
-          </CardDescription>
+          <CardDescription>Sign in to your JustAskShel account</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Traditional Login Form */}
-          <form onSubmit={handleSubmit(handleLoginSubmit)} className="space-y-4">
+          <form
+            onSubmit={handleSubmit(handleLoginSubmit)}
+            className="space-y-4"
+          >
             <div className="space-y-2">
               <Label htmlFor="email">Email Address</Label>
               <Input
@@ -149,16 +156,26 @@ export default function Login() {
             onClick={handleReplitLogin}
             data-testid="button-replit-login"
           >
-            <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm-1.5 6h3a3 3 0 0 1 0 6h-3V6zm0 12V12h3l3 6h-6z"/>
+            <svg
+              className="w-4 h-4 mr-2"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+            >
+              <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm-1.5 6h3a3 3 0 0 1 0 6h-3V6zm0 12V12h3l3 6h-6z" />
             </svg>
             Continue with Replit
           </Button>
 
           <div className="text-center text-sm">
-            <span className="text-muted-foreground">Don't have an account? </span>
+            <span className="text-muted-foreground">
+              Don't have an account?{" "}
+            </span>
             <Link href="/signup">
-              <Button variant="link" className="p-0 h-auto font-medium" data-testid="link-signup">
+              <Button
+                variant="link"
+                className="p-0 h-auto font-medium"
+                data-testid="link-signup"
+              >
                 Sign up here
               </Button>
             </Link>
@@ -167,7 +184,9 @@ export default function Login() {
           {/* Test Account Info */}
           <Alert>
             <AlertDescription className="text-xs">
-              <strong>Test Account:</strong> Use any seeded user email (e.g., admin1@justaskshel.com, agent1@justaskshel.com, member1@example.com) with password "password123"
+              <strong>Test Account:</strong> Use any seeded user email (e.g.,
+              admin1@justaskshel.com, agent1@justaskshel.com,
+              member1@example.com) with password "password123"
             </AlertDescription>
           </Alert>
         </CardContent>

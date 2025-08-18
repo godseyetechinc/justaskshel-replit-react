@@ -40,12 +40,8 @@ import TermsOfService from "@/pages/terms-of-service";
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
 
-  // Debug logging to understand the state
-  console.log('Router state:', { isAuthenticated, isLoading, hasUser: !!user, userRole: user?.role });
-
   // Show loading state while checking authentication
   if (isLoading) {
-    console.log('Showing loading state');
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -79,7 +75,7 @@ function Router() {
       ) : (
         <>
           <Route path="/" component={Home} />
-          <Route path="/dashboard" component={Dashboard} />
+          {/* Dashboard sub-routes must come before main dashboard route */}
           <Route path="/dashboard/members" component={MembersPage} />
           <Route path="/dashboard/claims" component={ClaimsWorkflow} />
           <Route path="/dashboard/profile" component={ProfilePage} />
@@ -93,6 +89,8 @@ function Router() {
           <Route path="/dashboard/user-management" component={UserManagementPage} />
           <Route path="/dashboard/password-management" component={PasswordManagementPage} />
           <Route path="/dashboard/analytics" component={AnalyticsPage} />
+          {/* Main dashboard route comes last to avoid conflicts */}
+          <Route path="/dashboard" component={Dashboard} />
           <Route path="/role-test" component={RoleTest} />
           <Route path="/quotes" component={Quotes} />
           <Route path="/insurance-types" component={InsuranceTypes} />
