@@ -924,6 +924,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Seeding endpoint (for development only)
+  app.post('/api/seed-users', async (req: any, res) => {
+    try {
+      console.log('Starting user seeding...');
+      
+      // Import seeding function dynamically
+      const { seedUsers } = await import('./seed-users');
+      await seedUsers();
+      
+      res.json({ message: 'Users seeded successfully!' });
+    } catch (error) {
+      console.error('Error seeding users:', error);
+      res.status(500).json({ message: 'Failed to seed users', error: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
