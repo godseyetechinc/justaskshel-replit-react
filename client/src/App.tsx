@@ -38,10 +38,14 @@ import PrivacyPolicy from "@/pages/privacy-policy";
 import TermsOfService from "@/pages/terms-of-service";
 
 function Router() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
+
+  // Debug logging to understand the state
+  console.log('Router state:', { isAuthenticated, isLoading, hasUser: !!user, userRole: user?.role });
 
   // Show loading state while checking authentication
   if (isLoading) {
+    console.log('Showing loading state');
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">

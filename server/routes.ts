@@ -34,6 +34,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Enhanced middleware to support both Replit auth and traditional auth
   const enhancedAuth = async (req: any, res: any, next: any) => {
+    console.log('Auth check:', {
+      hasUser: !!req.user,
+      userClaims: req.user?.claims?.sub,
+      sessionId: req.sessionID,
+      sessionUserId: req.session?.userId,
+      cookies: req.headers.cookie
+    });
+    
     // Try Replit auth first
     if (req.user && req.user.claims && req.user.claims.sub) {
       return next();

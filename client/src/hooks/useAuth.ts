@@ -30,6 +30,17 @@ export function useAuth() {
   // Show loading state during initial load or when refetching after login
   const isLoadingAuth = isLoading || (isFetching && !user);
 
+  // Debug logging
+  console.log('useAuth state:', { 
+    hasUser: !!user, 
+    isLoading, 
+    isFetching, 
+    error: error?.message, 
+    isAuthenticated, 
+    isLoadingAuth,
+    userId: user?.id 
+  });
+
 
 
   return {

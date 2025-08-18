@@ -41,9 +41,12 @@ export default function Login() {
         title: "Login Successful",
         description: `Welcome back, ${data.user.firstName}!`,
       });
-      // Invalidate user data and redirect
+      // Invalidate user data to force fresh fetch
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-      setLocation("/dashboard");
+      // Wait a moment for the session to be established before redirecting
+      setTimeout(() => {
+        setLocation("/dashboard");
+      }, 200);
     },
     onError: (error: any) => {
       toast({
