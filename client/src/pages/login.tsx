@@ -36,18 +36,14 @@ export default function Login() {
         method: "POST",
         body: JSON.stringify(data),
       }),
-    onSuccess: async (data) => {
+    onSuccess: (data) => {
       toast({
         title: "Login Successful",
         description: `Welcome back, ${data.user.firstName}!`,
       });
-      // Invalidate and refetch user data, then wait for it to complete
-      await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-      await queryClient.refetchQueries({ queryKey: ["/api/auth/user"] });
-      // Small delay to ensure state is updated
-      setTimeout(() => {
-        setLocation("/dashboard");
-      }, 100);
+      // Invalidate user data and redirect
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      setLocation("/dashboard");
     },
     onError: (error: any) => {
       toast({
