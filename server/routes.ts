@@ -42,14 +42,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       cookies: req.headers.cookie
     });
     
-    // Try Replit auth first
-    if (req.user && req.user.claims && req.user.claims.sub) {
+    // Try session-based auth for traditional login FIRST
+    if (req.session && req.session.userId) {
+      req.user = { claims: { sub: req.session.userId } };
+      console.log('Using session-based auth for user:', req.session.userId);
       return next();
     }
     
-    // Try session-based auth for traditional login
-    if (req.session && req.session.userId) {
-      req.user = { claims: { sub: req.session.userId } };
+    // Try Replit auth as fallback
+    if (req.user && req.user.claims && req.user.claims.sub) {
+      console.log('Using Replit auth for user:', req.user.claims.sub);
       return next();
     }
     
