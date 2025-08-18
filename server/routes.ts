@@ -23,6 +23,8 @@ import {
   insertClaimDocumentSchema,
   insertClaimCommunicationSchema,
   insertClaimWorkflowStepSchema,
+  loginSchema,
+  signupSchema,
 } from "@shared/schema";
 import { z } from "zod";
 
@@ -30,8 +32,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
 
+  // Enhanced middleware to support both Replit auth and traditional auth
+  const enhancedAuth = async (req: any, res: any, next: any) => {
+    // Try Replit auth first
+    if (req.user && req.user.claims && req.user.claims.sub) {
+      return next();
+    }
+    
+    // Try session-based auth for traditional login
+    if (req.session && req.session.userId) {
+      req.user = { claims: { sub: req.session.userId } };
+      return next();
+    }
+    
+    return res.status(401).json({ message: "Unauthorized" });
+  };
+
   // Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+  app.get('/api/auth/user', enhancedAuth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
@@ -42,8 +60,128 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Traditional login endpoint
+  app.post('/api/auth/login', async (req, res) => {
+    try {
+      const validatedData = loginSchema.parse(req.body);
+      const { email, password } = validatedData;
+
+      // Find user by email
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+
+      // Check password
+      if (!user.password) {
+        return res.status(401).json({ message: "This account uses OAuth login. Please use the OAuth login option." });
+      }
+
+      const isValidPassword = await bcrypt.compare(password, user.password);
+      if (!isValidPassword) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+
+      // Check if user is active
+      if (!user.isActive) {
+        return res.status(401).json({ message: "Account is inactive. Please contact support." });
+      }
+
+      // Set session
+      (req.session as any).userId = user.id;
+      
+      res.json({ 
+        message: "Login successful",
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: user.role,
+          privilegeLevel: user.privilegeLevel,
+        }
+      });
+
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Validation error", 
+          errors: error.errors 
+        });
+      }
+      console.error("Login error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Traditional signup endpoint
+  app.post('/api/auth/signup', async (req, res) => {
+    try {
+      const validatedData = signupSchema.parse(req.body);
+      const { email, password, firstName, lastName, phone, role } = validatedData;
+
+      // Check if user already exists
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser) {
+        return res.status(409).json({ message: "User with this email already exists" });
+      }
+
+      // Hash password
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      // Create user
+      const newUser = await storage.createUser({
+        email,
+        password: hashedPassword,
+        firstName,
+        lastName,
+        phone,
+        role: role || "Member",
+        privilegeLevel: role === "Admin" ? 1 : role === "Agent" ? 2 : 3,
+        isActive: true,
+      });
+
+      // Set session
+      (req.session as any).userId = newUser.id;
+
+      res.status(201).json({ 
+        message: "Signup successful",
+        user: {
+          id: newUser.id,
+          email: newUser.email,
+          firstName: newUser.firstName,
+          lastName: newUser.lastName,
+          role: newUser.role,
+          privilegeLevel: newUser.privilegeLevel,
+        }
+      });
+
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Validation error", 
+          errors: error.errors 
+        });
+      }
+      console.error("Signup error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Logout endpoint (works for both auth methods)
+  app.post('/api/auth/logout', (req, res) => {
+    req.session.destroy((err: any) => {
+      if (err) {
+        console.error("Logout error:", err);
+        return res.status(500).json({ message: "Logout failed" });
+      }
+      res.clearCookie('connect.sid');
+      res.json({ message: "Logout successful" });
+    });
+  });
+
   // Change password route
-  app.post('/api/auth/change-password', isAuthenticated, async (req: any, res) => {
+  app.post('/api/auth/change-password', enhancedAuth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { currentPassword, newPassword } = req.body;

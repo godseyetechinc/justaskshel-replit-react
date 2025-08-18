@@ -1,5 +1,6 @@
 import { useAuth } from "@/hooks/useAuth";
 import { useRoleAuth } from "@/hooks/useRoleAuth";
+import { useLogout } from "@/hooks/useLogout";
 import { Button } from "@/components/ui/button";
 import { Shield, Menu, X, ChevronDown, Settings } from "lucide-react";
 import { Link, useLocation } from "wouter";
@@ -18,6 +19,7 @@ import { RoleGuard } from "./role-guard";
 export default function Navigation() {
   const { user, isAuthenticated } = useAuth();
   const { userRole, isAdmin, isAgent, isMember } = useRoleAuth();
+  const { logout, isLoggingOut } = useLogout();
   const [location] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
@@ -200,23 +202,35 @@ export default function Navigation() {
                     
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
-                      onClick={() => (window.location.href = "/api/logout")}
+                      onClick={logout}
+                      disabled={isLoggingOut}
                     >
-                      Log out
+                      {isLoggingOut ? "Logging out..." : "Log out"}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </>
             ) : (
               <>
+                <Link href="/login">
+                  <Button variant="ghost" data-testid="button-nav-login">
+                    Sign In
+                  </Button>
+                </Link>
+                <Link href="/signup">
+                  <Button data-testid="button-nav-signup">
+                    Get Started
+                  </Button>
+                </Link>
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   onClick={() => (window.location.href = "/api/login")}
+                  data-testid="button-nav-replit"
                 >
-                  Sign In
-                </Button>
-                <Button onClick={() => (window.location.href = "/api/login")}>
-                  Get Started
+                  <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm-1.5 6h3a3 3 0 0 1 0 6h-3V6zm0 12V12h3l3 6h-6z"/>
+                  </svg>
+                  Replit
                 </Button>
               </>
             )}

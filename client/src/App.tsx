@@ -7,6 +7,8 @@ import { useAuth } from "@/hooks/useAuth";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import Home from "@/pages/home";
+import Login from "@/pages/login";
+import Signup from "@/pages/signup";
 import Dashboard from "@/pages/dashboard";
 import MembersPage from "@/pages/dashboard/members";
 import ClaimsWorkflow from "@/pages/dashboard/claims-workflow";
@@ -55,6 +57,8 @@ function Router() {
           <Route path="/about-us" component={AboutUs} />
           <Route path="/privacy-policy" component={PrivacyPolicy} />
           <Route path="/terms-of-service" component={TermsOfService} />
+          <Route path="/login" component={Login} />
+          <Route path="/signup" component={Signup} />
         </>
       ) : (
         <>
