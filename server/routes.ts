@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { createSessionConfig } from "./replitAuth";
 import bcrypt from "bcryptjs";
 import {
   insertInsuranceQuoteSchema,
@@ -29,29 +29,14 @@ import {
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Auth middleware
-  await setupAuth(app);
+  // Session middleware (no Replit auth)
+  const sessionMiddleware = createSessionConfig(process.env.DATABASE_URL!);
+  app.use(sessionMiddleware);
 
-  // Enhanced middleware to support both Replit auth and traditional auth
-  const enhancedAuth = async (req: any, res: any, next: any) => {
-    console.log('Auth check:', {
-      hasUser: !!req.user,
-      userClaims: req.user?.claims?.sub,
-      sessionId: req.sessionID,
-      sessionUserId: req.session?.userId,
-      cookies: req.headers.cookie
-    });
-    
-    // Try session-based auth for traditional login FIRST
+  // Authentication middleware for traditional login only
+  const auth = async (req: any, res: any, next: any) => {
     if (req.session && req.session.userId) {
       req.user = { claims: { sub: req.session.userId } };
-      console.log('Using session-based auth for user:', req.session.userId);
-      return next();
-    }
-    
-    // Try Replit auth as fallback
-    if (req.user && req.user.claims && req.user.claims.sub) {
-      console.log('Using Replit auth for user:', req.user.claims.sub);
       return next();
     }
     
@@ -59,7 +44,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   };
 
   // Auth routes
-  app.get('/api/auth/user', enhancedAuth, async (req: any, res) => {
+  app.get('/api/auth/user', auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       console.log('Fetching user for ID:', userId);
@@ -197,7 +182,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Change password route
-  app.post('/api/auth/change-password', enhancedAuth, async (req: any, res) => {
+  app.post('/api/auth/change-password', auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { currentPassword, newPassword } = req.body;
@@ -252,7 +237,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/auth/profile', isAuthenticated, async (req: any, res) => {
+  app.put('/api/auth/profile', auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.updateUserProfile(userId, req.body);
@@ -333,7 +318,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Selected quotes - protected routes
-  app.get('/api/selected-quotes', isAuthenticated, async (req: any, res) => {
+  app.get('/api/selected-quotes', auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const selectedQuotes = await storage.getUserSelectedQuotes(userId);
@@ -344,7 +329,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/selected-quotes', isAuthenticated, async (req: any, res) => {
+  app.post('/api/selected-quotes', auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const validatedData = insertSelectedQuoteSchema.parse({
@@ -362,7 +347,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/selected-quotes/:quoteId', isAuthenticated, async (req: any, res) => {
+  app.delete('/api/selected-quotes/:quoteId', auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { quoteId } = req.params;
@@ -375,7 +360,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Wishlist - protected routes
-  app.get('/api/wishlist', isAuthenticated, async (req: any, res) => {
+  app.get('/api/wishlist', auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const wishlist = await storage.getUserWishlist(userId);
@@ -386,7 +371,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/wishlist', isAuthenticated, async (req: any, res) => {
+  app.post('/api/wishlist', auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const validatedData = insertWishlistSchema.parse({
@@ -404,7 +389,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/wishlist/:quoteId', isAuthenticated, async (req: any, res) => {
+  app.delete('/api/wishlist/:quoteId', auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { quoteId } = req.params;
@@ -417,7 +402,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Policies - protected routes
-  app.get('/api/policies', isAuthenticated, async (req: any, res) => {
+  app.get('/api/policies', auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const policies = await storage.getUserPolicies(userId);
@@ -428,7 +413,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/policies', isAuthenticated, async (req: any, res) => {
+  app.post('/api/policies', auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const validatedData = insertPolicySchema.parse({
@@ -447,7 +432,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Claims - protected routes
-  app.get('/api/claims', isAuthenticated, async (req: any, res) => {
+  app.get('/api/claims', auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const userRole = req.user.role || "Member";
@@ -465,7 +450,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/claims/:id', isAuthenticated, async (req: any, res) => {
+  app.get('/api/claims/:id', auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       const claim = await storage.getClaim(parseInt(id));
@@ -479,7 +464,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/claims', isAuthenticated, async (req: any, res) => {
+  app.post('/api/claims', auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const validatedData = insertClaimSchema.parse({
@@ -505,7 +490,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/claims/:id', isAuthenticated, async (req: any, res) => {
+  app.put('/api/claims/:id', auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       const validatedData = insertClaimSchema.partial().parse(req.body);
@@ -521,7 +506,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Claim Documents
-  app.get('/api/claims/:id/documents', isAuthenticated, async (req: any, res) => {
+  app.get('/api/claims/:id/documents', auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       const documents = await storage.getClaimDocuments(parseInt(id));
@@ -532,7 +517,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/claims/:id/documents', isAuthenticated, async (req: any, res) => {
+  app.post('/api/claims/:id/documents', auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       const userId = req.user.claims.sub;
@@ -552,7 +537,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/claim-documents/:id', isAuthenticated, async (req: any, res) => {
+  app.delete('/api/claim-documents/:id', auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       await storage.deleteClaimDocument(parseInt(id));
@@ -564,7 +549,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Claim Communications
-  app.get('/api/claims/:id/communications', isAuthenticated, async (req: any, res) => {
+  app.get('/api/claims/:id/communications', auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       const communications = await storage.getClaimCommunications(parseInt(id));
@@ -575,7 +560,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/claims/:id/communications', isAuthenticated, async (req: any, res) => {
+  app.post('/api/claims/:id/communications', auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       const userId = req.user.claims.sub;
@@ -596,7 +581,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Claim Workflow Steps
-  app.get('/api/claims/:id/workflow', isAuthenticated, async (req: any, res) => {
+  app.get('/api/claims/:id/workflow', auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       const steps = await storage.getClaimWorkflowSteps(parseInt(id));
@@ -607,7 +592,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/workflow-steps/:id', isAuthenticated, async (req: any, res) => {
+  app.put('/api/workflow-steps/:id', auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       const validatedData = insertClaimWorkflowStepSchema.partial().parse(req.body);
@@ -623,7 +608,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Dependents - protected routes
-  app.get('/api/dependents', isAuthenticated, async (req: any, res) => {
+  app.get('/api/dependents', auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const dependents = await storage.getUserDependents(userId);
@@ -634,7 +619,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/dependents', isAuthenticated, async (req: any, res) => {
+  app.post('/api/dependents', auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const validatedData = insertDependentSchema.parse({
@@ -652,7 +637,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/dependents/:id', isAuthenticated, async (req, res) => {
+  app.delete('/api/dependents/:id', auth, async (req, res) => {
     try {
       const { id } = req.params;
       await storage.removeDependent(parseInt(id));
@@ -664,7 +649,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Members routes
-  app.get('/api/members', isAuthenticated, async (req: any, res) => {
+  app.get('/api/members', auth, async (req: any, res) => {
     try {
       const members = await storage.getMembers();
       res.json(members);
@@ -674,7 +659,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/members', isAuthenticated, async (req: any, res) => {
+  app.post('/api/members', auth, async (req: any, res) => {
     try {
       const memberData = insertMemberSchema.parse(req.body);
       const member = await storage.createMember(memberData);
@@ -685,7 +670,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/members/:id', isAuthenticated, async (req: any, res) => {
+  app.put('/api/members/:id', auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       const memberData = insertMemberSchema.partial().parse(req.body);
@@ -697,7 +682,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/members/:id', isAuthenticated, async (req: any, res) => {
+  app.delete('/api/members/:id', auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       await storage.deleteMember(parseInt(id));
@@ -709,7 +694,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Contacts routes
-  app.get('/api/contacts', isAuthenticated, async (req: any, res) => {
+  app.get('/api/contacts', auth, async (req: any, res) => {
     try {
       const contacts = await storage.getContacts();
       res.json(contacts);
@@ -719,7 +704,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/contacts', isAuthenticated, async (req: any, res) => {
+  app.post('/api/contacts', auth, async (req: any, res) => {
     try {
       const contactData = insertContactSchema.parse(req.body);
       const contact = await storage.createContact(contactData);
@@ -730,7 +715,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/contacts/:id', isAuthenticated, async (req: any, res) => {
+  app.put('/api/contacts/:id', auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       const contactData = insertContactSchema.partial().parse(req.body);
@@ -742,7 +727,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/contacts/:id', isAuthenticated, async (req: any, res) => {
+  app.delete('/api/contacts/:id', auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       await storage.deleteContact(parseInt(id));
@@ -754,7 +739,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Applications routes
-  app.get('/api/applications', isAuthenticated, async (req: any, res) => {
+  app.get('/api/applications', auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const userRole = req.user.role || "Member";
@@ -772,7 +757,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/applications', isAuthenticated, async (req: any, res) => {
+  app.post('/api/applications', auth, async (req: any, res) => {
     try {
       const applicationData = insertApplicationSchema.parse(req.body);
       const application = await storage.createApplication(applicationData);
@@ -783,7 +768,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/applications/:id', isAuthenticated, async (req: any, res) => {
+  app.put('/api/applications/:id', auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       const applicationData = insertApplicationSchema.partial().parse(req.body);
@@ -795,7 +780,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/applications/:id', isAuthenticated, async (req: any, res) => {
+  app.delete('/api/applications/:id', auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       await storage.deleteApplication(parseInt(id));
@@ -809,7 +794,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Points System Routes
   
   // Points Transactions
-  app.get('/api/points/transactions', isAuthenticated, async (req: any, res) => {
+  app.get('/api/points/transactions', auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const transactions = await storage.getUserPointsTransactions(userId);
@@ -820,7 +805,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/points/transactions', isAuthenticated, async (req: any, res) => {
+  app.post('/api/points/transactions', auth, async (req: any, res) => {
     try {
       const transactionData = insertPointsTransactionSchema.parse(req.body);
       const transaction = await storage.createPointsTransaction(transactionData);
@@ -832,7 +817,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Points Summary
-  app.get('/api/points/summary', isAuthenticated, async (req: any, res) => {
+  app.get('/api/points/summary', auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       let summary = await storage.getUserPointsSummary(userId);
@@ -847,7 +832,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Award points (for admin use)
-  app.post('/api/points/award', isAuthenticated, async (req: any, res) => {
+  app.post('/api/points/award', auth, async (req: any, res) => {
     try {
       const { userId, points, category, description, referenceId, referenceType } = req.body;
       const transaction = await storage.awardPoints(userId, points, category, description, referenceId, referenceType);
@@ -859,7 +844,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Rewards
-  app.get('/api/rewards', isAuthenticated, async (req: any, res) => {
+  app.get('/api/rewards', auth, async (req: any, res) => {
     try {
       const rewards = await storage.getActiveRewards();
       res.json(rewards);
@@ -869,7 +854,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/rewards/all', isAuthenticated, async (req: any, res) => {
+  app.get('/api/rewards/all', auth, async (req: any, res) => {
     try {
       const rewards = await storage.getRewards();
       res.json(rewards);
@@ -879,7 +864,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/rewards', isAuthenticated, async (req: any, res) => {
+  app.post('/api/rewards', auth, async (req: any, res) => {
     try {
       const rewardData = insertRewardSchema.parse(req.body);
       const reward = await storage.createReward(rewardData);
@@ -890,7 +875,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/rewards/:id', isAuthenticated, async (req: any, res) => {
+  app.put('/api/rewards/:id', auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       const rewardData = insertRewardSchema.partial().parse(req.body);
@@ -902,7 +887,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/rewards/:id', isAuthenticated, async (req: any, res) => {
+  app.delete('/api/rewards/:id', auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       await storage.deleteReward(parseInt(id));
@@ -914,7 +899,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Reward Redemptions
-  app.get('/api/redemptions', isAuthenticated, async (req: any, res) => {
+  app.get('/api/redemptions', auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const redemptions = await storage.getUserRedemptions(userId);
@@ -925,7 +910,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/redemptions', isAuthenticated, async (req: any, res) => {
+  app.post('/api/redemptions', auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { rewardId, pointsUsed } = req.body;
@@ -967,7 +952,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Points Rules (Admin only)
-  app.get('/api/points/rules', isAuthenticated, async (req: any, res) => {
+  app.get('/api/points/rules', auth, async (req: any, res) => {
     try {
       const rules = await storage.getActivePointsRules();
       res.json(rules);
@@ -977,7 +962,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/points/rules', isAuthenticated, async (req: any, res) => {
+  app.post('/api/points/rules', auth, async (req: any, res) => {
     try {
       const ruleData = insertPointsRuleSchema.parse(req.body);
       const rule = await storage.createPointsRule(ruleData);
@@ -989,7 +974,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Applicants routes
-  app.get('/api/applicants', isAuthenticated, async (req: any, res) => {
+  app.get('/api/applicants', auth, async (req: any, res) => {
     try {
       const applicants = await storage.getApplicants();
       res.json(applicants);
@@ -999,7 +984,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/applicants', isAuthenticated, async (req: any, res) => {
+  app.post('/api/applicants', auth, async (req: any, res) => {
     try {
       const applicantData = insertApplicantSchema.parse(req.body);
       const applicant = await storage.createApplicant(applicantData);
@@ -1010,7 +995,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/applicants/:id', isAuthenticated, async (req: any, res) => {
+  app.put('/api/applicants/:id', auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       const applicantData = insertApplicantSchema.partial().parse(req.body);
@@ -1022,7 +1007,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/applicants/:id', isAuthenticated, async (req: any, res) => {
+  app.delete('/api/applicants/:id', auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       await storage.deleteApplicant(parseInt(id));
@@ -1034,7 +1019,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Applicant Dependents routes
-  app.get('/api/applicant-dependents', isAuthenticated, async (req: any, res) => {
+  app.get('/api/applicant-dependents', auth, async (req: any, res) => {
     try {
       const dependents = await storage.getApplicantDependents();
       res.json(dependents);
@@ -1044,7 +1029,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/applicant-dependents', isAuthenticated, async (req: any, res) => {
+  app.post('/api/applicant-dependents', auth, async (req: any, res) => {
     try {
       const dependentData = insertApplicantDependentSchema.parse(req.body);
       const dependent = await storage.createApplicantDependent(dependentData);
@@ -1055,7 +1040,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/applicant-dependents/:id', isAuthenticated, async (req: any, res) => {
+  app.put('/api/applicant-dependents/:id', auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       const dependentData = insertApplicantDependentSchema.partial().parse(req.body);
@@ -1067,7 +1052,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/applicant-dependents/:id', isAuthenticated, async (req: any, res) => {
+  app.delete('/api/applicant-dependents/:id', auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       await storage.deleteApplicantDependent(parseInt(id));

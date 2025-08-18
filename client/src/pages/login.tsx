@@ -67,9 +67,7 @@ export default function Login() {
     loginMutation.mutate(data);
   };
 
-  const handleReplitLogin = () => {
-    window.location.href = "/api/login";
-  };
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 px-4">
@@ -138,33 +136,7 @@ export default function Login() {
             </Button>
           </form>
 
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <Separator className="w-full" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">
-                Or continue with
-              </span>
-            </div>
-          </div>
 
-          {/* Replit OAuth Login */}
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={handleReplitLogin}
-            data-testid="button-replit-login"
-          >
-            <svg
-              className="w-4 h-4 mr-2"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-            >
-              <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm-1.5 6h3a3 3 0 0 1 0 6h-3V6zm0 12V12h3l3 6h-6z" />
-            </svg>
-            Continue with Replit
-          </Button>
 
           <div className="text-center text-sm">
             <span className="text-muted-foreground">
