@@ -10,7 +10,7 @@ export function useLogout() {
 
   const logoutMutation = useMutation({
     mutationFn: () => 
-      apiRequest("/api/auth/logout", {
+      apiRequest("/api/logout", {
         method: "POST",
       }),
     onSuccess: () => {
@@ -22,14 +22,14 @@ export function useLogout() {
         description: "You have been successfully logged out.",
       });
       
-      // Redirect to login page
-      setLocation("/login");
+      // Redirect to public home page
+      setLocation("/");
     },
     onError: (error: any) => {
       console.error("Logout error:", error);
       // Even if logout fails on server, clear client data
       queryClient.clear();
-      setLocation("/login");
+      setLocation("/");
     },
   });
 
