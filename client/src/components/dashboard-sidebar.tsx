@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
+import { useRoleAuth } from "@/hooks/useRoleAuth";
 import { 
   Users, 
   UserCheck, 
@@ -40,7 +41,7 @@ const menuItems: MenuItem[] = [
     label: "Dashboard",
     icon: Home,
     href: "/dashboard",
-    roles: ["Admin", "Agent", "Member"]
+    roles: ["Admin", "Agent", "Member", "Guest"]
   },
   {
     id: "members",
@@ -54,14 +55,14 @@ const menuItems: MenuItem[] = [
     label: "Contacts",
     icon: Phone,
     href: "/dashboard/contacts",
-    roles: ["Admin", "Agent", "Member"]
+    roles: ["Admin", "Agent"]
   },
   {
     id: "insurance-applications",
     label: "Applications",
     icon: FileText,
     href: "/dashboard/applications",
-    roles: ["Admin", "Agent", "Member"]
+    roles: ["Admin", "Agent", "Member", "Guest"]
   },
   {
     id: "insurance-policies",
@@ -140,11 +141,13 @@ export default function DashboardSidebar() {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [location] = useLocation();
   const { user } = useAuth();
-
-  const userRole = (user?.role || "Visitor") as UserRole;
+  const { userRole, hasAnyRole } = useRoleAuth();
+  
+  // Type-safe user object
+  const typedUser = user as any;
 
   const filteredMenuItems = menuItems.filter(item => 
-    item.roles.includes(userRole)
+    hasAnyRole(item.roles)
   );
 
   const isActive = (href: string) => {
@@ -188,12 +191,12 @@ export default function DashboardSidebar() {
       )}>
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center text-sm font-medium">
-            {user?.firstName?.[0] || user?.email?.[0] || "U"}
+            {typedUser?.firstName?.[0] || typedUser?.email?.[0] || "U"}
           </div>
           {!isCollapsed && (
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-900 truncate">
-                {user?.firstName} {user?.lastName}
+                {typedUser?.firstName} {typedUser?.lastName}
               </p>
               <div className="flex items-center space-x-2">
                 <Badge 

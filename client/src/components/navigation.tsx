@@ -1,4 +1,5 @@
 import { useAuth } from "@/hooks/useAuth";
+import { useRoleAuth } from "@/hooks/useRoleAuth";
 import { Button } from "@/components/ui/button";
 import { Shield, Menu, X, ChevronDown, Settings } from "lucide-react";
 import { Link, useLocation } from "wouter";
@@ -12,11 +13,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { RoleGuard } from "./role-guard";
 
 export default function Navigation() {
   const { user, isAuthenticated } = useAuth();
+  const { userRole, isAdmin, isAgent, isMember } = useRoleAuth();
   const [location] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  
+  // Type-safe user object
+  const typedUser = user as any;
 
   const navigation = [
     { name: "Home", href: "/" },
@@ -131,12 +137,12 @@ export default function Navigation() {
                     >
                       <Avatar className="h-8 w-8">
                         <AvatarImage
-                          src={user.profileImageUrl || ""}
-                          alt={user.firstName || "User"}
+                          src={typedUser?.profileImageUrl || ""}
+                          alt={typedUser?.firstName || "User"}
                         />
                         <AvatarFallback>
-                          {user.firstName?.charAt(0) ||
-                            user.email?.charAt(0) ||
+                          {typedUser?.firstName?.charAt(0) ||
+                            typedUser?.email?.charAt(0) ||
                             "U"}
                         </AvatarFallback>
                       </Avatar>
@@ -145,21 +151,53 @@ export default function Navigation() {
                   <DropdownMenuContent className="w-56" align="end" forceMount>
                     <div className="flex flex-col space-y-1 p-2">
                       <p className="text-sm font-medium leading-none">
-                        {user.firstName || user.lastName
-                          ? `${user.firstName || ""} ${user.lastName || ""}`.trim()
+                        {typedUser?.firstName || typedUser?.lastName
+                          ? `${typedUser?.firstName || ""} ${typedUser?.lastName || ""}`.trim()
                           : "User"}
                       </p>
                       <p className="text-xs leading-none text-muted-foreground">
-                        {user.email}
+                        {typedUser?.email}
+                      </p>
+                      <p className="text-xs text-primary font-medium">
+                        {userRole}
                       </p>
                     </div>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
                       <Link href="/dashboard">Dashboard</Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link href="/quotes">My Quotes</Link>
-                    </DropdownMenuItem>
+                    
+                    <RoleGuard requiredRoles={["Admin", "Agent", "Member"]}>
+                      <DropdownMenuItem asChild>
+                        <Link href="/dashboard/policies">My Policies</Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/dashboard/applications">My Applications</Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/dashboard/claims">My Claims</Link>
+                      </DropdownMenuItem>
+                    </RoleGuard>
+                    
+                    <RoleGuard requiredRoles={["Admin", "Agent"]}>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem asChild>
+                        <Link href="/dashboard/contacts">Contacts</Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/dashboard/members">Members</Link>
+                      </DropdownMenuItem>
+                    </RoleGuard>
+                    
+                    <RoleGuard requiredRoles={["Admin"]}>
+                      <DropdownMenuItem asChild>
+                        <Link href="/dashboard/user-management">User Management</Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/dashboard/analytics">Analytics</Link>
+                      </DropdownMenuItem>
+                    </RoleGuard>
+                    
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       onClick={() => (window.location.href = "/api/logout")}
