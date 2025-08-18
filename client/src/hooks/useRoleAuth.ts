@@ -1,103 +1,171 @@
 import { useAuth } from "./useAuth";
 import type { UserRole } from "@shared/schema";
+import { ROLE_PRIVILEGE_LEVELS, ROLE_PERMISSIONS } from "@shared/schema";
 
 export function useRoleAuth() {
   const { user, isAuthenticated, isLoading } = useAuth();
   
   const userRole = (user?.role || "Visitor") as UserRole;
+  const privilegeLevel = user?.privilegeLevel || ROLE_PRIVILEGE_LEVELS.Visitor;
 
   const hasRole = (requiredRole: UserRole): boolean => {
     if (!isAuthenticated || !user) return false;
-    
-    const roleHierarchy: Record<UserRole, number> = {
-      "Visitor": 0,
-      "Member": 1,
-      "Agent": 2,
-      "Admin": 3
-    };
-
-    return roleHierarchy[userRole] >= roleHierarchy[requiredRole];
+    return privilegeLevel <= ROLE_PRIVILEGE_LEVELS[requiredRole];
   };
 
   const hasAnyRole = (requiredRoles: UserRole[]): boolean => {
     return requiredRoles.some(role => hasRole(role));
   };
 
-  const canRead = (resource: string): boolean => {
-    switch (userRole) {
-      case "Admin":
-      case "Agent":
-        return true;
-      case "Member":
-        return ["policies", "applications", "points", "dependents"].includes(resource);
-      case "Visitor":
-        return ["public"].includes(resource);
-      default:
-        return false;
+  const hasMinimumPrivilegeLevel = (requiredLevel: number): boolean => {
+    if (!isAuthenticated || !user) return false;
+    return privilegeLevel <= requiredLevel;
+  };
+
+  const canRead = (resource: string, isOwn: boolean = false): boolean => {
+    if (!isAuthenticated && resource !== "public_content" && resource !== "insurance_types") {
+      return false;
     }
+
+    const permissions = ROLE_PERMISSIONS[userRole];
+    
+    if (permissions.resources.includes("all")) {
+      return true;
+    }
+    
+    if (permissions.resources.includes(resource)) {
+      return true;
+    }
+
+    if (isOwn && permissions.resources.some(r => r.startsWith("own_"))) {
+      const ownResource = `own_${resource}`;
+      return permissions.resources.includes(ownResource);
+    }
+
+    if (permissions.resources.includes("public_content") && 
+        ["public_content", "insurance_types"].includes(resource)) {
+      return true;
+    }
+
+    return false;
   };
 
   const canWrite = (resource: string, isOwn: boolean = false): boolean => {
-    switch (userRole) {
-      case "Admin":
-      case "Agent":
-        return true;
-      case "Member":
-        return isOwn && ["policies", "applications", "points", "dependents"].includes(resource);
-      case "Visitor":
-        return false;
-      default:
-        return false;
+    if (!isAuthenticated || !user) return false;
+
+    const permissions = ROLE_PERMISSIONS[userRole];
+    
+    if (permissions.privileges.includes("write") && 
+        (permissions.resources.includes("all") || permissions.resources.includes(resource))) {
+      return true;
     }
+
+    if (isOwn && permissions.privileges.includes("write_own")) {
+      const ownResource = `own_${resource}`;
+      return permissions.resources.includes(ownResource);
+    }
+
+    // Special permissions for specific actions
+    if (permissions.privileges.includes("create_applications") && resource === "applications") {
+      return true;
+    }
+
+    if (permissions.privileges.includes("create_account") && resource === "users") {
+      return true;
+    }
+
+    return false;
   };
 
   const canDelete = (resource: string, isOwn: boolean = false): boolean => {
-    switch (userRole) {
-      case "Admin":
-        return true;
-      case "Agent":
-        return !["users"].includes(resource);
-      case "Member":
-        return isOwn && ["applications", "dependents"].includes(resource);
-      case "Visitor":
-        return false;
-      default:
-        return false;
+    if (!isAuthenticated || !user) return false;
+
+    const permissions = ROLE_PERMISSIONS[userRole];
+    
+    if (permissions.privileges.includes("delete") && 
+        (permissions.resources.includes("all") || permissions.resources.includes(resource))) {
+      return true;
     }
+
+    if (isOwn && permissions.privileges.includes("write_own")) {
+      const ownResource = `own_${resource}`;
+      return permissions.resources.includes(ownResource);
+    }
+
+    return false;
   };
 
   const canManageUsers = (): boolean => {
-    return userRole === "Admin";
+    const permissions = ROLE_PERMISSIONS[userRole];
+    return permissions.privileges.includes("manage_users");
   };
 
-  const hasPermission = (permission: "read" | "write" | "delete"): boolean => {
+  const canManageSystem = (): boolean => {
+    const permissions = ROLE_PERMISSIONS[userRole];
+    return permissions.privileges.includes("manage_system");
+  };
+
+  const canManageRoles = (): boolean => {
+    const permissions = ROLE_PERMISSIONS[userRole];
+    return permissions.privileges.includes("manage_roles");
+  };
+
+  const canViewAllData = (): boolean => {
+    const permissions = ROLE_PERMISSIONS[userRole];
+    return permissions.privileges.includes("view_all") || permissions.resources.includes("all");
+  };
+
+  const hasPermission = (permission: string, resource?: string, isOwn: boolean = false): boolean => {
+    if (!resource) resource = "general";
+
     switch (permission) {
       case "read":
-        return canRead("general");
+        return canRead(resource, isOwn);
       case "write":
-        return canWrite("general");
+        return canWrite(resource, isOwn);
       case "delete":
-        return canDelete("general");
+        return canDelete(resource, isOwn);
+      case "manage_users":
+        return canManageUsers();
+      case "manage_system":
+        return canManageSystem();
+      case "manage_roles":
+        return canManageRoles();
+      case "view_all":
+        return canViewAllData();
       default:
-        return false;
+        const permissions = ROLE_PERMISSIONS[userRole];
+        return permissions.privileges.includes(permission);
     }
   };
 
   return {
     user,
     userRole,
+    privilegeLevel,
     isAuthenticated,
     isLoading,
     hasRole,
     hasAnyRole,
+    hasMinimumPrivilegeLevel,
     hasPermission,
     canRead,
     canWrite,
     canDelete,
     canManageUsers,
+    canManageSystem,
+    canManageRoles,
+    canViewAllData,
+    // Role-specific helpers
     isAdmin: userRole === "Admin",
     isAgent: userRole === "Agent" || userRole === "Admin",
-    isMember: userRole === "Member" || userRole === "Agent" || userRole === "Admin",
-    isVisitor: userRole === "Visitor"
+    isMember: ["Member", "Agent", "Admin"].includes(userRole),
+    isGuest: userRole === "Guest",
+    isVisitor: userRole === "Visitor",
+    // Privilege level helpers
+    hasAdminPrivileges: privilegeLevel === 1,
+    hasAgentPrivileges: privilegeLevel <= 2,
+    hasMemberPrivileges: privilegeLevel <= 3,
+    hasGuestPrivileges: privilegeLevel <= 4,
   };
 }

@@ -21,6 +21,7 @@ import DependentsPage from "@/pages/dashboard/dependents";
 import UserManagementPage from "@/pages/dashboard/user-management";
 import PasswordManagementPage from "@/pages/dashboard/password-management";
 import AnalyticsPage from "@/pages/dashboard/analytics";
+import RoleTest from "@/pages/role-test";
 import Quotes from "@/pages/quotes";
 import InsuranceTypes from "@/pages/insurance-types";
 import ClaimsAssistance from "@/pages/claims-assistance";
@@ -72,6 +73,7 @@ function Router() {
           <Route path="/dashboard/user-management" component={UserManagementPage} />
           <Route path="/dashboard/password-management" component={PasswordManagementPage} />
           <Route path="/dashboard/analytics" component={AnalyticsPage} />
+          <Route path="/role-test" component={RoleTest} />
           <Route path="/quotes" component={Quotes} />
           <Route path="/insurance-types" component={InsuranceTypes} />
           <Route path="/claims-assistance" component={ClaimsAssistance} />

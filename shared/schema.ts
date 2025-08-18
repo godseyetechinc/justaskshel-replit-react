@@ -34,7 +34,8 @@ export const users = pgTable("users", {
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
   password: varchar("password", { length: 255 }), // Hashed password
-  role: varchar("role", { enum: ["Admin", "Agent", "Member", "Visitor"] }).default("Member"),
+  role: varchar("role", { enum: ["Admin", "Agent", "Member", "Guest", "Visitor"] }).default("Guest"),
+  privilegeLevel: integer("privilege_level").default(4), // 1=Admin, 2=Agent, 3=Member, 4=Guest, 5=Visitor
   isActive: boolean("is_active").default(true),
   phone: varchar("phone", { length: 20 }),
   address: text("address"),
@@ -42,6 +43,18 @@ export const users = pgTable("users", {
   state: varchar("state", { length: 50 }),
   zipCode: varchar("zip_code", { length: 10 }),
   dateOfBirth: timestamp("date_of_birth"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Roles definition table for role-based authorization
+export const roles = pgTable("roles", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 50 }).unique().notNull(),
+  privilegeLevel: integer("privilege_level").unique().notNull(), // 1=highest, 5=lowest
+  description: text("description"),
+  permissions: jsonb("permissions"), // JSON object defining specific permissions
+  isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -601,9 +614,9 @@ export const dependentsRelations = relations(dependents, ({ one }) => ({
   }),
 }));
 
-// Export types
+// Export types  
 export type UpsertUser = typeof users.$inferInsert;
-export type User = typeof users.$inferSelect;
+export type SelectUser = typeof users.$inferSelect;
 
 export type InsertMember = typeof members.$inferInsert;
 export type Member = typeof members.$inferSelect;
@@ -666,6 +679,12 @@ export type InsertDependent = typeof dependents.$inferInsert;
 export type Dependent = typeof dependents.$inferSelect;
 
 // Zod schemas for validation
+export const insertUserSchema = createInsertSchema(users).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertMemberSchema = createInsertSchema(members).omit({
   id: true,
   createdAt: true,
@@ -773,12 +792,49 @@ export const insertDependentSchema = createInsertSchema(dependents).omit({
   createdAt: true,
 });
 
+export const insertRoleSchema = createInsertSchema(roles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Types
+export type User = typeof users.$inferSelect;
+export type Role = typeof roles.$inferSelect;
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type InsertRole = z.infer<typeof insertRoleSchema>;
+
 // Role-based authorization types
-export type UserRole = "Admin" | "Agent" | "Member" | "Visitor";
+export type UserRole = "Admin" | "Agent" | "Member" | "Guest" | "Visitor";
+
+// Role privilege levels (1=highest privilege, 5=lowest)
+export const ROLE_PRIVILEGE_LEVELS = {
+  Admin: 1,
+  Agent: 2,
+  Member: 3,
+  Guest: 4,
+  Visitor: 5
+} as const;
 
 export const ROLE_PERMISSIONS = {
-  Admin: ["read", "write", "delete", "manage_users", "manage_system"],
-  Agent: ["read", "write", "delete"],
-  Member: ["read", "write_own"],
-  Visitor: ["read_public"]
+  Admin: {
+    privileges: ["read", "write", "delete", "manage_users", "manage_system", "manage_roles", "view_all", "edit_all"] as const,
+    resources: ["all"] as const
+  },
+  Agent: {
+    privileges: ["read", "write", "delete", "manage_claims", "manage_applications", "view_customer_data"] as const,
+    resources: ["applications", "claims", "policies", "contacts", "quotes", "members"] as const
+  },
+  Member: {
+    privileges: ["read", "write_own", "create_applications", "view_own_data"] as const,
+    resources: ["own_policies", "own_applications", "own_claims", "own_quotes", "own_profile", "dependents"] as const
+  },
+  Guest: {
+    privileges: ["read_limited", "create_account", "view_public"] as const,
+    resources: ["public_content", "insurance_types", "quotes_request"] as const
+  },
+  Visitor: {
+    privileges: ["read_public"] as const,
+    resources: ["public_content", "insurance_types"] as const
+  }
 } as const;
