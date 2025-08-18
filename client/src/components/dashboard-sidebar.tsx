@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useRoleAuth } from "@/hooks/useRoleAuth";
+import { useLogout } from "@/hooks/useLogout";
 import { 
   Users, 
   UserCheck, 
@@ -142,6 +143,7 @@ export default function DashboardSidebar() {
   const [location] = useLocation();
   const { user } = useAuth();
   const { userRole, hasAnyRole } = useRoleAuth();
+  const { logout, isLoggingOut } = useLogout();
   
   // Type-safe user object
   const typedUser = user as any;
@@ -250,17 +252,17 @@ export default function DashboardSidebar() {
 
       {/* Footer */}
       <div className="p-4 border-t border-gray-200">
-        <Link href="/api/logout">
-          <Button 
-            variant="outline" 
-            className={cn(
-              "w-full",
-              isCollapsed && "px-2"
-            )}
-          >
-            {isCollapsed ? "•••" : "Sign Out"}
-          </Button>
-        </Link>
+        <Button 
+          variant="outline" 
+          className={cn(
+            "w-full",
+            isCollapsed && "px-2"
+          )}
+          onClick={logout}
+          disabled={isLoggingOut}
+        >
+          {isCollapsed ? "•••" : (isLoggingOut ? "Logging out..." : "Sign Out")}
+        </Button>
       </div>
     </div>
   );

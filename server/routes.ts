@@ -169,8 +169,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+
+
   // Logout endpoint
   app.post('/api/logout', (req: any, res) => {
+    console.log('Logout request received');
     if (req.session) {
       req.session.destroy((err: any) => {
         if (err) {
@@ -178,23 +181,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(500).json({ message: "Failed to logout" });
         }
         res.clearCookie('connect.sid'); // Clear the session cookie
+        console.log('Logout successful - session destroyed');
         res.json({ message: "Logout successful" });
       });
     } else {
+      console.log('No active session to destroy');
       res.json({ message: "No active session" });
     }
-  });
-
-  // Logout endpoint (works for both auth methods)
-  app.post('/api/auth/logout', (req, res) => {
-    req.session.destroy((err: any) => {
-      if (err) {
-        console.error("Logout error:", err);
-        return res.status(500).json({ message: "Logout failed" });
-      }
-      res.clearCookie('connect.sid');
-      res.json({ message: "Logout successful" });
-    });
   });
 
   // Change password route
