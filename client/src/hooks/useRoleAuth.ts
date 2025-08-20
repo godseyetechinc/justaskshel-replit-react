@@ -10,10 +10,15 @@ export function useRoleAuth() {
 
   const hasRole = (requiredRole: UserRole): boolean => {
     if (!isAuthenticated || !user) return false;
+    // SuperAdmin (privilege level 0) has access to everything
+    if (privilegeLevel === 0) return true;
     return privilegeLevel <= ROLE_PRIVILEGE_LEVELS[requiredRole];
   };
 
   const hasAnyRole = (requiredRoles: UserRole[]): boolean => {
+    if (!isAuthenticated || !user) return false;
+    // SuperAdmin (privilege level 0) has access to everything
+    if (privilegeLevel === 0) return true;
     return requiredRoles.some(role => hasRole(role));
   };
 
@@ -29,20 +34,20 @@ export function useRoleAuth() {
 
     const permissions = ROLE_PERMISSIONS[userRole];
     
-    if (permissions.resources.includes("all")) {
+    if (permissions.resources.includes("all" as any)) {
       return true;
     }
     
-    if (permissions.resources.includes(resource)) {
+    if (permissions.resources.includes(resource as any)) {
       return true;
     }
 
     if (isOwn && permissions.resources.some(r => r.startsWith("own_"))) {
       const ownResource = `own_${resource}`;
-      return permissions.resources.includes(ownResource);
+      return permissions.resources.includes(ownResource as any);
     }
 
-    if (permissions.resources.includes("public_content") && 
+    if (permissions.resources.includes("public_content" as any) && 
         ["public_content", "insurance_types"].includes(resource)) {
       return true;
     }
@@ -55,22 +60,22 @@ export function useRoleAuth() {
 
     const permissions = ROLE_PERMISSIONS[userRole];
     
-    if (permissions.privileges.includes("write") && 
-        (permissions.resources.includes("all") || permissions.resources.includes(resource))) {
+    if (permissions.privileges.includes("write" as any) && 
+        (permissions.resources.includes("all" as any) || permissions.resources.includes(resource as any))) {
       return true;
     }
 
-    if (isOwn && permissions.privileges.includes("write_own")) {
+    if (isOwn && permissions.privileges.includes("write_own" as any)) {
       const ownResource = `own_${resource}`;
-      return permissions.resources.includes(ownResource);
+      return permissions.resources.includes(ownResource as any);
     }
 
     // Special permissions for specific actions
-    if (permissions.privileges.includes("create_applications") && resource === "applications") {
+    if (permissions.privileges.includes("create_applications" as any) && resource === "applications") {
       return true;
     }
 
-    if (permissions.privileges.includes("create_account") && resource === "users") {
+    if (permissions.privileges.includes("create_account" as any) && resource === "users") {
       return true;
     }
 
@@ -82,14 +87,14 @@ export function useRoleAuth() {
 
     const permissions = ROLE_PERMISSIONS[userRole];
     
-    if (permissions.privileges.includes("delete") && 
-        (permissions.resources.includes("all") || permissions.resources.includes(resource))) {
+    if (permissions.privileges.includes("delete" as any) && 
+        (permissions.resources.includes("all" as any) || permissions.resources.includes(resource as any))) {
       return true;
     }
 
-    if (isOwn && permissions.privileges.includes("write_own")) {
+    if (isOwn && permissions.privileges.includes("write_own" as any)) {
       const ownResource = `own_${resource}`;
-      return permissions.resources.includes(ownResource);
+      return permissions.resources.includes(ownResource as any);
     }
 
     return false;
@@ -97,22 +102,22 @@ export function useRoleAuth() {
 
   const canManageUsers = (): boolean => {
     const permissions = ROLE_PERMISSIONS[userRole];
-    return permissions.privileges.includes("manage_users");
+    return permissions.privileges.includes("manage_users" as any);
   };
 
   const canManageSystem = (): boolean => {
     const permissions = ROLE_PERMISSIONS[userRole];
-    return permissions.privileges.includes("manage_system");
+    return permissions.privileges.includes("manage_system" as any);
   };
 
   const canManageRoles = (): boolean => {
     const permissions = ROLE_PERMISSIONS[userRole];
-    return permissions.privileges.includes("manage_roles");
+    return permissions.privileges.includes("manage_roles" as any);
   };
 
   const canViewAllData = (): boolean => {
     const permissions = ROLE_PERMISSIONS[userRole];
-    return permissions.privileges.includes("view_all") || permissions.resources.includes("all");
+    return permissions.privileges.includes("view_all" as any) || permissions.resources.includes("all" as any);
   };
 
   const hasPermission = (permission: string, resource?: string, isOwn: boolean = false): boolean => {
@@ -135,7 +140,7 @@ export function useRoleAuth() {
         return canViewAllData();
       default:
         const permissions = ROLE_PERMISSIONS[userRole];
-        return permissions.privileges.includes(permission);
+        return permissions.privileges.includes(permission as any);
     }
   };
 
