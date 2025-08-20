@@ -42,7 +42,7 @@ export default function Dashboard() {
   const stats = [
     {
       name: "Active Policies",
-      value: policies?.length || 0,
+      value: Array.isArray(policies) ? policies.length : 0,
       icon: Shield,
       color: "text-blue-500",
       bgColor: "bg-blue-50",
@@ -50,7 +50,7 @@ export default function Dashboard() {
     },
     {
       name: "Pending Claims",
-      value: claims?.filter((c: any) => c.status === "pending")?.length || 0,
+      value: Array.isArray(claims) ? claims.filter((c: any) => c.status === "pending").length : 0,
       icon: FileText,
       color: "text-yellow-500",
       bgColor: "bg-yellow-50",
@@ -58,7 +58,7 @@ export default function Dashboard() {
     },
     {
       name: "Selected Quotes",
-      value: selectedQuotes?.length || 0,
+      value: Array.isArray(selectedQuotes) ? selectedQuotes.length : 0,
       icon: Star,
       color: "text-green-500",
       bgColor: "bg-green-50",
@@ -66,7 +66,7 @@ export default function Dashboard() {
     },
     {
       name: "Total Members",
-      value: members?.length || 0,
+      value: Array.isArray(members) ? members.length : 0,
       icon: Users,
       color: "text-purple-500",
       bgColor: "bg-purple-50",
@@ -74,7 +74,7 @@ export default function Dashboard() {
     },
     {
       name: "Applications",
-      value: applications?.length || 0,
+      value: Array.isArray(applications) ? applications.length : 0,
       icon: UserPlus,
       color: "text-indigo-500",
       bgColor: "bg-indigo-50",
@@ -97,7 +97,7 @@ export default function Dashboard() {
           Here's an overview of your insurance management dashboard.
         </p>
         <div className="mt-2">
-          <Badge variant={userRole === "TenantAdmin", "SuperAdmin" ? "default" : "secondary"}>
+          <Badge variant={userRole === "TenantAdmin" || userRole === "SuperAdmin" ? "default" : "secondary"}>
             {userRole} Dashboard
           </Badge>
         </div>
@@ -138,7 +138,7 @@ export default function Dashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {claims && claims.length > 0 ? (
+            {claims && Array.isArray(claims) && claims.length > 0 ? (
               <div className="space-y-4">
                 {claims.slice(0, 3).map((claim: any) => (
                   <div key={claim.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
