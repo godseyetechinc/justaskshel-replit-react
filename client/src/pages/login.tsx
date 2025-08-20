@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { loginSchema } from "@shared/schema";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Card,
   CardContent,
@@ -19,21 +20,39 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { Building2, Globe } from "lucide-react";
 
 type LoginFormData = z.infer<typeof loginSchema>;
+
+type Organization = {
+  id: string;
+  displayName: string;
+  description?: string;
+  logoUrl?: string;
+  primaryColor: string;
+  secondaryColor: string;
+};
 
 export default function Login() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [showPassword, setShowPassword] = useState(false);
+  const [selectedOrganization, setSelectedOrganization] = useState<string>("");
 
   const {
     register,
     handleSubmit,
     formState: { errors },
+    setValue,
+    watch,
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
+  });
+
+  // Fetch organizations for selection
+  const { data: organizations, isLoading: organizationsLoading } = useQuery({
+    queryKey: ["/api/public/organizations"],
   });
 
   const loginMutation = useMutation({
@@ -64,7 +83,16 @@ export default function Login() {
   });
 
   const handleLoginSubmit = (data: LoginFormData) => {
-    loginMutation.mutate(data);
+    const loginData = {
+      ...data,
+      organizationId: selectedOrganization || undefined
+    };
+    loginMutation.mutate(loginData);
+  };
+
+  const handleOrganizationChange = (value: string) => {
+    setSelectedOrganization(value === "no-org" ? "" : value);
+    setValue("organizationId", value === "no-org" ? undefined : value);
   };
 
 
@@ -82,6 +110,60 @@ export default function Login() {
             onSubmit={handleSubmit(handleLoginSubmit)}
             className="space-y-4"
           >
+            {/* Organization Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="organization">
+                <div className="flex items-center space-x-2">
+                  <Building2 className="h-4 w-4" />
+                  <span>Organization (Optional)</span>
+                </div>
+              </Label>
+              <Select 
+                onValueChange={handleOrganizationChange}
+                value={selectedOrganization || "no-org"}
+                disabled={organizationsLoading}
+              >
+                <SelectTrigger id="organization" data-testid="select-organization">
+                  <SelectValue placeholder={organizationsLoading ? "Loading organizations..." : "Select your organization"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="no-org">
+                    <div className="flex items-center space-x-2">
+                      <Globe className="h-4 w-4 text-gray-500" />
+                      <span>No Organization (Individual Access)</span>
+                    </div>
+                  </SelectItem>
+                  {organizations?.map((org: Organization) => (
+                    <SelectItem key={org.id} value={org.id}>
+                      <div className="flex items-center space-x-2">
+                        {org.logoUrl ? (
+                          <img 
+                            src={org.logoUrl} 
+                            alt={`${org.displayName} logo`}
+                            className="h-4 w-4 rounded object-cover"
+                          />
+                        ) : (
+                          <div 
+                            className="h-4 w-4 rounded" 
+                            style={{ backgroundColor: org.primaryColor }}
+                          />
+                        )}
+                        <div className="flex flex-col">
+                          <span className="font-medium">{org.displayName}</span>
+                          {org.description && (
+                            <span className="text-xs text-gray-500">{org.description}</span>
+                          )}
+                        </div>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-gray-500">
+                Select your organization for tenant-specific access, or leave unselected for individual access.
+              </p>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="email">Email Address</Label>
               <Input

@@ -42,6 +42,23 @@ function getPrivilegeLevelForRole(role: string): number {
   return privilegeLevels[role] || 5;
 }
 
+// Helper functions for organization ID obfuscation
+function obfuscateOrgId(id: number): string {
+  // Simple obfuscation using base64 encoding with salt
+  const salted = `org_${id}_salt`;
+  return Buffer.from(salted).toString('base64');
+}
+
+function deobfuscateOrgId(obfuscated: string): number | null {
+  try {
+    const decoded = Buffer.from(obfuscated, 'base64').toString('utf8');
+    const match = decoded.match(/^org_(\d+)_salt$/);
+    return match ? parseInt(match[1]) : null;
+  } catch (error) {
+    return null;
+  }
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Session middleware (no Replit auth)
   const sessionMiddleware = createSessionConfig(process.env.DATABASE_URL!);
@@ -75,11 +92,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Public endpoint to get organizations for login
+  app.get('/api/public/organizations', async (req, res) => {
+    try {
+      const organizations = await storage.getOrganizations();
+      const publicOrgs = organizations.map(org => ({
+        id: obfuscateOrgId(org.id),
+        displayName: org.displayName,
+        description: org.description,
+        logoUrl: org.logoUrl,
+        primaryColor: org.primaryColor,
+        secondaryColor: org.secondaryColor
+      }));
+      res.json(publicOrgs);
+    } catch (error) {
+      console.error("Error fetching public organizations:", error);
+      res.status(500).json({ message: "Failed to fetch organizations" });
+    }
+  });
+
   // Traditional login endpoint
   app.post('/api/auth/login', async (req, res) => {
     try {
       const validatedData = loginSchema.parse(req.body);
-      const { email, password } = validatedData;
+      const { email, password, organizationId } = validatedData;
 
       // Find user by email
       const user = await storage.getUserByEmail(email);
@@ -102,6 +138,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Account is inactive. Please contact support." });
       }
 
+      // Validate organization selection if provided
+      if (organizationId) {
+        const realOrgId = deobfuscateOrgId(organizationId);
+        if (!realOrgId) {
+          return res.status(400).json({ message: "Invalid organization selection" });
+        }
+
+        // Check if user belongs to this organization (except SuperAdmin)
+        if (user.privilegeLevel > 0 && user.organizationId !== realOrgId) {
+          return res.status(403).json({ message: "You are not authorized to access this organization" });
+        }
+
+        // Store selected organization in session for SuperAdmin
+        if (user.privilegeLevel === 0) {
+          (req.session as any).selectedOrganizationId = realOrgId;
+        }
+      }
+
       // Set session
       (req.session as any).userId = user.id;
       
@@ -114,6 +168,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           lastName: user.lastName,
           role: user.role,
           privilegeLevel: user.privilegeLevel,
+          organizationId: user.organizationId,
         }
       });
 
