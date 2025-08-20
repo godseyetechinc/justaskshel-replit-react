@@ -19,7 +19,8 @@ import {
   Phone,
   Briefcase,
   Key,
-  Gift
+  Gift,
+  Building
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -50,6 +51,13 @@ const menuItems: MenuItem[] = [
     icon: Users,
     href: "/dashboard/members",
     roles: ["Admin", "Agent"]
+  },
+  {
+    id: "organizations",
+    label: "Organizations",
+    icon: Building,
+    href: "/dashboard/organizations",
+    roles: ["Admin"]
   },
   {
     id: "my-profile",

@@ -1147,6 +1147,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Agent Organization endpoints
+  app.get("/api/organizations", auth, async (req: any, res) => {
+    try {
+      const organizations = await storage.getOrganizations();
+      res.json(organizations);
+    } catch (error) {
+      console.error("Error fetching organizations:", error);
+      res.status(500).json({ message: "Failed to fetch organizations" });
+    }
+  });
+
+  app.get("/api/organizations/:id", auth, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const organization = await storage.getOrganizationById(id);
+      if (!organization) {
+        return res.status(404).json({ message: "Organization not found" });
+      }
+      res.json(organization);
+    } catch (error) {
+      console.error("Error fetching organization:", error);
+      res.status(500).json({ message: "Failed to fetch organization" });
+    }
+  });
+
+  app.post("/api/organizations", auth, async (req: any, res) => {
+    try {
+      const organization = await storage.createOrganization(req.body);
+      res.status(201).json(organization);
+    } catch (error) {
+      console.error("Error creating organization:", error);
+      res.status(500).json({ message: "Failed to create organization" });
+    }
+  });
+
+  app.put("/api/organizations/:id", auth, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const updated = await storage.updateOrganization(id, req.body);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating organization:", error);
+      res.status(500).json({ message: "Failed to update organization" });
+    }
+  });
+
+  app.delete("/api/organizations/:id", auth, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteOrganization(id);
+      res.json({ message: "Organization deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting organization:", error);
+      res.status(500).json({ message: "Failed to delete organization" });
+    }
+  });
+
+  app.get("/api/organizations/:id/users", auth, async (req: any, res) => {
+    try {
+      const organizationId = parseInt(req.params.id);
+      const users = await storage.getOrganizationUsers(organizationId);
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching organization users:", error);
+      res.status(500).json({ message: "Failed to fetch organization users" });
+    }
+  });
+
+  app.get("/api/organizations/:id/members", auth, async (req: any, res) => {
+    try {
+      const organizationId = parseInt(req.params.id);
+      const members = await storage.getOrganizationMembers(organizationId);
+      res.json(members);
+    } catch (error) {
+      console.error("Error fetching organization members:", error);
+      res.status(500).json({ message: "Failed to fetch organization members" });
+    }
+  });
+
   // Seeding endpoint (for development only)
   app.post('/api/seed-users', async (req: any, res) => {
     try {

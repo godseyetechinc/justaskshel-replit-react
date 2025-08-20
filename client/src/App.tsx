@@ -40,6 +40,7 @@ import AboutUs from "@/pages/about-us";
 import PrivacyPolicy from "@/pages/privacy-policy";
 import TermsOfService from "@/pages/terms-of-service";
 import NeedsAnalysisPage from "@/pages/needs-analysis";
+import OrganizationsPage from "@/pages/dashboard/organizations";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -100,6 +101,7 @@ function Router() {
           <Route path="/" component={Home} />
           {/* Dashboard sub-routes must come before main dashboard route */}
           <Route path="/dashboard/members" component={MembersPage} />
+          <Route path="/dashboard/organizations" component={OrganizationsPage} />
           <Route path="/dashboard/claims" component={ClaimsWorkflow} />
           <Route path="/dashboard/profile" component={ProfilePage} />
           <Route path="/dashboard/my-profile" component={MyProfilePage} />
