@@ -91,12 +91,12 @@ export default function OrganizationProfile() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("profile");
-  const { isTenantAdmin, isLoading: authLoading } = useRoleAuth();
+  const { isLandlordAdmin, isLoading: authLoading } = useRoleAuth();
 
   // Fetch current organization profile
   const { data: organization, isLoading } = useQuery<Organization>({
     queryKey: ["/api/organization-profile"],
-    enabled: !authLoading && isTenantAdmin,
+    enabled: !authLoading && isLandlordAdmin,
   });
 
   const form = useForm<OrganizationProfileData>({
@@ -174,7 +174,7 @@ export default function OrganizationProfile() {
     );
   }
 
-  if (!isTenantAdmin) {
+  if (!isLandlordAdmin) {
     return (
       <div className="p-6">
         <Alert>

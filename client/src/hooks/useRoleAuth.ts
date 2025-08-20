@@ -46,7 +46,7 @@ export function useRoleAuth() {
     if (privilegeLevel === 0) return true;
     
     // Allow write access based on privilege level
-    return privilegeLevel <= 2; // TenantAdmin and Agent can write
+    return privilegeLevel <= 2; // LandlordAdmin and Agent can write
   };
 
   const canDelete = (resource: string, isOwn: boolean = false): boolean => {
@@ -55,18 +55,18 @@ export function useRoleAuth() {
     // SuperAdmin has access to everything
     if (privilegeLevel === 0) return true;
     
-    // Allow delete access for TenantAdmin and higher
+    // Allow delete access for LandlordAdmin and higher
     return privilegeLevel <= 1;
   };
 
   const canManageUsers = (): boolean => {
     if (privilegeLevel === 0) return true; // SuperAdmin
-    return privilegeLevel <= 1; // TenantAdmin
+    return privilegeLevel <= 1; // LandlordAdmin
   };
 
   const canManageSystem = (): boolean => {
     if (privilegeLevel === 0) return true; // SuperAdmin
-    return privilegeLevel <= 1; // TenantAdmin
+    return privilegeLevel <= 1; // LandlordAdmin
   };
 
   const canManageRoles = (): boolean => {
@@ -75,7 +75,7 @@ export function useRoleAuth() {
 
   const canViewAllData = (): boolean => {
     if (privilegeLevel === 0) return true; // SuperAdmin
-    return privilegeLevel <= 1; // TenantAdmin
+    return privilegeLevel <= 1; // LandlordAdmin
   };
 
   const hasPermission = (permission: string, resource?: string, isOwn: boolean = false): boolean => {
@@ -122,15 +122,17 @@ export function useRoleAuth() {
     canViewAllData,
     // Role-specific helpers
     isSuperAdmin: userRole === "SuperAdmin",
-    isTenantAdmin: userRole === "TenantAdmin",
-    isAdmin: userRole === "TenantAdmin" || userRole === "SuperAdmin",
-    isAgent: userRole === "Agent" || userRole === "TenantAdmin" || userRole === "SuperAdmin",
-    isMember: ["Member", "Agent", "TenantAdmin", "SuperAdmin"].includes(userRole),
+    isLandlordAdmin: userRole === "LandlordAdmin",
+    isTenantAdmin: userRole === "LandlordAdmin", // Deprecated: use isLandlordAdmin
+    isAdmin: userRole === "LandlordAdmin" || userRole === "SuperAdmin",
+    isAgent: userRole === "Agent" || userRole === "LandlordAdmin" || userRole === "SuperAdmin",
+    isMember: ["Member", "Agent", "LandlordAdmin", "SuperAdmin"].includes(userRole),
     isGuest: userRole === "Guest",
     isVisitor: userRole === "Visitor",
     // Privilege level helpers
     hasSuperAdminPrivileges: privilegeLevel === 0,
-    hasTenantAdminPrivileges: privilegeLevel <= 1,
+    hasLandlordAdminPrivileges: privilegeLevel <= 1,
+    hasTenantAdminPrivileges: privilegeLevel <= 1, // Deprecated: use hasLandlordAdminPrivileges
     hasAgentPrivileges: privilegeLevel <= 2,
     hasMemberPrivileges: privilegeLevel <= 3,
     hasGuestPrivileges: privilegeLevel <= 4,
