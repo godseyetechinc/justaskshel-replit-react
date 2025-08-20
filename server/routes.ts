@@ -29,6 +29,19 @@ import {
 } from "@shared/schema";
 import { z } from "zod";
 
+// Helper function to get privilege level for role
+function getPrivilegeLevelForRole(role: string): number {
+  const privilegeLevels: Record<string, number> = {
+    SuperAdmin: 0,
+    TenantAdmin: 1,
+    Agent: 2,
+    Member: 3,
+    Guest: 4,
+    Visitor: 5
+  };
+  return privilegeLevels[role] || 5;
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Session middleware (no Replit auth)
   const sessionMiddleware = createSessionConfig(process.env.DATABASE_URL!);
@@ -1148,6 +1161,211 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Agent Organization endpoints
+  // User Management routes (Admin only)
+  app.get('/api/users', auth, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+      
+      if (!currentUser || (currentUser.privilegeLevel > 1)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const users = await storage.getAllUsers();
+      
+      // If TenantAdmin, filter to only their organization users
+      if (currentUser.privilegeLevel === 1 && currentUser.organizationId) {
+        const filteredUsers = users.filter(user => user.organizationId === currentUser.organizationId);
+        return res.json(filteredUsers);
+      }
+      
+      // SuperAdmin sees all users
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  app.get('/api/users/stats', auth, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+      
+      if (!currentUser || (currentUser.privilegeLevel > 1)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const users = await storage.getAllUsers();
+      
+      // Filter users if TenantAdmin
+      let filteredUsers = users;
+      if (currentUser.privilegeLevel === 1 && currentUser.organizationId) {
+        filteredUsers = users.filter(user => user.organizationId === currentUser.organizationId);
+      }
+      
+      const stats = {
+        total: filteredUsers.length,
+        active: filteredUsers.filter(u => u.isActive).length,
+        admins: filteredUsers.filter(u => ["SuperAdmin", "TenantAdmin"].includes(u.role)).length,
+        recentLogins: filteredUsers.filter(u => {
+          if (!u.lastLoginAt) return false;
+          const daysSinceLogin = (Date.now() - new Date(u.lastLoginAt).getTime()) / (1000 * 60 * 60 * 24);
+          return daysSinceLogin <= 7;
+        }).length
+      };
+      
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching user stats:", error);
+      res.status(500).json({ message: "Failed to fetch user stats" });
+    }
+  });
+
+  app.post('/api/users', auth, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+      
+      if (!currentUser || (currentUser.privilegeLevel > 1)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Validate input
+      const userData = {
+        ...req.body,
+        privilegeLevel: getPrivilegeLevelForRole(req.body.role)
+      };
+
+      // TenantAdmin can only create users in their organization
+      if (currentUser.privilegeLevel === 1) {
+        userData.organizationId = currentUser.organizationId;
+        
+        // TenantAdmin cannot create SuperAdmin or other TenantAdmin users
+        if (["SuperAdmin", "TenantAdmin"].includes(req.body.role)) {
+          return res.status(403).json({ message: "Insufficient privileges to create this role" });
+        }
+      }
+
+      const user = await storage.createUser(userData);
+      res.status(201).json(user);
+    } catch (error) {
+      console.error("Error creating user:", error);
+      res.status(500).json({ message: "Failed to create user" });
+    }
+  });
+
+  app.patch('/api/users/:id', auth, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+      const targetUserId = req.params.id;
+      
+      if (!currentUser || (currentUser.privilegeLevel > 1)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const targetUser = await storage.getUser(targetUserId);
+      if (!targetUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // TenantAdmin can only edit users in their organization
+      if (currentUser.privilegeLevel === 1) {
+        if (targetUser.organizationId !== currentUser.organizationId) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+        
+        // TenantAdmin cannot edit SuperAdmin or other TenantAdmin users
+        if (["SuperAdmin", "TenantAdmin"].includes(targetUser.role) && targetUser.id !== currentUser.id) {
+          return res.status(403).json({ message: "Insufficient privileges to edit this user" });
+        }
+      }
+
+      const updateData = { ...req.body };
+      if (updateData.role) {
+        updateData.privilegeLevel = getPrivilegeLevelForRole(updateData.role);
+      }
+
+      const updatedUser = await storage.updateUser(targetUserId, updateData);
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error updating user:", error);
+      res.status(500).json({ message: "Failed to update user" });
+    }
+  });
+
+  app.patch('/api/users/:id/status', auth, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+      const targetUserId = req.params.id;
+      
+      if (!currentUser || (currentUser.privilegeLevel > 1)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const targetUser = await storage.getUser(targetUserId);
+      if (!targetUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // TenantAdmin can only edit users in their organization
+      if (currentUser.privilegeLevel === 1) {
+        if (targetUser.organizationId !== currentUser.organizationId) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+      }
+
+      const updatedUser = await storage.updateUser(targetUserId, { isActive: req.body.isActive });
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error updating user status:", error);
+      res.status(500).json({ message: "Failed to update user status" });
+    }
+  });
+
+  app.delete('/api/users/:id', auth, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+      const targetUserId = req.params.id;
+      
+      if (!currentUser || (currentUser.privilegeLevel > 1)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const targetUser = await storage.getUser(targetUserId);
+      if (!targetUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Prevent deleting self
+      if (targetUserId === userId) {
+        return res.status(400).json({ message: "Cannot delete your own account" });
+      }
+
+      // TenantAdmin can only delete users in their organization
+      if (currentUser.privilegeLevel === 1) {
+        if (targetUser.organizationId !== currentUser.organizationId) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+        
+        // TenantAdmin cannot delete SuperAdmin or other TenantAdmin users
+        if (["SuperAdmin", "TenantAdmin"].includes(targetUser.role)) {
+          return res.status(403).json({ message: "Insufficient privileges to delete this user" });
+        }
+      }
+
+      await storage.deleteUser(targetUserId);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      res.status(500).json({ message: "Failed to delete user" });
+    }
+  });
+
+  // Organizations
   app.get("/api/organizations", auth, async (req: any, res) => {
     try {
       const organizations = await storage.getOrganizations();
