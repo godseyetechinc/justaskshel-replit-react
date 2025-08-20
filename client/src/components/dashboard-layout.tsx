@@ -39,16 +39,27 @@ export default function DashboardLayout({
   }, [isAuthenticated, isLoading, toast]);
 
   // Check role permissions - SuperAdmin has access to everything
-  const { privilegeLevel } = useRoleAuth();
+  const { privilegeLevel, isSuperAdmin } = useRoleAuth();
+  
   useEffect(() => {
-    if (!isLoading && isAuthenticated && privilegeLevel !== 0 && !hasAnyRole(requiredRoles)) {
+    console.log('Dashboard access check:', { 
+      isLoading, 
+      isAuthenticated, 
+      userRole, 
+      privilegeLevel, 
+      isSuperAdmin,
+      requiredRoles,
+      hasAnyRole: hasAnyRole(requiredRoles)
+    });
+    
+    if (!isLoading && isAuthenticated && !isSuperAdmin && !hasAnyRole(requiredRoles)) {
       toast({
         title: "Access Denied",
-        description: `Your role (${userRole}) doesn't have access to this page.`,
+        description: `Your role (${userRole}) doesn't have permission to access this page.`,
         variant: "destructive",
       });
     }
-  }, [isAuthenticated, isLoading, hasAnyRole, requiredRoles, userRole, toast, privilegeLevel]);
+  }, [isAuthenticated, isLoading, hasAnyRole, requiredRoles, userRole, toast, privilegeLevel, isSuperAdmin]);
 
   if (isLoading) {
     return (
@@ -79,7 +90,8 @@ export default function DashboardLayout({
     );
   }
 
-  if (!hasAnyRole(requiredRoles)) {
+  // SuperAdmin bypasses all role checks
+  if (!isSuperAdmin && !hasAnyRole(requiredRoles)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">

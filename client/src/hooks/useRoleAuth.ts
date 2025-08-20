@@ -6,7 +6,7 @@ export function useRoleAuth() {
   const { user, isAuthenticated, isLoading } = useAuth();
   
   const userRole = (user?.role || "Visitor") as UserRole;
-  const privilegeLevel = user?.privilegeLevel || ROLE_PRIVILEGE_LEVELS.Visitor;
+  const privilegeLevel = user?.privilegeLevel !== undefined ? user.privilegeLevel : ROLE_PRIVILEGE_LEVELS.Visitor;
 
   const hasRole = (requiredRole: UserRole): boolean => {
     if (!isAuthenticated || !user) return false;
