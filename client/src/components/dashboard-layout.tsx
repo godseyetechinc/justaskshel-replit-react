@@ -38,16 +38,17 @@ export default function DashboardLayout({
     }
   }, [isAuthenticated, isLoading, toast]);
 
-  // Check role permissions
+  // Check role permissions - SuperAdmin has access to everything
+  const { privilegeLevel } = useRoleAuth();
   useEffect(() => {
-    if (!isLoading && isAuthenticated && !hasAnyRole(requiredRoles)) {
+    if (!isLoading && isAuthenticated && privilegeLevel !== 0 && !hasAnyRole(requiredRoles)) {
       toast({
         title: "Access Denied",
         description: `Your role (${userRole}) doesn't have access to this page.`,
         variant: "destructive",
       });
     }
-  }, [isAuthenticated, isLoading, hasAnyRole, requiredRoles, userRole, toast]);
+  }, [isAuthenticated, isLoading, hasAnyRole, requiredRoles, userRole, toast, privilegeLevel]);
 
   if (isLoading) {
     return (
