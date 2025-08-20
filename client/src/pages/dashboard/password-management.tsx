@@ -20,6 +20,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useRoleAuth } from "@/hooks/useRoleAuth";
+import { useLogout } from "@/hooks/useLogout";
 
 const passwordFormSchema = z.object({
   currentPassword: z.string().min(1, "Current password is required"),
@@ -39,6 +40,7 @@ export default function PasswordManagementPage() {
   const { toast } = useToast();
   const { user } = useAuth();
   const { hasPermission } = useRoleAuth();
+  const { logout } = useLogout();
 
   // Check if user has permission to change passwords
   const canChangePassword = hasPermission("write");
@@ -64,9 +66,9 @@ export default function PasswordManagementPage() {
         description: "Password changed successfully. Please log in again with your new password." 
       });
       form.reset();
-      // Redirect to login after password change
+      // Logout after password change to require login with new password
       setTimeout(() => {
-        window.location.href = '/api/logout';
+        logout();
       }, 2000);
     },
     onError: (error: any) => {

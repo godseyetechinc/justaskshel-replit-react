@@ -1,5 +1,6 @@
 import { useAuth } from "@/hooks/useAuth";
 import { useRoleAuth } from "@/hooks/useRoleAuth";
+import { useLogout } from "@/hooks/useLogout";
 import { Button } from "@/components/ui/button";
 import DashboardSidebar from "./dashboard-sidebar";
 import { useEffect } from "react";
@@ -19,6 +20,7 @@ export default function DashboardLayout({
 }: DashboardLayoutProps) {
   const { isAuthenticated, isLoading } = useAuth();
   const { hasAnyRole, userRole } = useRoleAuth();
+  const { logout, isLoggingOut } = useLogout();
   const { toast } = useToast();
 
   // Redirect to login if not authenticated
@@ -121,7 +123,8 @@ export default function DashboardLayout({
               <Button 
                 variant="ghost" 
                 size="sm"
-                onClick={() => window.location.href = '/api/logout'}
+                onClick={logout}
+                disabled={isLoggingOut}
               >
                 Sign Out
               </Button>

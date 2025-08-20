@@ -171,7 +171,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
 
-  // Logout endpoint
+  // Logout endpoint (POST - proper API call)
   app.post('/api/logout', (req: any, res) => {
     console.log('Logout request received');
     if (req.session) {
@@ -187,6 +187,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } else {
       console.log('No active session to destroy');
       res.json({ message: "No active session" });
+    }
+  });
+
+  // Logout endpoint (GET - for backwards compatibility, redirects to landing page)
+  app.get('/api/logout', (req: any, res) => {
+    console.log('Logout GET request received (redirecting)');
+    if (req.session) {
+      req.session.destroy((err: any) => {
+        if (err) {
+          console.error("Session destruction error:", err);
+        }
+        res.clearCookie('connect.sid');
+        console.log('Logout successful - session destroyed, redirecting to landing page');
+        res.redirect('/');
+      });
+    } else {
+      console.log('No active session to destroy, redirecting to landing page');
+      res.redirect('/');
     }
   });
 
