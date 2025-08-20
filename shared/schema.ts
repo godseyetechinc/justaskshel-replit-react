@@ -34,8 +34,8 @@ export const users = pgTable("users", {
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
   password: varchar("password", { length: 255 }), // Hashed password
-  role: varchar("role", { enum: ["Admin", "Agent", "Member", "Guest", "Visitor"] }).default("Guest"),
-  privilegeLevel: integer("privilege_level").default(4), // 1=Admin, 2=Agent, 3=Member, 4=Guest, 5=Visitor
+  role: varchar("role", { enum: ["SuperAdmin", "TenantAdmin", "Agent", "Member", "Guest", "Visitor"] }).default("Guest"),
+  privilegeLevel: integer("privilege_level").default(4), // 0=SuperAdmin, 1=TenantAdmin, 2=Agent, 3=Member, 4=Guest, 5=Visitor
   organizationId: integer("organization_id").references(() => agentOrganizations.id),
   isActive: boolean("is_active").default(true),
   phone: varchar("phone", { length: 20 }),
@@ -876,11 +876,12 @@ export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertRole = z.infer<typeof insertRoleSchema>;
 
 // Role-based authorization types
-export type UserRole = "Admin" | "Agent" | "Member" | "Guest" | "Visitor";
+export type UserRole = "SuperAdmin" | "TenantAdmin" | "Agent" | "Member" | "Guest" | "Visitor";
 
-// Role privilege levels (1=highest privilege, 5=lowest)
+// Role privilege levels (0=highest privilege, 5=lowest)
 export const ROLE_PRIVILEGE_LEVELS = {
-  Admin: 1,
+  SuperAdmin: 0,
+  TenantAdmin: 1,
   Agent: 2,
   Member: 3,
   Guest: 4,
@@ -888,7 +889,11 @@ export const ROLE_PRIVILEGE_LEVELS = {
 } as const;
 
 export const ROLE_PERMISSIONS = {
-  Admin: {
+  SuperAdmin: {
+    privileges: ["read", "write", "delete", "manage_users", "manage_system", "manage_roles", "view_all", "edit_all", "manage_organizations", "access_all_tenants"] as const,
+    resources: ["all"] as const
+  },
+  TenantAdmin: {
     privileges: ["read", "write", "delete", "manage_users", "manage_system", "manage_roles", "view_all", "edit_all"] as const,
     resources: ["all"] as const
   },

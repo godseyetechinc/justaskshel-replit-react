@@ -127,7 +127,7 @@ export default function OrganizationsPage() {
   };
 
   return (
-    <DashboardLayout title="Organization Management" requiredRoles={["Admin"]}>
+    <DashboardLayout title="Organization Management" requiredRoles={["TenantAdmin"]}>
       <div className="space-y-6">
         {/* Header Actions */}
         <div className="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center">
