@@ -28,6 +28,7 @@ export default function Navigation() {
 
   const navigation = [
     { name: "Home", href: "/" },
+    { name: "Needs Analysis", href: "/needs-analysis" },
     { name: "Compare Quotes", href: "/quotes" },
     { name: "Claims", href: "/claims-assistance" },
   ];

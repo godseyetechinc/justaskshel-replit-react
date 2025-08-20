@@ -39,6 +39,7 @@ import HospitalIndemnityInsurance from "@/pages/hospital-indemnity-insurance";
 import AboutUs from "@/pages/about-us";
 import PrivacyPolicy from "@/pages/privacy-policy";
 import TermsOfService from "@/pages/terms-of-service";
+import NeedsAnalysisPage from "@/pages/needs-analysis";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -79,6 +80,7 @@ function Router() {
         <>
           <Route path="/" component={Landing} />
           <Route path="/insurance-types" component={InsuranceTypes} />
+          <Route path="/needs-analysis" component={NeedsAnalysisPage} />
           <Route path="/quotes" component={Quotes} />
           <Route path="/claims-assistance" component={ClaimsAssistance} />
           <Route path="/life-insurance" component={LifeInsurance} />
@@ -116,6 +118,7 @@ function Router() {
           <Route path="/role-test" component={RoleTest} />
           <Route path="/quotes" component={Quotes} />
           <Route path="/insurance-types" component={InsuranceTypes} />
+          <Route path="/needs-analysis" component={NeedsAnalysisPage} />
           <Route path="/claims-assistance" component={ClaimsAssistance} />
           <Route path="/life-insurance" component={LifeInsurance} />
           <Route path="/health-insurance" component={HealthInsurance} />
