@@ -681,6 +681,56 @@ export class DatabaseStorage implements IStorage {
     return member;
   }
 
+  // Agent Organization methods
+  async createOrganization(organization: any): Promise<any> {
+    const [newOrg] = await db.insert(agentOrganizations).values(organization).returning();
+    return newOrg;
+  }
+
+  async getOrganizations(): Promise<any[]> {
+    return await db.select().from(agentOrganizations).orderBy(agentOrganizations.name);
+  }
+
+  async getOrganizationById(id: number): Promise<any | undefined> {
+    const [org] = await db.select().from(agentOrganizations).where(eq(agentOrganizations.id, id));
+    return org;
+  }
+
+  async updateOrganization(id: number, updates: any): Promise<any> {
+    const [updated] = await db
+      .update(agentOrganizations)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(agentOrganizations.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteOrganization(id: number): Promise<void> {
+    await db.delete(agentOrganizations).where(eq(agentOrganizations.id, id));
+  }
+
+  async getOrganizationUsers(organizationId: number): Promise<User[]> {
+    return await db.select().from(users).where(eq(users.organizationId, organizationId));
+  }
+
+  async getOrganizationMembers(organizationId: number): Promise<any[]> {
+    return await db
+      .select({
+        id: members.id,
+        userId: members.userId,
+        memberNumber: members.memberNumber,
+        firstName: members.firstName,
+        lastName: members.lastName,
+        email: members.email,
+        membershipStatus: members.membershipStatus,
+        membershipDate: members.membershipDate,
+        createdAt: members.createdAt,
+      })
+      .from(members)
+      .where(eq(members.organizationId, organizationId))
+      .orderBy(members.createdAt);
+  }
+
   async upsertMemberProfile(userId: string, memberData: Partial<InsertMember>): Promise<Member> {
     // First try to update existing member
     const existing = await this.getMemberByUserId(userId);

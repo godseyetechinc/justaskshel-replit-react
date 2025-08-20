@@ -36,6 +36,7 @@ export const users = pgTable("users", {
   password: varchar("password", { length: 255 }), // Hashed password
   role: varchar("role", { enum: ["Admin", "Agent", "Member", "Guest", "Visitor"] }).default("Guest"),
   privilegeLevel: integer("privilege_level").default(4), // 1=Admin, 2=Agent, 3=Member, 4=Guest, 5=Visitor
+  organizationId: integer("organization_id").references(() => agentOrganizations.id),
   isActive: boolean("is_active").default(true),
   phone: varchar("phone", { length: 20 }),
   address: text("address"),
@@ -201,6 +202,7 @@ export const dependents = pgTable("dependents", {
 export const members = pgTable("members", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").unique().references(() => users.id),
+  organizationId: integer("organization_id").references(() => agentOrganizations.id),
   memberNumber: varchar("member_number", { length: 20 }).unique().notNull(),
   firstName: varchar("first_name", { length: 50 }),
   lastName: varchar("last_name", { length: 50 }),
@@ -224,9 +226,36 @@ export const members = pgTable("members", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Agent Organizations - multi-tenant organization structure
+export const agentOrganizations = pgTable("agent_organizations", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 100 }).notNull(),
+  displayName: varchar("display_name", { length: 100 }).notNull(),
+  description: text("description"),
+  website: varchar("website", { length: 255 }),
+  phone: varchar("phone", { length: 20 }),
+  email: varchar("email", { length: 100 }),
+  address: text("address"),
+  city: varchar("city", { length: 50 }),
+  state: varchar("state", { length: 50 }),
+  zipCode: varchar("zip_code", { length: 10 }),
+  logoUrl: varchar("logo_url", { length: 255 }),
+  primaryColor: varchar("primary_color", { length: 7 }).default("#0EA5E9"), // hex color
+  secondaryColor: varchar("secondary_color", { length: 7 }).default("#64748B"),
+  status: varchar("status", { enum: ["Active", "Inactive", "Suspended"] }).default("Active"),
+  subscriptionPlan: varchar("subscription_plan", { enum: ["Basic", "Professional", "Enterprise"] }).default("Basic"),
+  subscriptionStatus: varchar("subscription_status", { enum: ["Active", "Inactive", "Trial", "Expired"] }).default("Trial"),
+  maxAgents: integer("max_agents").default(5),
+  maxMembers: integer("max_members").default(100),
+  settings: jsonb("settings"), // organization-specific settings
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Contacts - general contact information
 export const contacts = pgTable("contacts", {
   id: serial("id").primaryKey(),
+  organizationId: integer("organization_id").references(() => agentOrganizations.id),
   type: varchar("type", { enum: ["Lead", "Customer", "Provider", "Agent"] }).notNull(),
   firstName: varchar("first_name", { length: 50 }).notNull(),
   lastName: varchar("last_name", { length: 50 }).notNull(),
