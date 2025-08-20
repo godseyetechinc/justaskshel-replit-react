@@ -386,14 +386,14 @@ export default function UserManagementPage() {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Organization</FormLabel>
-                            <Select onValueChange={(value) => field.onChange(value ? parseInt(value) : undefined)}>
+                            <Select onValueChange={(value) => field.onChange(value === "none" ? undefined : parseInt(value))}>
                               <FormControl>
                                 <SelectTrigger>
                                   <SelectValue placeholder="Select organization" />
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="">No Organization</SelectItem>
+                                <SelectItem value="none">No Organization</SelectItem>
                                 {organizations?.map((org: any) => (
                                   <SelectItem key={org.id} value={org.id.toString()}>
                                     {org.displayName}
@@ -811,8 +811,8 @@ export default function UserManagementPage() {
                         <FormItem>
                           <FormLabel>Organization</FormLabel>
                           <Select 
-                            onValueChange={(value) => field.onChange(value ? parseInt(value) : undefined)}
-                            value={field.value?.toString() || ""}
+                            onValueChange={(value) => field.onChange(value === "none" ? undefined : parseInt(value))}
+                            value={field.value?.toString() || "none"}
                           >
                             <FormControl>
                               <SelectTrigger>
@@ -820,7 +820,7 @@ export default function UserManagementPage() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="">No Organization</SelectItem>
+                              <SelectItem value="none">No Organization</SelectItem>
                               {organizations?.map((org: any) => (
                                 <SelectItem key={org.id} value={org.id.toString()}>
                                   {org.displayName}
