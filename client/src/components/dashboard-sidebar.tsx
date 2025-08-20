@@ -138,6 +138,13 @@ const menuItems: MenuItem[] = [
     roles: ["SuperAdmin"],
   },
   {
+    id: "organization-profile",
+    label: "Organization",
+    icon: Building,
+    href: "/dashboard/organization-profile",
+    roles: ["TenantAdmin"],
+  },
+  {
     id: "password-management",
     label: "Password Management",
     icon: Key,

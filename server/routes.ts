@@ -1477,6 +1477,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get organization profile for TenantAdmin
+  app.get('/api/organization-profile', auth, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      console.log('Organization profile access check:', {
+        userId: user.id,
+        role: user.role,
+        privilegeLevel: user.privilegeLevel,
+        organizationId: user.organizationId
+      });
+
+      // Only TenantAdmin can access their organization profile
+      if (user.privilegeLevel !== 1) {
+        return res.status(403).json({ message: "Access denied. TenantAdmin role required." });
+      }
+
+      if (!user.organizationId) {
+        return res.status(404).json({ message: "No organization assigned to this user." });
+      }
+
+      const organization = await storage.getOrganizationById(user.organizationId);
+      if (!organization) {
+        return res.status(404).json({ message: "Organization not found" });
+      }
+
+      res.json(organization);
+    } catch (error) {
+      console.error("Error fetching organization profile:", error);
+      res.status(500).json({ message: "Failed to fetch organization profile" });
+    }
+  });
+
+  // Update organization profile for TenantAdmin
+  app.put('/api/organization-profile', auth, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Only TenantAdmin can update their organization profile
+      if (user.privilegeLevel !== 1) {
+        return res.status(403).json({ message: "Access denied. TenantAdmin role required." });
+      }
+
+      if (!user.organizationId) {
+        return res.status(404).json({ message: "No organization assigned to this user." });
+      }
+
+      const {
+        displayName,
+        description,
+        website,
+        phone,
+        email,
+        address,
+        city,
+        state,
+        zipCode,
+        logoUrl,
+        primaryColor,
+        secondaryColor
+      } = req.body;
+
+      const updatedOrganization = await storage.updateOrganization(user.organizationId, {
+        displayName,
+        description,
+        website,
+        phone,
+        email,
+        address,
+        city,
+        state,
+        zipCode,
+        logoUrl,
+        primaryColor,
+        secondaryColor,
+        updatedAt: new Date()
+      });
+
+      if (!updatedOrganization) {
+        return res.status(404).json({ message: "Organization not found" });
+      }
+
+      res.json(updatedOrganization);
+    } catch (error) {
+      console.error("Error updating organization profile:", error);
+      res.status(500).json({ message: "Failed to update organization profile" });
+    }
+  });
+
   app.get("/api/organizations/:id/users", auth, async (req: any, res) => {
     try {
       const organizationId = parseInt(req.params.id);

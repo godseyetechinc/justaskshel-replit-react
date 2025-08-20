@@ -41,6 +41,7 @@ import PrivacyPolicy from "@/pages/privacy-policy";
 import TermsOfService from "@/pages/terms-of-service";
 import NeedsAnalysisPage from "@/pages/needs-analysis";
 import OrganizationsPage from "@/pages/dashboard/organizations";
+import OrganizationProfilePage from "@/pages/dashboard/organization-profile";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -113,6 +114,7 @@ function Router() {
           <Route path="/dashboard/rewards-management" component={RewardsManagementPage} />
           <Route path="/dashboard/dependents" component={DependentsPage} />
           <Route path="/dashboard/user-management" component={UserManagementPage} />
+          <Route path="/dashboard/organization-profile" component={OrganizationProfilePage} />
           <Route path="/dashboard/password-management" component={PasswordManagementPage} />
           <Route path="/dashboard/analytics" component={AnalyticsPage} />
           {/* Main dashboard route comes last to avoid conflicts */}
