@@ -3,6 +3,15 @@
 JustAskShel is a comprehensive insurance comparison and management platform that helps users find, compare, and manage insurance policies across multiple types including life, health, dental, vision, and hospital indemnity insurance. The platform provides quote comparison tools, policy management dashboards, claims assistance, and wishlist functionality to streamline the insurance shopping and management experience.
 
 ## Recent Updates (August 2025)
+
+### Latest Major Updates
+- **SuperAdmin Role System with Multi-Tenant Access Control**: Created SuperAdmin role with privilege level 0 for cross-tenant access and renamed Admin role to TenantAdmin. SuperAdmin users have unrestricted access to all tenant data and organization management. TenantAdmin users are restricted to their associated tenant organization only. Updated database schema, role permissions, and dashboard components. Created superadmin@justaskshel.com user for system-wide administration.
+
+- **Multi-Tenant Agent Organization System**: Implemented comprehensive multi-tenancy by agent organization with database schema updates, organization management backend APIs, and organization management UI. Features include agent organizations table with subscription plans (Basic/Professional/Enterprise), organization-specific user and member assignment, organization management dashboard for TenantAdmin users, and tenant isolation for data access control. Successfully migrated existing users and members to organization-based structure with 3 demo organizations (Demo Insurance Agency, ABC Insurance Group, QuickQuote Insurance).
+
+- **Comprehensive Member Profile Management System**: Created advanced member profile management interface for TenantAdmin users under Dashboard 'Members' menu. Features include detailed member listing with table/grid views, advanced search and filtering by status, comprehensive member profile dialogs with tabbed information (Personal, Contact, Preferences, Activity), avatar display system with custom colors and types, member status management (Active/Inactive/Suspended), and full CRUD operations. Admins can now view detailed member information including bio, emergency contacts, preferences, and membership history.
+
+### Previous Updates
 - **Application Rebranding**: Renamed application from "InsureScope" to "JustAskShel" with updated branding throughout the platform
 - **Terminology Consistency**: Updated all references from "Insurance Types" to "Coverage Types" across the application for improved clarity
 - **Header Menu Styling**: Applied consistent dashboard-style header menu styling across all pages for unified user experience
@@ -32,11 +41,13 @@ JustAskShel is a comprehensive insurance comparison and management platform that
 - Hospital Indemnity Insurance
 - Discount Health Plans
 
-### User Roles
-- **Admin**: Full system access and user management
-- **Agent**: Access to client management and policy tools
-- **Member**: Standard user access to quotes and policies
-- **Visitor**: Limited access to public information
+### User Roles & Multi-Tenant Access Control
+- **SuperAdmin** (Privilege Level 0): Full cross-tenant system access, manage all organizations and users across all tenants
+- **TenantAdmin** (Privilege Level 1): Full administrative access restricted to their assigned organization only
+- **Agent** (Privilege Level 2): Access to client management, policy tools, and applications within their organization
+- **Member** (Privilege Level 3): Standard user access to quotes, policies, and personal data within their organization
+- **Guest** (Privilege Level 4): Limited authenticated access to basic features
+- **Visitor** (Privilege Level 5): Public access to general information and quote requests
 
 ## Technical Architecture
 
@@ -56,11 +67,14 @@ JustAskShel is a comprehensive insurance comparison and management platform that
 - **Session Management**: PostgreSQL-backed sessions
 
 ### Database Design
-- Users, insurance types, providers, quotes, policies
-- Claims management with document storage
-- Dependents, wishlists, and loyalty points
-- Contact management and applicant tracking
-- Proper relationships and indexing
+- **Multi-Tenant Architecture**: Organizations table with tenant-specific user and member assignment
+- **Role-Based Access Control**: 6-tier privilege system (0=SuperAdmin, 1=TenantAdmin, 2=Agent, 3=Member, 4=Guest, 5=Visitor)
+- **Comprehensive Entities**: Users, insurance types, providers, quotes, policies, claims, applications
+- **Member Management**: Advanced member profiles with avatars, preferences, and organizational assignment
+- **Claims Workflow**: Document storage, messaging, and status tracking
+- **Loyalty System**: Points, rewards, redemptions with tier-based progression
+- **Contact CRM**: Lead and customer management with agent assignment
+- **Proper Relationships**: Foreign keys, indexing, and data integrity constraints
 
 ## Development Setup
 
@@ -73,6 +87,40 @@ JustAskShel is a comprehensive insurance comparison and management platform that
 1. Clone the repository
 2. Install dependencies: `npm install`
 3. Set up environment variables (DATABASE_URL, SESSION_SECRET)
+4. Run database migrations: `npm run db:migrate`
+5. Seed initial data: `npm run db:seed`
+6. Start development server: `npm run dev`
+
+### Test Accounts
+- **SuperAdmin**: superadmin@justaskshel.com (password: password123)
+- **TenantAdmin**: admin1@justaskshel.com (password: password123)
+- **Agent**: agent1@justaskshel.com (password: password123)
+- **Member**: Various member accounts available (password: password123)
+
+## Multi-Tenant Organization Structure
+
+The platform includes 3 demo organizations for testing:
+
+1. **Demo Insurance Agency** (ID: 1)
+   - 3 Agents assigned
+   - Professional subscription plan
+   - 67 Members
+
+2. **ABC Insurance Group** (ID: 2)  
+   - 3 Agents assigned
+   - Enterprise subscription plan
+   - 67 Members
+
+3. **QuickQuote Insurance** (ID: 3)
+   - 4 Agents assigned
+   - Basic subscription plan
+   - 67 Members
+
+### Access Control Features
+- **SuperAdmin**: Can view and manage all organizations, cross-tenant data access
+- **TenantAdmin**: Restricted to their assigned organization only
+- **Agents**: Handle applications, policies, and members within their organization
+- **Members**: Access personal data and organization-specific services
 4. Run database migrations: `npm run db:push`
 5. Start development server: `npm run dev`
 
