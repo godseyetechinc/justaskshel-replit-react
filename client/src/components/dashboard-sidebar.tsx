@@ -52,6 +52,13 @@ const menuItems: MenuItem[] = [
     roles: ["Admin", "Agent"]
   },
   {
+    id: "my-profile",
+    label: "My Profile",
+    icon: Settings,
+    href: "/dashboard/my-profile",
+    roles: ["Member"]
+  },
+  {
     id: "contacts",
     label: "Contacts",
     icon: Phone,

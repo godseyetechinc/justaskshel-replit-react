@@ -622,6 +622,38 @@ export class DatabaseStorage implements IStorage {
     await db.delete(members).where(eq(members.id, id));
   }
 
+  async getMemberByUserId(userId: string): Promise<Member | undefined> {
+    const [member] = await db.select().from(members).where(eq(members.userId, userId));
+    return member;
+  }
+
+  async upsertMemberProfile(userId: string, memberData: Partial<InsertMember>): Promise<Member> {
+    // First try to update existing member
+    const existing = await this.getMemberByUserId(userId);
+    
+    if (existing) {
+      const [updatedMember] = await db
+        .update(members)
+        .set({ ...memberData, updatedAt: new Date() })
+        .where(eq(members.userId, userId))
+        .returning();
+      return updatedMember;
+    } else {
+      // Create new member profile
+      const [newMember] = await db
+        .insert(members)
+        .values({
+          userId,
+          memberNumber: `MBR${Date.now()}${Math.floor(Math.random() * 1000)}`, // Generate unique member number
+          ...memberData,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .returning();
+      return newMember;
+    }
+  }
+
   // Contacts
   async createContact(contact: InsertContact): Promise<Contact> {
     const [newContact] = await db.insert(contacts).values(contact).returning();

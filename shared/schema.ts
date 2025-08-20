@@ -202,6 +202,9 @@ export const members = pgTable("members", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").unique().references(() => users.id),
   memberNumber: varchar("member_number", { length: 20 }).unique().notNull(),
+  firstName: varchar("first_name", { length: 50 }),
+  lastName: varchar("last_name", { length: 50 }),
+  email: varchar("email", { length: 100 }),
   dateOfBirth: timestamp("date_of_birth"),
   phone: varchar("phone", { length: 20 }),
   address: text("address"),
@@ -209,6 +212,12 @@ export const members = pgTable("members", {
   state: varchar("state", { length: 50 }),
   zipCode: varchar("zip_code", { length: 10 }),
   ssn: varchar("ssn", { length: 11 }), // encrypted
+  profileImageUrl: varchar("profile_image_url"),
+  avatarType: varchar("avatar_type", { enum: ["initials", "image", "generated"] }).default("initials"),
+  avatarColor: varchar("avatar_color", { length: 7 }).default("#0EA5E9"), // hex color
+  bio: text("bio"),
+  emergencyContact: text("emergency_contact"),
+  preferences: jsonb("preferences"), // JSON object for member preferences
   membershipStatus: varchar("membership_status", { enum: ["Active", "Inactive", "Suspended"] }).default("Active"),
   membershipDate: timestamp("membership_date").defaultNow(),
   createdAt: timestamp("created_at").defaultNow(),
@@ -704,6 +713,25 @@ export const insertMemberSchema = createInsertSchema(members).omit({
   createdAt: true,
   updatedAt: true,
 });
+
+// Member Profile Schema for updates (excluding sensitive fields)
+export const memberProfileSchema = insertMemberSchema.pick({
+  firstName: true,
+  lastName: true,
+  email: true,
+  phone: true,
+  address: true,
+  city: true,
+  state: true,
+  zipCode: true,
+  dateOfBirth: true,
+  profileImageUrl: true,
+  avatarType: true,
+  avatarColor: true,
+  bio: true,
+  emergencyContact: true,
+  preferences: true,
+}).partial();
 
 export const insertContactSchema = createInsertSchema(contacts).omit({
   id: true,

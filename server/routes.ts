@@ -25,6 +25,7 @@ import {
   insertClaimWorkflowStepSchema,
   loginSchema,
   signupSchema,
+  memberProfileSchema,
 } from "@shared/schema";
 import { z } from "zod";
 
@@ -717,6 +718,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting member:", error);
       res.status(500).json({ message: "Failed to delete member" });
+    }
+  });
+
+  // Member profile routes (for individual members to manage their own profiles)
+  app.get('/api/member-profile', auth, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const member = await storage.getMemberByUserId(userId);
+      
+      if (!member) {
+        // Return basic profile structure for members without profiles yet
+        return res.json({
+          userId,
+          firstName: null,
+          lastName: null,
+          email: null,
+          memberNumber: null,
+          avatarType: 'initials',
+          avatarColor: '#0EA5E9',
+          profileImageUrl: null,
+          bio: null,
+          phone: null,
+          address: null,
+          city: null,
+          state: null,
+          zipCode: null,
+          dateOfBirth: null,
+          emergencyContact: null,
+          preferences: {},
+          membershipStatus: 'Active',
+        });
+      }
+      
+      res.json(member);
+    } catch (error) {
+      console.error("Error fetching member profile:", error);
+      res.status(500).json({ message: "Failed to fetch member profile" });
+    }
+  });
+
+  app.put('/api/member-profile', auth, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const profileData = memberProfileSchema.parse(req.body);
+      
+      const member = await storage.upsertMemberProfile(userId, profileData);
+      res.json(member);
+    } catch (error) {
+      console.error("Error updating member profile:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Validation error", 
+          errors: error.errors 
+        });
+      }
+      res.status(500).json({ message: "Failed to update member profile" });
     }
   });
 
