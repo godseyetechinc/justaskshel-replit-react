@@ -21,6 +21,7 @@ import {
   claimCommunications,
   claimWorkflowSteps,
   dependents,
+  agentOrganizations,
   type User,
   type UpsertUser,
   type Member,

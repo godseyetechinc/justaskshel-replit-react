@@ -3,13 +3,13 @@ import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useRoleAuth } from "@/hooks/useRoleAuth";
 import { useLogout } from "@/hooks/useLogout";
-import { 
-  Users, 
-  UserCheck, 
-  FileText, 
-  Shield, 
-  Star, 
-  UserPlus, 
+import {
+  Users,
+  UserCheck,
+  FileText,
+  Shield,
+  Star,
+  UserPlus,
   UserX,
   Settings,
   BarChart3,
@@ -20,7 +20,8 @@ import {
   Briefcase,
   Key,
   Gift,
-  Building
+  Building,
+  LogOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -43,113 +44,113 @@ const menuItems: MenuItem[] = [
     label: "Dashboard",
     icon: Home,
     href: "/dashboard",
-    roles: ["Admin", "Agent", "Member", "Guest"]
+    roles: ["Admin", "Agent", "Member", "Guest"],
   },
   {
     id: "members",
     label: "Members",
     icon: Users,
     href: "/dashboard/members",
-    roles: ["Admin", "Agent"]
+    roles: ["Admin", "Agent"],
   },
   {
     id: "organizations",
     label: "Organizations",
     icon: Building,
     href: "/dashboard/organizations",
-    roles: ["Admin"]
+    roles: ["Admin"],
   },
   {
     id: "my-profile",
     label: "My Profile",
     icon: Settings,
     href: "/dashboard/my-profile",
-    roles: ["Member"]
+    roles: ["Member"],
   },
   {
     id: "contacts",
     label: "Contacts",
     icon: Phone,
     href: "/dashboard/contacts",
-    roles: ["Admin", "Agent"]
+    roles: ["Admin", "Agent"],
   },
   {
     id: "insurance-applications",
     label: "Applications",
     icon: FileText,
     href: "/dashboard/applications",
-    roles: ["Admin", "Agent", "Member", "Guest"]
+    roles: ["Admin", "Agent", "Member", "Guest"],
   },
   {
     id: "insurance-policies",
     label: "Policies",
     icon: Shield,
     href: "/dashboard/policies",
-    roles: ["Admin", "Agent", "Member"]
+    roles: ["Admin", "Agent", "Member"],
   },
   {
     id: "wishlist",
     label: "Wishlist",
     icon: Star,
     href: "/dashboard/wishlist",
-    roles: ["Admin", "Agent", "Member"]
+    roles: ["Admin", "Agent", "Member"],
   },
   {
     id: "loyalty-points",
     label: "Loyalty Points",
     icon: Star,
     href: "/dashboard/points",
-    roles: ["Admin", "Agent", "Member"]
+    roles: ["Admin", "Agent", "Member"],
   },
   {
     id: "rewards-management",
     label: "Rewards Management",
     icon: Gift,
     href: "/dashboard/rewards-management",
-    roles: ["Admin"]
+    roles: ["Admin"],
   },
   {
     id: "dependents",
     label: "Dependents",
     icon: Users,
     href: "/dashboard/dependents",
-    roles: ["Admin", "Agent", "Member"]
+    roles: ["Admin", "Agent", "Member"],
   },
   {
     id: "claims",
     label: "Claims Workflow",
     icon: FileText,
     href: "/dashboard/claims",
-    roles: ["Admin", "Agent", "Member"]
+    roles: ["Admin", "Agent", "Member"],
   },
   {
     id: "analytics",
     label: "Analytics",
     icon: BarChart3,
     href: "/dashboard/analytics",
-    roles: ["Admin", "Agent"]
+    roles: ["Admin", "Agent"],
   },
   {
     id: "user-management",
     label: "User Management",
     icon: Settings,
     href: "/dashboard/user-management",
-    roles: ["Admin"]
+    roles: ["Admin"],
   },
   {
     id: "password-management",
     label: "Password Management",
     icon: Key,
     href: "/dashboard/password-management",
-    roles: ["Admin", "Agent", "Member"]
+    roles: ["Admin", "Agent", "Member"],
   },
   {
     id: "profile",
     label: "My Profile",
     icon: UserCheck,
     href: "/dashboard/profile",
-    roles: ["Admin", "Agent", "Member"]
-  }
+    roles: ["Admin", "Agent", "Member"],
+  },
 ];
 
 export default function DashboardSidebar() {
@@ -159,13 +160,11 @@ export default function DashboardSidebar() {
   const { user } = useAuth();
   const { userRole, hasAnyRole } = useRoleAuth();
   const { logout, isLoggingOut } = useLogout();
-  
+
   // Type-safe user object
   const typedUser = user as any;
 
-  const filteredMenuItems = menuItems.filter(item => 
-    hasAnyRole(item.roles)
-  );
+  const filteredMenuItems = menuItems.filter((item) => hasAnyRole(item.roles));
 
   const isActive = (href: string) => {
     if (href === "/dashboard") {
@@ -179,9 +178,7 @@ export default function DashboardSidebar() {
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200">
         {!isCollapsed && (
-          <h2 className="text-lg font-semibold text-gray-900">
-            Dashboard
-          </h2>
+          <h2 className="text-lg font-semibold text-gray-900">Dashboard</h2>
         )}
         <Button
           variant="ghost"
@@ -202,10 +199,12 @@ export default function DashboardSidebar() {
       </div>
 
       {/* User Info */}
-      <div className={cn(
-        "p-4 border-b border-gray-200 bg-gray-50",
-        isCollapsed && "px-2"
-      )}>
+      <div
+        className={cn(
+          "p-4 border-b border-gray-200 bg-gray-50",
+          isCollapsed && "px-2",
+        )}
+      >
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center text-sm font-medium">
             {typedUser?.firstName?.[0] || typedUser?.email?.[0] || "U"}
@@ -216,7 +215,7 @@ export default function DashboardSidebar() {
                 {typedUser?.firstName} {typedUser?.lastName}
               </p>
               <div className="flex items-center space-x-2">
-                <Badge 
+                <Badge
                   variant={userRole === "Admin" ? "default" : "secondary"}
                   className="text-xs"
                 >
@@ -233,16 +232,16 @@ export default function DashboardSidebar() {
         {filteredMenuItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.href);
-          
+
           return (
             <Link key={item.id} href={item.href}>
               <div
                 className={cn(
                   "flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors cursor-pointer",
-                  active 
-                    ? "bg-primary text-white" 
+                  active
+                    ? "bg-primary text-white"
                     : "text-gray-700 hover:bg-gray-100",
-                  isCollapsed && "justify-center px-2"
+                  isCollapsed && "justify-center px-2",
                 )}
                 onClick={() => setIsMobileOpen(false)}
               >
@@ -267,16 +266,14 @@ export default function DashboardSidebar() {
 
       {/* Footer */}
       <div className="p-4 border-t border-gray-200">
-        <Button 
-          variant="outline" 
-          className={cn(
-            "w-full",
-            isCollapsed && "px-2"
-          )}
+        <Button
+          variant="outline"
+          className={cn("w-full", isCollapsed && "px-2")}
           onClick={logout}
           disabled={isLoggingOut}
         >
-          {isCollapsed ? "•••" : (isLoggingOut ? "Logging out..." : "Sign Out")}
+          <LogOut className={cn("h-4 w-4", !isCollapsed && "mr-2")} />
+          {!isCollapsed && (isLoggingOut ? "Logging out..." : "Sign Out")}
         </Button>
       </div>
     </div>
@@ -286,7 +283,7 @@ export default function DashboardSidebar() {
     <>
       {/* Mobile Overlay */}
       {isMobileOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
           onClick={() => setIsMobileOpen(false)}
         />
@@ -303,18 +300,22 @@ export default function DashboardSidebar() {
       </Button>
 
       {/* Desktop Sidebar */}
-      <div className={cn(
-        "hidden lg:flex flex-col h-full transition-all duration-300",
-        isCollapsed ? "w-16" : "w-64"
-      )}>
+      <div
+        className={cn(
+          "hidden lg:flex flex-col h-full transition-all duration-300",
+          isCollapsed ? "w-16" : "w-64",
+        )}
+      >
         <SidebarContent />
       </div>
 
       {/* Mobile Sidebar */}
-      <div className={cn(
-        "fixed inset-y-0 left-0 z-50 w-64 transform transition-transform lg:hidden",
-        isMobileOpen ? "translate-x-0" : "-translate-x-full"
-      )}>
+      <div
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 w-64 transform transition-transform lg:hidden",
+          isMobileOpen ? "translate-x-0" : "-translate-x-full",
+        )}
+      >
         <SidebarContent />
       </div>
     </>
