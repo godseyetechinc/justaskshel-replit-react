@@ -46,7 +46,7 @@ export default function Dashboard() {
       icon: Shield,
       color: "text-blue-500",
       bgColor: "bg-blue-50",
-      roles: ["Member", "Agent", "Admin"]
+      roles: ["Member", "Agent", "TenantAdmin", "SuperAdmin"]
     },
     {
       name: "Pending Claims",
@@ -54,7 +54,7 @@ export default function Dashboard() {
       icon: FileText,
       color: "text-yellow-500",
       bgColor: "bg-yellow-50",
-      roles: ["Member", "Agent", "Admin"]
+      roles: ["Member", "Agent", "TenantAdmin", "SuperAdmin"]
     },
     {
       name: "Selected Quotes",
@@ -62,7 +62,7 @@ export default function Dashboard() {
       icon: Star,
       color: "text-green-500",
       bgColor: "bg-green-50",
-      roles: ["Member", "Agent", "Admin"]
+      roles: ["Member", "Agent", "TenantAdmin", "SuperAdmin"]
     },
     {
       name: "Total Members",
@@ -70,7 +70,7 @@ export default function Dashboard() {
       icon: Users,
       color: "text-purple-500",
       bgColor: "bg-purple-50",
-      roles: ["Agent", "Admin"]
+      roles: ["Agent", "TenantAdmin", "SuperAdmin"]
     },
     {
       name: "Applications",
@@ -78,7 +78,7 @@ export default function Dashboard() {
       icon: UserPlus,
       color: "text-indigo-500",
       bgColor: "bg-indigo-50",
-      roles: ["Member", "Agent", "Admin"]
+      roles: ["Member", "Agent", "TenantAdmin", "SuperAdmin"]
     }
   ];
 
@@ -97,7 +97,7 @@ export default function Dashboard() {
           Here's an overview of your insurance management dashboard.
         </p>
         <div className="mt-2">
-          <Badge variant={userRole === "Admin" ? "default" : "secondary"}>
+          <Badge variant={userRole === "TenantAdmin", "SuperAdmin" ? "default" : "secondary"}>
             {userRole} Dashboard
           </Badge>
         </div>

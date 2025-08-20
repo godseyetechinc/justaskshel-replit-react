@@ -24,9 +24,9 @@ interface PrivilegeGuardProps {
 }
 
 export function PrivilegeGuard({ children, minPrivilegeLevel, fallback = null }: PrivilegeGuardProps) {
-  const { hasPrivilegeLevel } = useRoleAuth();
+  const { hasMinimumPrivilegeLevel } = useRoleAuth();
   
-  if (!hasPrivilegeLevel(minPrivilegeLevel)) {
+  if (!hasMinimumPrivilegeLevel(minPrivilegeLevel)) {
     return <>{fallback}</>;
   }
   

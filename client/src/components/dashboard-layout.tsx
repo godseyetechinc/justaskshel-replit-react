@@ -10,13 +10,13 @@ import { Home } from "lucide-react";
 interface DashboardLayoutProps {
   children: React.ReactNode;
   title?: string;
-  requiredRoles?: Array<"Admin" | "Agent" | "Member" | "Guest" | "Visitor">;
+  requiredRoles?: Array<"SuperAdmin" | "TenantAdmin" | "Agent" | "Member" | "Guest" | "Visitor">;
 }
 
 export default function DashboardLayout({ 
   children, 
   title = "Dashboard",
-  requiredRoles = ["Member", "Agent", "Admin", "Guest"]
+  requiredRoles = ["Member", "Agent", "TenantAdmin", "SuperAdmin", "Guest"]
 }: DashboardLayoutProps) {
   const { isAuthenticated, isLoading } = useAuth();
   const { hasAnyRole, userRole } = useRoleAuth();
