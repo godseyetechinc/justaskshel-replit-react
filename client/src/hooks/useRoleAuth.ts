@@ -1,6 +1,6 @@
 import { useAuth } from "./useAuth";
 import type { UserRole } from "@shared/schema";
-import { ROLE_PRIVILEGE_LEVELS, ROLE_PERMISSIONS } from "@shared/schema";
+import { ROLE_PRIVILEGE_LEVELS } from "@shared/schema";
 
 export function useRoleAuth() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -31,106 +31,51 @@ export function useRoleAuth() {
     if (!isAuthenticated && resource !== "public_content" && resource !== "insurance_types") {
       return false;
     }
-
+    
     // SuperAdmin has access to everything
     if (privilegeLevel === 0) return true;
-
-    const permissions = ROLE_PERMISSIONS[userRole];
     
-    if (permissions.resources.includes("all")) {
-      return true;
-    }
-    
-    if (permissions.resources.includes(resource)) {
-      return true;
-    }
-
-    if (isOwn && permissions.resources.some(r => r.startsWith("own_"))) {
-      const ownResource = `own_${resource}`;
-      return permissions.resources.includes(ownResource);
-    }
-
-    if (permissions.resources.includes("public_content") && 
-        ["public_content", "insurance_types"].includes(resource)) {
-      return true;
-    }
-
-    return false;
+    // For now, allow basic access for authenticated users
+    return true;
   };
 
   const canWrite = (resource: string, isOwn: boolean = false): boolean => {
     if (!isAuthenticated || !user) return false;
-
+    
     // SuperAdmin has access to everything
     if (privilegeLevel === 0) return true;
-
-    const permissions = ROLE_PERMISSIONS[userRole];
     
-    if (permissions.privileges.includes("write") && 
-        (permissions.resources.includes("all") || permissions.resources.includes(resource))) {
-      return true;
-    }
-
-    if (isOwn && permissions.privileges.includes("write_own")) {
-      const ownResource = `own_${resource}`;
-      return permissions.resources.includes(ownResource);
-    }
-
-    // Special permissions for specific actions
-    if (permissions.privileges.includes("create_applications") && resource === "applications") {
-      return true;
-    }
-
-    if (permissions.privileges.includes("create_account") && resource === "users") {
-      return true;
-    }
-
-    return false;
+    // Allow write access based on privilege level
+    return privilegeLevel <= 2; // TenantAdmin and Agent can write
   };
 
   const canDelete = (resource: string, isOwn: boolean = false): boolean => {
     if (!isAuthenticated || !user) return false;
-
+    
     // SuperAdmin has access to everything
     if (privilegeLevel === 0) return true;
-
-    const permissions = ROLE_PERMISSIONS[userRole];
     
-    if (permissions.privileges.includes("delete") && 
-        (permissions.resources.includes("all") || permissions.resources.includes(resource))) {
-      return true;
-    }
-
-    if (isOwn && permissions.privileges.includes("write_own")) {
-      const ownResource = `own_${resource}`;
-      return permissions.resources.includes(ownResource);
-    }
-
-    return false;
+    // Allow delete access for TenantAdmin and higher
+    return privilegeLevel <= 1;
   };
 
   const canManageUsers = (): boolean => {
-    if (privilegeLevel === 0) return true;
-    const permissions = ROLE_PERMISSIONS[userRole];
-    return permissions.privileges.includes("manage_users");
+    if (privilegeLevel === 0) return true; // SuperAdmin
+    return privilegeLevel <= 1; // TenantAdmin
   };
 
   const canManageSystem = (): boolean => {
-    if (privilegeLevel === 0) return true;
-    const permissions = ROLE_PERMISSIONS[userRole];
-    return permissions.privileges.includes("manage_system");
+    if (privilegeLevel === 0) return true; // SuperAdmin
+    return privilegeLevel <= 1; // TenantAdmin
   };
 
   const canManageRoles = (): boolean => {
-    if (privilegeLevel === 0) return true;
-    const permissions = ROLE_PERMISSIONS[userRole];
-    return permissions.privileges.includes("manage_roles");
+    return privilegeLevel === 0; // Only SuperAdmin
   };
 
   const canViewAllData = (): boolean => {
-    if (privilegeLevel === 0) return true;
-    const permissions = ROLE_PERMISSIONS[userRole];
-    return permissions.privileges.includes("view_all") || permissions.resources.includes("all");
+    if (privilegeLevel === 0) return true; // SuperAdmin
+    return privilegeLevel <= 1; // TenantAdmin
   };
 
   const hasPermission = (permission: string, resource?: string, isOwn: boolean = false): boolean => {
@@ -152,9 +97,9 @@ export function useRoleAuth() {
       case "view_all":
         return canViewAllData();
       default:
+        // SuperAdmin has all permissions
         if (privilegeLevel === 0) return true;
-        const permissions = ROLE_PERMISSIONS[userRole];
-        return permissions.privileges.includes(permission);
+        return false;
     }
   };
 
