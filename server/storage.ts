@@ -601,7 +601,34 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getMembers(): Promise<Member[]> {
-    return await db.select().from(members).orderBy(desc(members.createdAt));
+    return await db
+      .select({
+        id: members.id,
+        userId: members.userId,
+        memberNumber: members.memberNumber,
+        firstName: members.firstName,
+        lastName: members.lastName,
+        email: members.email,
+        dateOfBirth: members.dateOfBirth,
+        phone: members.phone,
+        address: members.address,
+        city: members.city,
+        state: members.state,
+        zipCode: members.zipCode,
+        ssn: members.ssn,
+        profileImageUrl: members.profileImageUrl,
+        avatarType: members.avatarType,
+        avatarColor: members.avatarColor,
+        bio: members.bio,
+        emergencyContact: members.emergencyContact,
+        preferences: members.preferences,
+        membershipStatus: members.membershipStatus,
+        membershipDate: members.membershipDate,
+        createdAt: members.createdAt,
+        updatedAt: members.updatedAt,
+      })
+      .from(members)
+      .orderBy(desc(members.createdAt));
   }
 
   async getMemberById(id: number): Promise<Member | undefined> {
@@ -623,7 +650,34 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getMemberByUserId(userId: string): Promise<Member | undefined> {
-    const [member] = await db.select().from(members).where(eq(members.userId, userId));
+    const [member] = await db
+      .select({
+        id: members.id,
+        userId: members.userId,
+        memberNumber: members.memberNumber,
+        firstName: members.firstName,
+        lastName: members.lastName,
+        email: members.email,
+        dateOfBirth: members.dateOfBirth,
+        phone: members.phone,
+        address: members.address,
+        city: members.city,
+        state: members.state,
+        zipCode: members.zipCode,
+        ssn: members.ssn,
+        profileImageUrl: members.profileImageUrl,
+        avatarType: members.avatarType,
+        avatarColor: members.avatarColor,
+        bio: members.bio,
+        emergencyContact: members.emergencyContact,
+        preferences: members.preferences,
+        membershipStatus: members.membershipStatus,
+        membershipDate: members.membershipDate,
+        createdAt: members.createdAt,
+        updatedAt: members.updatedAt,
+      })
+      .from(members)
+      .where(eq(members.userId, userId));
     return member;
   }
 
