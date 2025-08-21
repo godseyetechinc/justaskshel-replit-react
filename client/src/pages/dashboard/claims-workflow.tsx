@@ -12,6 +12,23 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertClaimSchema, insertClaimCommunicationSchema } from "@shared/schema";
@@ -30,7 +47,10 @@ import {
   Calendar,
   User,
   DollarSign,
-  Activity
+  Activity,
+  MoreHorizontal,
+  Edit,
+  Trash2
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -67,6 +87,8 @@ export default function ClaimsWorkflow() {
   const [selectedClaim, setSelectedClaim] = useState<any>(null);
   const [isNewClaimOpen, setIsNewClaimOpen] = useState(false);
   const [isCommunicationOpen, setIsCommunicationOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(10);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -99,6 +121,22 @@ export default function ClaimsWorkflow() {
     enabled: !!selectedClaim?.id,
   });
 
+  // Filtering and pagination logic for claims
+  const claimsData = (claims as any[]) || [];
+  const filteredClaimsData = claimsData.filter((claim: any) =>
+    claim.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    claim.claimNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    claim.claimType?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const totalClaims = filteredClaimsData.length;
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalClaims);
+  const paginatedClaims = filteredClaimsData.slice(startIndex, endIndex);
+  const totalPages = Math.ceil(totalClaims / pageSize);
+  const hasNext = currentPage < totalPages;
+  const hasPrev = currentPage > 1;
+
   // Create new claim mutation
   const createClaimMutation = useMutation({
     mutationFn: async (data: any) => apiRequest("/api/claims", "POST", data),
@@ -112,14 +150,27 @@ export default function ClaimsWorkflow() {
     },
   });
 
+  // Delete claim mutation
+  const deleteClaim = useMutation({
+    mutationFn: async (id: number) => apiRequest(`/api/claims/${id}`, { method: "DELETE" }),
+    onSuccess: (_, deletedId) => {
+      toast({ title: "Success", description: "Claim deleted successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/claims"] });
+      if (selectedClaim?.id === deletedId) setSelectedClaim(null);
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to delete claim", variant: "destructive" });
+    },
+  });
+
   // Add communication mutation
   const addCommunicationMutation = useMutation({
     mutationFn: async (data: any) => 
-      apiRequest(`/api/claims/${selectedClaim.id}/communications`, "POST", data),
+      apiRequest(`/api/claims/${selectedClaim?.id}/communications`, { method: "POST", body: JSON.stringify(data) }),
     onSuccess: () => {
       toast({ title: "Success", description: "Communication added successfully" });
       queryClient.invalidateQueries({ 
-        queryKey: ["/api/claims", selectedClaim.id, "communications"] 
+        queryKey: ["/api/claims", selectedClaim?.id, "communications"] 
       });
       setIsCommunicationOpen(false);
     },
@@ -177,11 +228,6 @@ export default function ClaimsWorkflow() {
     addCommunicationMutation.mutate(data);
   };
 
-  const filteredClaims = claims.filter((claim: any) =>
-    claim.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    claim.claimNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    claim.claimType?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   return (
     <DashboardLayout>
@@ -329,72 +375,181 @@ export default function ClaimsWorkflow() {
           </Dialog>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Claims List */}
-          <div className="lg:col-span-1">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Activity className="h-5 w-5" />
-                  Claims List
-                </CardTitle>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <Input
-                      placeholder="Search claims..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-9"
-                    />
-                  </div>
-                  <Button variant="outline" size="sm">
-                    <Filter className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="space-y-2 max-h-[600px] overflow-y-auto">
+        {/* Claims Table */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Activity className="h-5 w-5" />
+              Claims Management
+            </CardTitle>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search claims..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <Button variant="outline" size="sm">
+                <Filter className="h-4 w-4" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[70px]">Actions</TableHead>
+                    <TableHead>Claim #</TableHead>
+                    <TableHead>Title</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Priority</TableHead>
+                    <TableHead>Incident Date</TableHead>
+                    <TableHead>Amount</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {isLoading ? (
-                    <div className="p-4 text-center text-gray-500">Loading claims...</div>
-                  ) : filteredClaims.length === 0 ? (
-                    <div className="p-4 text-center text-gray-500">No claims found</div>
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-4">
+                        Loading claims...
+                      </TableCell>
+                    </TableRow>
+                  ) : paginatedClaims.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-4">
+                        No claims found
+                      </TableCell>
+                    </TableRow>
                   ) : (
-                    filteredClaims.map((claim: any) => (
-                      <div
-                        key={claim.id}
-                        className={`p-4 border-b cursor-pointer hover:bg-gray-50 transition-colors ${
-                          selectedClaim?.id === claim.id ? "bg-blue-50 border-blue-200" : ""
-                        }`}
-                        onClick={() => setSelectedClaim(claim)}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <h4 className="font-medium text-sm truncate">{claim.title}</h4>
-                              <Badge className={`text-xs ${priorityColors[claim.priority as keyof typeof priorityColors]}`}>
-                                {claim.priority}
-                              </Badge>
-                            </div>
-                            <p className="text-xs text-gray-600 mb-2">{claim.claimNumber}</p>
-                            <div className="flex items-center justify-between">
-                              <Badge className={`text-xs text-white ${statusColors[claim.status as keyof typeof statusColors]}`}>
-                                {claim.status.replace('_', ' ')}
-                              </Badge>
-                              <span className="text-xs text-gray-500 uppercase">{claim.claimType}</span>
-                            </div>
+                    paginatedClaims.map((claim: any) => (
+                      <TableRow key={claim.id}>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0" data-testid={`button-actions-${claim.id}`}>
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start">
+                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <DropdownMenuItem onClick={() => setSelectedClaim(claim)} data-testid={`action-view-${claim.id}`}>
+                                <Eye className="mr-2 h-4 w-4" />
+                                View Details
+                              </DropdownMenuItem>
+                              <DropdownMenuItem data-testid={`action-edit-${claim.id}`}>
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit Claim
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem 
+                                onClick={() => deleteClaim.mutate(claim.id)}
+                                className="text-destructive focus:text-destructive"
+                                data-testid={`action-delete-${claim.id}`}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete Claim
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          <Button 
+                            variant="link" 
+                            className="p-0 h-auto font-medium"
+                            onClick={() => setSelectedClaim(claim)}
+                          >
+                            {claim.claimNumber}
+                          </Button>
+                        </TableCell>
+                        <TableCell>
+                          <div className="max-w-[200px] truncate" title={claim.title}>
+                            {claim.title}
                           </div>
-                        </div>
-                      </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="capitalize">
+                            {claim.claimType}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={`text-xs text-white ${statusColors[claim.status as keyof typeof statusColors]}`}>
+                            {claim.status.replace('_', ' ')}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={`text-xs ${priorityColors[claim.priority as keyof typeof priorityColors]}`}>
+                            {claim.priority}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {claim.incidentDate ? format(new Date(claim.incidentDate), "MMM dd, yyyy") : "N/A"}
+                        </TableCell>
+                        <TableCell>
+                          {claim.estimatedAmount ? `$${parseFloat(claim.estimatedAmount).toLocaleString()}` : "N/A"}
+                        </TableCell>
+                      </TableRow>
                     ))
                   )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+                </TableBody>
+              </Table>
 
-          {/* Claim Details */}
-          <div className="lg:col-span-2">
+              {/* Pagination Controls */}
+              {totalClaims > pageSize && (
+                <div className="flex items-center justify-between px-2 py-4">
+                  <div className="text-sm text-muted-foreground">
+                    Showing {startIndex + 1} to {Math.min(endIndex, totalClaims)} of {totalClaims} claims
+                  </div>
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious 
+                          href="#"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            if (hasPrev) setCurrentPage(currentPage - 1);
+                          }}
+                          className={!hasPrev ? "pointer-events-none opacity-50" : ""}
+                        />
+                      </PaginationItem>
+                      {Array.from({length: totalPages}, (_, i) => i + 1).map((page) => (
+                        <PaginationItem key={page}>
+                          <PaginationLink
+                            href="#"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setCurrentPage(page);
+                            }}
+                            isActive={currentPage === page}
+                          >
+                            {page}
+                          </PaginationLink>
+                        </PaginationItem>
+                      ))}
+                      <PaginationItem>
+                        <PaginationNext
+                          href="#"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            if (hasNext) setCurrentPage(currentPage + 1);
+                          }}
+                          className={!hasNext ? "pointer-events-none opacity-50" : ""}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Claim Details */}
+        <div className="grid grid-cols-1 gap-6">
             {selectedClaim ? (
               <Tabs defaultValue="overview" className="space-y-4">
                 <TabsList className="grid w-full grid-cols-4">
@@ -714,7 +869,6 @@ export default function ClaimsWorkflow() {
                 </CardContent>
               </Card>
             )}
-          </div>
         </div>
       </div>
     </DashboardLayout>

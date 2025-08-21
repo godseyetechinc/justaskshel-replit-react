@@ -30,8 +30,29 @@ import {
   Target,
   History,
   Coins,
-  ShoppingCart
+  ShoppingCart,
+  MoreHorizontal,
+  Edit,
+  Trash2,
+  Eye,
+  Filter
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useRoleAuth } from "@/hooks/useRoleAuth";
@@ -76,6 +97,8 @@ export default function PointsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedType, setSelectedType] = useState<string>("all");
   const [isAwardDialogOpen, setIsAwardDialogOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(10);
   const { toast } = useToast();
   const { user } = useAuth();
   const { hasPermission } = useRoleAuth();
@@ -170,6 +193,15 @@ export default function PointsPage() {
     
     return matchesSearch && matchesType;
   });
+
+  // Pagination logic
+  const totalTransactions = filteredTransactions.length;
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalTransactions);
+  const paginatedTransactions = filteredTransactions.slice(startIndex, endIndex);
+  const totalPages = Math.ceil(totalTransactions / pageSize);
+  const hasNext = currentPage < totalPages;
+  const hasPrev = currentPage > 1;
 
   // Get tier icon
   const TierIcon = pointsSummary ? tierIcons[pointsSummary.tierLevel as keyof typeof tierIcons] : Trophy;
@@ -393,48 +425,132 @@ export default function PointsPage() {
             </div>
 
             <Card>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead className="text-right">Points</TableHead>
-                    <TableHead className="text-right">Balance After</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredTransactions.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                        No transactions found
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredTransactions.map((transaction: any) => (
-                      <TableRow key={transaction.id}>
-                        <TableCell>
-                          {format(new Date(transaction.createdAt), "MMM dd, yyyy")}
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={typeColors[transaction.transactionType as keyof typeof typeColors]}>
-                            {transaction.transactionType}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="font-medium">{transaction.category}</TableCell>
-                        <TableCell>{transaction.description}</TableCell>
-                        <TableCell className={`text-right font-semibold ${
-                          transaction.points > 0 ? "text-green-600" : "text-red-600"
-                        }`}>
-                          {transaction.points > 0 ? "+" : ""}{transaction.points.toLocaleString()}
-                        </TableCell>
-                        <TableCell className="text-right">{transaction.balanceAfter?.toLocaleString() || 0}</TableCell>
+              <CardContent>
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[70px]">Actions</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Category</TableHead>
+                        <TableHead>Description</TableHead>
+                        <TableHead className="text-right">Points</TableHead>
+                        <TableHead className="text-right">Balance After</TableHead>
                       </TableRow>
-                    ))
+                    </TableHeader>
+                    <TableBody>
+                      {paginatedTransactions.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                            No transactions found
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        paginatedTransactions.map((transaction: any) => (
+                          <TableRow key={transaction.id}>
+                            <TableCell>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" className="h-8 w-8 p-0" data-testid={`button-actions-${transaction.id}`}>
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="start">
+                                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                  <DropdownMenuItem data-testid={`action-view-${transaction.id}`}>
+                                    <Eye className="mr-2 h-4 w-4" />
+                                    View Details
+                                  </DropdownMenuItem>
+                                  {isAdmin && (
+                                    <>
+                                      <DropdownMenuItem data-testid={`action-edit-${transaction.id}`}>
+                                        <Edit className="mr-2 h-4 w-4" />
+                                        Edit Transaction
+                                      </DropdownMenuItem>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem 
+                                        className="text-destructive focus:text-destructive"
+                                        data-testid={`action-delete-${transaction.id}`}
+                                      >
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        Delete Transaction
+                                      </DropdownMenuItem>
+                                    </>
+                                  )}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+                            <TableCell>
+                              {format(new Date(transaction.createdAt), "MMM dd, yyyy")}
+                            </TableCell>
+                            <TableCell>
+                              <Badge className={typeColors[transaction.transactionType as keyof typeof typeColors]}>
+                                {transaction.transactionType}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="font-medium">{transaction.category}</TableCell>
+                            <TableCell>{transaction.description}</TableCell>
+                            <TableCell className={`text-right font-semibold ${
+                              transaction.points > 0 ? "text-green-600" : "text-red-600"
+                            }`}>
+                              {transaction.points > 0 ? "+" : ""}{transaction.points.toLocaleString()}
+                            </TableCell>
+                            <TableCell className="text-right">{transaction.balanceAfter?.toLocaleString() || 0}</TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+
+                  {/* Pagination Controls */}
+                  {totalTransactions > pageSize && (
+                    <div className="flex items-center justify-between px-2 py-4">
+                      <div className="text-sm text-muted-foreground">
+                        Showing {startIndex + 1} to {Math.min(endIndex, totalTransactions)} of {totalTransactions} transactions
+                      </div>
+                      <Pagination>
+                        <PaginationContent>
+                          <PaginationItem>
+                            <PaginationPrevious 
+                              href="#"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                if (hasPrev) setCurrentPage(currentPage - 1);
+                              }}
+                              className={!hasPrev ? "pointer-events-none opacity-50" : ""}
+                            />
+                          </PaginationItem>
+                          {Array.from({length: totalPages}, (_, i) => i + 1).map((page) => (
+                            <PaginationItem key={page}>
+                              <PaginationLink
+                                href="#"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  setCurrentPage(page);
+                                }}
+                                isActive={currentPage === page}
+                              >
+                                {page}
+                              </PaginationLink>
+                            </PaginationItem>
+                          ))}
+                          <PaginationItem>
+                            <PaginationNext
+                              href="#"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                if (hasNext) setCurrentPage(currentPage + 1);
+                              }}
+                              className={!hasNext ? "pointer-events-none opacity-50" : ""}
+                            />
+                          </PaginationItem>
+                        </PaginationContent>
+                      </Pagination>
+                    </div>
                   )}
-                </TableBody>
-              </Table>
+                </div>
+              </CardContent>
             </Card>
           </TabsContent>
 
