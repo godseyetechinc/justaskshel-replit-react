@@ -44,14 +44,14 @@ const menuItems: MenuItem[] = [
     label: "Dashboard",
     icon: Home,
     href: "/dashboard",
-    roles: ["SuperAdmin", "LandlordAdmin", "Agent", "Member", "Guest"],
+    roles: ["SuperAdmin", "TenantAdmin", "Agent", "Member", "Guest"],
   },
   {
     id: "members",
     label: "Members",
     icon: Users,
     href: "/dashboard/members",
-    roles: ["SuperAdmin", "LandlordAdmin", "Agent"],
+    roles: ["SuperAdmin", "TenantAdmin", "Agent"],
   },
   {
     id: "organizations",
@@ -72,35 +72,35 @@ const menuItems: MenuItem[] = [
     label: "Contacts",
     icon: Phone,
     href: "/dashboard/contacts",
-    roles: ["SuperAdmin", "LandlordAdmin", "Agent"],
+    roles: ["SuperAdmin", "TenantAdmin", "Agent"],
   },
   {
     id: "insurance-applications",
     label: "Applications",
     icon: FileText,
     href: "/dashboard/applications",
-    roles: ["SuperAdmin", "LandlordAdmin", "Agent", "Member", "Guest"],
+    roles: ["SuperAdmin", "TenantAdmin", "Agent", "Member", "Guest"],
   },
   {
     id: "insurance-policies",
     label: "Policies",
     icon: Shield,
     href: "/dashboard/policies",
-    roles: ["SuperAdmin", "LandlordAdmin", "Agent", "Member"],
+    roles: ["SuperAdmin", "TenantAdmin", "Agent", "Member"],
   },
   {
     id: "wishlist",
     label: "Wishlist",
     icon: Star,
     href: "/dashboard/wishlist",
-    roles: ["SuperAdmin", "LandlordAdmin", "Agent", "Member"],
+    roles: ["SuperAdmin", "TenantAdmin", "Agent", "Member"],
   },
   {
     id: "loyalty-points",
     label: "Loyalty Points",
     icon: Star,
     href: "/dashboard/points",
-    roles: ["SuperAdmin", "LandlordAdmin", "Agent", "Member"],
+    roles: ["SuperAdmin", "TenantAdmin", "Agent", "Member"],
   },
   {
     id: "rewards-management",
@@ -114,21 +114,21 @@ const menuItems: MenuItem[] = [
     label: "Dependents",
     icon: Users,
     href: "/dashboard/dependents",
-    roles: ["SuperAdmin", "LandlordAdmin", "Agent", "Member"],
+    roles: ["SuperAdmin", "TenantAdmin", "Agent", "Member"],
   },
   {
     id: "claims",
     label: "Claims Workflow",
     icon: FileText,
     href: "/dashboard/claims",
-    roles: ["SuperAdmin", "LandlordAdmin", "Agent", "Member"],
+    roles: ["SuperAdmin", "TenantAdmin", "Agent", "Member"],
   },
   {
     id: "analytics",
     label: "Analytics",
     icon: BarChart3,
     href: "/dashboard/analytics",
-    roles: ["SuperAdmin", "LandlordAdmin", "Agent"],
+    roles: ["SuperAdmin", "TenantAdmin", "Agent"],
   },
   {
     id: "user-management",
@@ -142,21 +142,21 @@ const menuItems: MenuItem[] = [
     label: "Organization",
     icon: Building,
     href: "/dashboard/organization-profile",
-    roles: ["LandlordAdmin"],
+    roles: ["TenantAdmin"],
   },
   {
     id: "password-management",
     label: "Password Management",
     icon: Key,
     href: "/dashboard/password-management",
-    roles: ["SuperAdmin", "LandlordAdmin", "Agent", "Member"],
+    roles: ["SuperAdmin", "TenantAdmin", "Agent", "Member"],
   },
   {
     id: "profile",
     label: "My Profile",
     icon: UserCheck,
     href: "/dashboard/profile",
-    roles: ["SuperAdmin", "LandlordAdmin", "Agent", "Member"],
+    roles: ["SuperAdmin", "TenantAdmin", "Agent", "Member"],
   },
 ];
 
@@ -223,7 +223,7 @@ export default function DashboardSidebar() {
               </p>
               <div className="flex items-center space-x-2">
                 <Badge
-                  variant={userRole === "LandlordAdmin" ? "default" : "secondary"}
+                  variant={userRole === "TenantAdmin" ? "default" : "secondary"}
                   className="text-xs"
                 >
                   {userRole}

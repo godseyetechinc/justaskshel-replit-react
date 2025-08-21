@@ -59,7 +59,7 @@ const userFormSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   phone: z.string().optional(),
-  role: z.enum(["SuperAdmin", "LandlordAdmin", "Agent", "Member", "Guest", "Visitor"]),
+  role: z.enum(["SuperAdmin", "TenantAdmin", "Agent", "Member", "Guest", "Visitor"]),
   organizationId: z.number().optional(),
   isActive: z.boolean().default(true),
   password: z.string().min(8, "Password must be at least 8 characters").optional(),
@@ -78,7 +78,7 @@ export default function UserManagementPage() {
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { isSuperAdmin, isLandlordAdmin } = useRoleAuth();
+  const { isSuperAdmin, isTenantAdmin } = useRoleAuth();
 
   const form = useForm<UserFormData>({
     resolver: zodResolver(userFormSchema),

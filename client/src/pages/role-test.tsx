@@ -43,7 +43,7 @@ export default function RoleTest() {
   ];
 
   const privilegeLevels = [1, 2, 3, 4, 5];
-  const roles = ['Admin', 'Agent', 'Member', 'Guest', 'Visitor'] as const;
+  const roles = ['TenantAdmin', 'Agent', 'Member', 'Guest', 'Visitor'] as const;
 
   if (!isAuthenticated) {
     return (
@@ -85,7 +85,7 @@ export default function RoleTest() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Role</p>
-              <Badge variant={userRole === 'Admin' ? 'destructive' : userRole === 'Agent' ? 'default' : 'secondary'}>
+              <Badge variant={userRole === 'TenantAdmin' ? 'destructive' : userRole === 'Agent' ? 'default' : 'secondary'}>
                 {userRole}
               </Badge>
             </div>
