@@ -111,17 +111,40 @@ export const wishlist = pgTable("wishlist", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// User policies
+// User policies - Enhanced policy management
 export const policies = pgTable("policies", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").references(() => users.id),
   quoteId: integer("quote_id").references(() => insuranceQuotes.id),
   policyNumber: varchar("policy_number", { length: 50 }).notNull(),
-  status: varchar("status", { length: 20 }).default("active"),
+  status: varchar("status", { 
+    enum: ["Active", "Pending", "Expired", "Cancelled", "Suspended", "Lapsed"] 
+  }).default("Pending"),
   startDate: timestamp("start_date").notNull(),
   endDate: timestamp("end_date"),
+  renewalDate: timestamp("renewal_date"),
   nextPaymentDate: timestamp("next_payment_date"),
+  annualPremium: decimal("annual_premium", { precision: 10, scale: 2 }),
+  monthlyPremium: decimal("monthly_premium", { precision: 10, scale: 2 }),
+  paymentFrequency: varchar("payment_frequency", { 
+    enum: ["Monthly", "Quarterly", "Semi-Annual", "Annual"] 
+  }).default("Monthly"),
+  coverageAmount: decimal("coverage_amount", { precision: 12, scale: 2 }),
+  deductible: decimal("deductible", { precision: 10, scale: 2 }),
+  agentId: varchar("agent_id").references(() => users.id),
+  underwriterId: varchar("underwriter_id").references(() => users.id),
+  beneficiary: jsonb("beneficiary"), // Primary beneficiary details
+  contingentBeneficiary: jsonb("contingent_beneficiary"), // Contingent beneficiary details
+  medicalExamRequired: boolean("medical_exam_required").default(false),
+  medicalExamCompleted: boolean("medical_exam_completed").default(false),
+  medicalExamDate: timestamp("medical_exam_date"),
+  issuedDate: timestamp("issued_date"),
+  lastReviewDate: timestamp("last_review_date"),
+  autoRenewal: boolean("auto_renewal").default(true),
+  notes: text("notes"),
+  metadata: jsonb("metadata"), // Additional policy-specific data
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Claims
@@ -183,6 +206,80 @@ export const claimWorkflowSteps = pgTable("claim_workflow_steps", {
   assignedTo: varchar("assigned_to").references(() => users.id),
   dueDate: timestamp("due_date"),
   completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Policy documents table for managing policy-related documents
+export const policyDocuments = pgTable("policy_documents", {
+  id: serial("id").primaryKey(),
+  policyId: integer("policy_id").references(() => policies.id).notNull(),
+  documentName: varchar("document_name", { length: 255 }).notNull(),
+  documentType: varchar("document_type", { 
+    enum: ["Policy Certificate", "Application", "Medical Records", "Beneficiary Form", "Amendment", "Payment Receipt", "Cancellation Notice", "Other"] 
+  }).notNull(),
+  fileName: varchar("file_name", { length: 255 }).notNull(),
+  fileType: varchar("file_type", { length: 50 }).notNull(),
+  fileSize: integer("file_size"),
+  filePath: varchar("file_path", { length: 500 }),
+  uploadedBy: varchar("uploaded_by").references(() => users.id),
+  uploadedAt: timestamp("uploaded_at").defaultNow(),
+  isActive: boolean("is_active").default(true),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Premium payments tracking table
+export const premiumPayments = pgTable("premium_payments", {
+  id: serial("id").primaryKey(),
+  policyId: integer("policy_id").references(() => policies.id).notNull(),
+  paymentAmount: decimal("payment_amount", { precision: 10, scale: 2 }).notNull(),
+  paymentType: varchar("payment_type", { 
+    enum: ["Premium", "Late Fee", "Processing Fee", "Adjustment", "Refund"] 
+  }).default("Premium"),
+  paymentMethod: varchar("payment_method", { 
+    enum: ["Credit Card", "Bank Transfer", "Check", "Cash", "ACH", "Wire Transfer"] 
+  }),
+  transactionId: varchar("transaction_id", { length: 100 }),
+  paymentStatus: varchar("payment_status", { 
+    enum: ["Pending", "Processed", "Failed", "Cancelled", "Refunded"] 
+  }).default("Pending"),
+  dueDate: timestamp("due_date").notNull(),
+  paidDate: timestamp("paid_date"),
+  gracePeriodEnd: timestamp("grace_period_end"),
+  lateFeeAmount: decimal("late_fee_amount", { precision: 10, scale: 2 }).default("0"),
+  isAutoPay: boolean("is_auto_pay").default(false),
+  paymentReference: varchar("payment_reference", { length: 100 }),
+  notes: text("notes"),
+  processedBy: varchar("processed_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Policy amendments and endorsements table
+export const policyAmendments = pgTable("policy_amendments", {
+  id: serial("id").primaryKey(),
+  policyId: integer("policy_id").references(() => policies.id).notNull(),
+  amendmentType: varchar("amendment_type", { 
+    enum: ["Beneficiary Change", "Coverage Change", "Premium Adjustment", "Address Change", "Name Change", "Payment Method Change", "Other"] 
+  }).notNull(),
+  amendmentNumber: varchar("amendment_number", { length: 50 }).notNull(),
+  effectiveDate: timestamp("effective_date").notNull(),
+  description: text("description").notNull(),
+  oldValue: jsonb("old_value"), // Store the previous value(s)
+  newValue: jsonb("new_value"), // Store the new value(s)
+  premiumImpact: decimal("premium_impact", { precision: 10, scale: 2 }).default("0"), // Change in premium
+  status: varchar("status", { 
+    enum: ["Draft", "Pending Review", "Approved", "Implemented", "Rejected", "Cancelled"] 
+  }).default("Draft"),
+  requestedBy: varchar("requested_by").references(() => users.id),
+  approvedBy: varchar("approved_by").references(() => users.id),
+  implementedBy: varchar("implemented_by").references(() => users.id),
+  requestedAt: timestamp("requested_at").defaultNow(),
+  approvedAt: timestamp("approved_at"),
+  implementedAt: timestamp("implemented_at"),
+  rejectionReason: text("rejection_reason"),
+  documentPath: varchar("document_path", { length: 500 }), // Path to amendment document
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -591,7 +688,18 @@ export const policiesRelations = relations(policies, ({ one, many }) => ({
     fields: [policies.quoteId],
     references: [insuranceQuotes.id],
   }),
+  agent: one(users, {
+    fields: [policies.agentId],
+    references: [users.id],
+  }),
+  underwriter: one(users, {
+    fields: [policies.underwriterId],
+    references: [users.id],
+  }),
   claims: many(claims),
+  documents: many(policyDocuments),
+  payments: many(premiumPayments),
+  amendments: many(policyAmendments),
 }));
 
 export const claimsRelations = relations(claims, ({ one, many }) => ({
@@ -641,6 +749,50 @@ export const claimWorkflowStepsRelations = relations(claimWorkflowSteps, ({ one 
   }),
   assignedTo: one(users, {
     fields: [claimWorkflowSteps.assignedTo],
+    references: [users.id],
+  }),
+}));
+
+// Policy documents relations
+export const policyDocumentsRelations = relations(policyDocuments, ({ one }) => ({
+  policy: one(policies, {
+    fields: [policyDocuments.policyId],
+    references: [policies.id],
+  }),
+  uploadedBy: one(users, {
+    fields: [policyDocuments.uploadedBy],
+    references: [users.id],
+  }),
+}));
+
+// Premium payments relations
+export const premiumPaymentsRelations = relations(premiumPayments, ({ one }) => ({
+  policy: one(policies, {
+    fields: [premiumPayments.policyId],
+    references: [policies.id],
+  }),
+  processedBy: one(users, {
+    fields: [premiumPayments.processedBy],
+    references: [users.id],
+  }),
+}));
+
+// Policy amendments relations
+export const policyAmendmentsRelations = relations(policyAmendments, ({ one }) => ({
+  policy: one(policies, {
+    fields: [policyAmendments.policyId],
+    references: [policies.id],
+  }),
+  requestedBy: one(users, {
+    fields: [policyAmendments.requestedBy],
+    references: [users.id],
+  }),
+  approvedBy: one(users, {
+    fields: [policyAmendments.approvedBy],
+    references: [users.id],
+  }),
+  implementedBy: one(users, {
+    fields: [policyAmendments.implementedBy],
     references: [users.id],
   }),
 }));
@@ -715,6 +867,15 @@ export type ClaimWorkflowStep = typeof claimWorkflowSteps.$inferSelect;
 
 export type InsertDependent = typeof dependents.$inferInsert;
 export type Dependent = typeof dependents.$inferSelect;
+
+export type InsertPolicyDocument = z.infer<typeof insertPolicyDocumentSchema>;
+export type PolicyDocument = typeof policyDocuments.$inferSelect;
+
+export type InsertPremiumPayment = z.infer<typeof insertPremiumPaymentSchema>;
+export type PremiumPayment = typeof premiumPayments.$inferSelect;
+
+export type InsertPolicyAmendment = z.infer<typeof insertPolicyAmendmentSchema>;
+export type PolicyAmendment = typeof policyAmendments.$inferSelect;
 
 // Zod schemas for validation
 export const insertUserSchema = createInsertSchema(users).omit({
@@ -835,6 +996,26 @@ export const insertWishlistSchema = createInsertSchema(wishlist).omit({
 export const insertPolicySchema = createInsertSchema(policies).omit({
   id: true,
   createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPolicyDocumentSchema = createInsertSchema(policyDocuments).omit({
+  id: true,
+  uploadedAt: true,
+  createdAt: true,
+});
+
+export const insertPremiumPaymentSchema = createInsertSchema(premiumPayments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPolicyAmendmentSchema = createInsertSchema(policyAmendments).omit({
+  id: true,
+  requestedAt: true,
+  createdAt: true,
+  updatedAt: true,
 });
 
 export const insertClaimSchema = createInsertSchema(claims).omit({

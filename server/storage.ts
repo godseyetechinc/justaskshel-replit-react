@@ -22,6 +22,9 @@ import {
   claimWorkflowSteps,
   dependents,
   agentOrganizations,
+  policyDocuments,
+  premiumPayments,
+  policyAmendments,
   type User,
   type UpsertUser,
   type Member,
@@ -64,6 +67,12 @@ import {
   type InsertClaimWorkflowStep,
   type Dependent,
   type InsertDependent,
+  type PolicyDocument,
+  type InsertPolicyDocument,
+  type PremiumPayment,
+  type InsertPremiumPayment,
+  type PolicyAmendment,
+  type InsertPolicyAmendment,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc } from "drizzle-orm";
@@ -107,9 +116,31 @@ export interface IStorage {
   removeFromWishlist(userId: string, quoteId: number): Promise<void>;
   getUserWishlist(userId: string): Promise<(Wishlist & { quote: InsuranceQuote & { type: InsuranceType; provider: InsuranceProvider } })[]>;
   
-  // Policies
+  // Policies - Enhanced policy management
   createPolicy(policy: InsertPolicy): Promise<Policy>;
+  updatePolicy(id: number, policy: Partial<InsertPolicy>): Promise<Policy>;
+  getPolicy(id: number): Promise<Policy | undefined>;
   getUserPolicies(userId: string): Promise<(Policy & { quote: InsuranceQuote & { type: InsuranceType; provider: InsuranceProvider } })[]>;
+  getAllPolicies(): Promise<(Policy & { quote: InsuranceQuote & { type: InsuranceType; provider: InsuranceProvider } })[]>;
+  
+  // Policy Documents
+  createPolicyDocument(document: InsertPolicyDocument): Promise<PolicyDocument>;
+  getPolicyDocuments(policyId: number): Promise<PolicyDocument[]>;
+  deletePolicyDocument(id: number): Promise<void>;
+  
+  // Premium Payments
+  createPremiumPayment(payment: InsertPremiumPayment): Promise<PremiumPayment>;
+  updatePremiumPayment(id: number, payment: Partial<InsertPremiumPayment>): Promise<PremiumPayment>;
+  getPolicyPayments(policyId: number): Promise<PremiumPayment[]>;
+  getPayment(id: number): Promise<PremiumPayment | undefined>;
+  getAllPayments(): Promise<PremiumPayment[]>;
+  
+  // Policy Amendments
+  createPolicyAmendment(amendment: InsertPolicyAmendment): Promise<PolicyAmendment>;
+  updatePolicyAmendment(id: number, amendment: Partial<InsertPolicyAmendment>): Promise<PolicyAmendment>;
+  getPolicyAmendments(policyId: number): Promise<PolicyAmendment[]>;
+  getAmendment(id: number): Promise<PolicyAmendment | undefined>;
+  getAllAmendments(): Promise<PolicyAmendment[]>;
   
   // Claims
   createClaim(claim: InsertClaim): Promise<Claim>;
@@ -473,6 +504,20 @@ export class DatabaseStorage implements IStorage {
     return newPolicy;
   }
 
+  async updatePolicy(id: number, policy: Partial<InsertPolicy>): Promise<Policy> {
+    const [updatedPolicy] = await db
+      .update(policies)
+      .set({ ...policy, updatedAt: new Date() })
+      .where(eq(policies.id, id))
+      .returning();
+    return updatedPolicy;
+  }
+
+  async getPolicy(id: number): Promise<Policy | undefined> {
+    const [policy] = await db.select().from(policies).where(eq(policies.id, id));
+    return policy;
+  }
+
   async getUserPolicies(userId: string): Promise<(Policy & { quote: InsuranceQuote & { type: InsuranceType; provider: InsuranceProvider } })[]> {
     return await db
       .select({
@@ -483,8 +528,27 @@ export class DatabaseStorage implements IStorage {
         status: policies.status,
         startDate: policies.startDate,
         endDate: policies.endDate,
+        renewalDate: policies.renewalDate,
         nextPaymentDate: policies.nextPaymentDate,
+        annualPremium: policies.annualPremium,
+        monthlyPremium: policies.monthlyPremium,
+        paymentFrequency: policies.paymentFrequency,
+        coverageAmount: policies.coverageAmount,
+        deductible: policies.deductible,
+        agentId: policies.agentId,
+        underwriterId: policies.underwriterId,
+        beneficiary: policies.beneficiary,
+        contingentBeneficiary: policies.contingentBeneficiary,
+        medicalExamRequired: policies.medicalExamRequired,
+        medicalExamCompleted: policies.medicalExamCompleted,
+        medicalExamDate: policies.medicalExamDate,
+        issuedDate: policies.issuedDate,
+        lastReviewDate: policies.lastReviewDate,
+        autoRenewal: policies.autoRenewal,
+        notes: policies.notes,
+        metadata: policies.metadata,
         createdAt: policies.createdAt,
+        updatedAt: policies.updatedAt,
         quote: {
           id: insuranceQuotes.id,
           userId: insuranceQuotes.userId,
@@ -508,6 +572,146 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(insuranceProviders, eq(insuranceQuotes.providerId, insuranceProviders.id))
       .where(eq(policies.userId, userId))
       .orderBy(desc(policies.createdAt));
+  }
+
+  async getAllPolicies(): Promise<(Policy & { quote: InsuranceQuote & { type: InsuranceType; provider: InsuranceProvider } })[]> {
+    return await db
+      .select({
+        id: policies.id,
+        userId: policies.userId,
+        quoteId: policies.quoteId,
+        policyNumber: policies.policyNumber,
+        status: policies.status,
+        startDate: policies.startDate,
+        endDate: policies.endDate,
+        renewalDate: policies.renewalDate,
+        nextPaymentDate: policies.nextPaymentDate,
+        annualPremium: policies.annualPremium,
+        monthlyPremium: policies.monthlyPremium,
+        paymentFrequency: policies.paymentFrequency,
+        coverageAmount: policies.coverageAmount,
+        deductible: policies.deductible,
+        agentId: policies.agentId,
+        underwriterId: policies.underwriterId,
+        beneficiary: policies.beneficiary,
+        contingentBeneficiary: policies.contingentBeneficiary,
+        medicalExamRequired: policies.medicalExamRequired,
+        medicalExamCompleted: policies.medicalExamCompleted,
+        medicalExamDate: policies.medicalExamDate,
+        issuedDate: policies.issuedDate,
+        lastReviewDate: policies.lastReviewDate,
+        autoRenewal: policies.autoRenewal,
+        notes: policies.notes,
+        metadata: policies.metadata,
+        createdAt: policies.createdAt,
+        updatedAt: policies.updatedAt,
+        quote: {
+          id: insuranceQuotes.id,
+          userId: insuranceQuotes.userId,
+          typeId: insuranceQuotes.typeId,
+          providerId: insuranceQuotes.providerId,
+          monthlyPremium: insuranceQuotes.monthlyPremium,
+          coverageAmount: insuranceQuotes.coverageAmount,
+          termLength: insuranceQuotes.termLength,
+          deductible: insuranceQuotes.deductible,
+          medicalExamRequired: insuranceQuotes.medicalExamRequired,
+          conversionOption: insuranceQuotes.conversionOption,
+          features: insuranceQuotes.features,
+          createdAt: insuranceQuotes.createdAt,
+          type: insuranceTypes,
+          provider: insuranceProviders,
+        },
+      })
+      .from(policies)
+      .leftJoin(insuranceQuotes, eq(policies.quoteId, insuranceQuotes.id))
+      .leftJoin(insuranceTypes, eq(insuranceQuotes.typeId, insuranceTypes.id))
+      .leftJoin(insuranceProviders, eq(insuranceQuotes.providerId, insuranceProviders.id))
+      .orderBy(desc(policies.createdAt));
+  }
+
+  // Policy Documents
+  async createPolicyDocument(document: InsertPolicyDocument): Promise<PolicyDocument> {
+    const [newDocument] = await db.insert(policyDocuments).values(document).returning();
+    return newDocument;
+  }
+
+  async getPolicyDocuments(policyId: number): Promise<PolicyDocument[]> {
+    return await db
+      .select()
+      .from(policyDocuments)
+      .where(and(eq(policyDocuments.policyId, policyId), eq(policyDocuments.isActive, true)))
+      .orderBy(desc(policyDocuments.createdAt));
+  }
+
+  async deletePolicyDocument(id: number): Promise<void> {
+    await db
+      .update(policyDocuments)
+      .set({ isActive: false })
+      .where(eq(policyDocuments.id, id));
+  }
+
+  // Premium Payments
+  async createPremiumPayment(payment: InsertPremiumPayment): Promise<PremiumPayment> {
+    const [newPayment] = await db.insert(premiumPayments).values(payment).returning();
+    return newPayment;
+  }
+
+  async updatePremiumPayment(id: number, payment: Partial<InsertPremiumPayment>): Promise<PremiumPayment> {
+    const [updatedPayment] = await db
+      .update(premiumPayments)
+      .set({ ...payment, updatedAt: new Date() })
+      .where(eq(premiumPayments.id, id))
+      .returning();
+    return updatedPayment;
+  }
+
+  async getPolicyPayments(policyId: number): Promise<PremiumPayment[]> {
+    return await db
+      .select()
+      .from(premiumPayments)
+      .where(eq(premiumPayments.policyId, policyId))
+      .orderBy(desc(premiumPayments.dueDate));
+  }
+
+  async getPayment(id: number): Promise<PremiumPayment | undefined> {
+    const [payment] = await db.select().from(premiumPayments).where(eq(premiumPayments.id, id));
+    return payment;
+  }
+
+  async getAllPayments(): Promise<PremiumPayment[]> {
+    return await db.select().from(premiumPayments).orderBy(desc(premiumPayments.dueDate));
+  }
+
+  // Policy Amendments
+  async createPolicyAmendment(amendment: InsertPolicyAmendment): Promise<PolicyAmendment> {
+    const [newAmendment] = await db.insert(policyAmendments).values(amendment).returning();
+    return newAmendment;
+  }
+
+  async updatePolicyAmendment(id: number, amendment: Partial<InsertPolicyAmendment>): Promise<PolicyAmendment> {
+    const [updatedAmendment] = await db
+      .update(policyAmendments)
+      .set({ ...amendment, updatedAt: new Date() })
+      .where(eq(policyAmendments.id, id))
+      .returning();
+    return updatedAmendment;
+  }
+
+  async getPolicyAmendments(policyId: number): Promise<PolicyAmendment[]> {
+    return await db
+      .select()
+      .from(policyAmendments)
+      .where(eq(policyAmendments.policyId, policyId))
+      .orderBy(desc(policyAmendments.createdAt));
+  }
+
+  async getAmendment(id: number): Promise<PolicyAmendment | undefined> {
+    const [amendment] = await db.select().from(policyAmendments).where(eq(policyAmendments.id, id));
+    return amendment;
+  }
+
+  async getAllAmendments(): Promise<PolicyAmendment[]> {
+    return await db.select().from(policyAmendments).orderBy(desc(policyAmendments.createdAt));
   }
 
   // Claims

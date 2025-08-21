@@ -23,6 +23,9 @@ import {
   insertClaimDocumentSchema,
   insertClaimCommunicationSchema,
   insertClaimWorkflowStepSchema,
+  insertPolicyDocumentSchema,
+  insertPremiumPaymentSchema,
+  insertPolicyAmendmentSchema,
   loginSchema,
   signupSchema,
   memberProfileSchema,
@@ -524,6 +527,284 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       console.error("Error creating policy:", error);
       res.status(500).json({ message: "Failed to create policy" });
+    }
+  });
+
+  // Enhanced Policy Management Routes
+  app.get('/api/policies/all', auth, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user || (user.privilegeLevel ?? 5) > 2) {
+        return res.status(403).json({ message: "Insufficient privileges" });
+      }
+      const policies = await storage.getAllPolicies();
+      res.json(policies);
+    } catch (error) {
+      console.error("Error fetching all policies:", error);
+      res.status(500).json({ message: "Failed to fetch policies" });
+    }
+  });
+
+  app.get('/api/policies/:id', auth, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const policy = await storage.getPolicy(parseInt(id));
+      if (!policy) {
+        return res.status(404).json({ message: "Policy not found" });
+      }
+      
+      // Check access - users can only see their own policies unless admin/agent
+      const user = await storage.getUser(req.user.claims.sub);
+      const userId = req.user.claims.sub;
+      if (policy.userId !== userId && (user?.privilegeLevel ?? 5) > 2) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      res.json(policy);
+    } catch (error) {
+      console.error("Error fetching policy:", error);
+      res.status(500).json({ message: "Failed to fetch policy" });
+    }
+  });
+
+  app.put('/api/policies/:id', auth, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const policy = await storage.getPolicy(parseInt(id));
+      if (!policy) {
+        return res.status(404).json({ message: "Policy not found" });
+      }
+      
+      // Check access - users can only edit their own policies unless admin/agent
+      const user = await storage.getUser(req.user.claims.sub);
+      const userId = req.user.claims.sub;
+      if (policy.userId !== userId && (user?.privilegeLevel ?? 5) > 2) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const validatedData = insertPolicySchema.partial().parse(req.body);
+      const updatedPolicy = await storage.updatePolicy(parseInt(id), validatedData);
+      res.json(updatedPolicy);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error("Error updating policy:", error);
+      res.status(500).json({ message: "Failed to update policy" });
+    }
+  });
+
+  // Policy Documents Routes
+  app.get('/api/policies/:id/documents', auth, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const policy = await storage.getPolicy(parseInt(id));
+      if (!policy) {
+        return res.status(404).json({ message: "Policy not found" });
+      }
+      
+      // Check access
+      const user = await storage.getUser(req.user.claims.sub);
+      const userId = req.user.claims.sub;
+      if (policy.userId !== userId && (user?.privilegeLevel ?? 5) > 2) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const documents = await storage.getPolicyDocuments(parseInt(id));
+      res.json(documents);
+    } catch (error) {
+      console.error("Error fetching policy documents:", error);
+      res.status(500).json({ message: "Failed to fetch policy documents" });
+    }
+  });
+
+  app.post('/api/policies/:id/documents', auth, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const policy = await storage.getPolicy(parseInt(id));
+      if (!policy) {
+        return res.status(404).json({ message: "Policy not found" });
+      }
+      
+      // Check access
+      const user = await storage.getUser(req.user.claims.sub);
+      const userId = req.user.claims.sub;
+      if (policy.userId !== userId && (user?.privilegeLevel ?? 5) > 2) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const validatedData = insertPolicyDocumentSchema.parse({
+        ...req.body,
+        policyId: parseInt(id),
+        uploadedBy: userId,
+      });
+      const document = await storage.createPolicyDocument(validatedData);
+      res.status(201).json(document);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error("Error creating policy document:", error);
+      res.status(500).json({ message: "Failed to create policy document" });
+    }
+  });
+
+  app.delete('/api/policies/documents/:docId', auth, async (req: any, res) => {
+    try {
+      const { docId } = req.params;
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user || (user.privilegeLevel ?? 5) > 2) {
+        return res.status(403).json({ message: "Insufficient privileges" });
+      }
+      
+      await storage.deletePolicyDocument(parseInt(docId));
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting policy document:", error);
+      res.status(500).json({ message: "Failed to delete policy document" });
+    }
+  });
+
+  // Premium Payments Routes
+  app.get('/api/policies/:id/payments', auth, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const policy = await storage.getPolicy(parseInt(id));
+      if (!policy) {
+        return res.status(404).json({ message: "Policy not found" });
+      }
+      
+      // Check access
+      const user = await storage.getUser(req.user.claims.sub);
+      const userId = req.user.claims.sub;
+      if (policy.userId !== userId && (user?.privilegeLevel ?? 5) > 2) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const payments = await storage.getPolicyPayments(parseInt(id));
+      res.json(payments);
+    } catch (error) {
+      console.error("Error fetching policy payments:", error);
+      res.status(500).json({ message: "Failed to fetch policy payments" });
+    }
+  });
+
+  app.post('/api/policies/:id/payments', auth, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user || (user.privilegeLevel ?? 5) > 2) {
+        return res.status(403).json({ message: "Insufficient privileges" });
+      }
+      
+      const validatedData = insertPremiumPaymentSchema.parse({
+        ...req.body,
+        policyId: parseInt(id),
+        processedBy: req.user.claims.sub,
+      });
+      const payment = await storage.createPremiumPayment(validatedData);
+      res.status(201).json(payment);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error("Error creating premium payment:", error);
+      res.status(500).json({ message: "Failed to create premium payment" });
+    }
+  });
+
+  app.put('/api/payments/:paymentId', auth, async (req: any, res) => {
+    try {
+      const { paymentId } = req.params;
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user || (user.privilegeLevel ?? 5) > 2) {
+        return res.status(403).json({ message: "Insufficient privileges" });
+      }
+      
+      const validatedData = insertPremiumPaymentSchema.partial().parse(req.body);
+      const updatedPayment = await storage.updatePremiumPayment(parseInt(paymentId), validatedData);
+      res.json(updatedPayment);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error("Error updating premium payment:", error);
+      res.status(500).json({ message: "Failed to update premium payment" });
+    }
+  });
+
+  // Policy Amendments Routes
+  app.get('/api/policies/:id/amendments', auth, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const policy = await storage.getPolicy(parseInt(id));
+      if (!policy) {
+        return res.status(404).json({ message: "Policy not found" });
+      }
+      
+      // Check access
+      const user = await storage.getUser(req.user.claims.sub);
+      const userId = req.user.claims.sub;
+      if (policy.userId !== userId && (user?.privilegeLevel ?? 5) > 2) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const amendments = await storage.getPolicyAmendments(parseInt(id));
+      res.json(amendments);
+    } catch (error) {
+      console.error("Error fetching policy amendments:", error);
+      res.status(500).json({ message: "Failed to fetch policy amendments" });
+    }
+  });
+
+  app.post('/api/policies/:id/amendments', auth, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const policy = await storage.getPolicy(parseInt(id));
+      if (!policy) {
+        return res.status(404).json({ message: "Policy not found" });
+      }
+      
+      // Check access
+      const user = await storage.getUser(req.user.claims.sub);
+      const userId = req.user.claims.sub;
+      if (policy.userId !== userId && (user?.privilegeLevel ?? 5) > 2) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const validatedData = insertPolicyAmendmentSchema.parse({
+        ...req.body,
+        policyId: parseInt(id),
+        requestedBy: userId,
+      });
+      const amendment = await storage.createPolicyAmendment(validatedData);
+      res.status(201).json(amendment);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error("Error creating policy amendment:", error);
+      res.status(500).json({ message: "Failed to create policy amendment" });
+    }
+  });
+
+  app.put('/api/amendments/:amendmentId', auth, async (req: any, res) => {
+    try {
+      const { amendmentId } = req.params;
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user || (user.privilegeLevel ?? 5) > 2) {
+        return res.status(403).json({ message: "Insufficient privileges" });
+      }
+      
+      const validatedData = insertPolicyAmendmentSchema.partial().parse(req.body);
+      const updatedAmendment = await storage.updatePolicyAmendment(parseInt(amendmentId), validatedData);
+      res.json(updatedAmendment);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error("Error updating policy amendment:", error);
+      res.status(500).json({ message: "Failed to update policy amendment" });
     }
   });
 
