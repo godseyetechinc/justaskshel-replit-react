@@ -13,6 +13,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertPolicySchema } from "@shared/schema";
@@ -86,6 +94,8 @@ export default function PoliciesPage() {
   const [editingPolicy, setEditingPolicy] = useState<any>(null);
   const [selectedPolicy, setSelectedPolicy] = useState<any>(null);
   const [isPolicyDetailOpen, setIsPolicyDetailOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(10);
   const { toast } = useToast();
   const { user } = useAuth();
   const { hasPermission, isSuperAdmin, isTenantAdmin } = useRoleAuth();
@@ -149,6 +159,15 @@ export default function PoliciesPage() {
     const matchesStatus = selectedStatus === "all" || policy.status === selectedStatus;
     return matchesSearch && matchesStatus;
   });
+
+  // Pagination for policies
+  const totalPolicies = filteredPolicies.length;
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalPolicies);
+  const paginatedPolicies = filteredPolicies.slice(startIndex, endIndex);
+  const totalPages = Math.ceil(totalPolicies / pageSize);
+  const hasNext = currentPage < totalPages;
+  const hasPrev = currentPage > 1;
 
   const handleEdit = (policy: any) => {
     setEditingPolicy(policy);
@@ -537,6 +556,7 @@ export default function PoliciesPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-[70px]">Actions</TableHead>
                       <TableHead>Policy Number</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Type</TableHead>
@@ -545,12 +565,40 @@ export default function PoliciesPage() {
                       <TableHead>Premium</TableHead>
                       <TableHead>Payment</TableHead>
                       <TableHead>Start Date</TableHead>
-                      <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredPolicies.map((policy: any) => (
+                    {paginatedPolicies.map((policy: any) => (
                       <TableRow key={policy.id} data-testid={`row-policy-${policy.id}`}>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0" data-testid={`button-actions-${policy.id}`}>
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start">
+                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <DropdownMenuItem onClick={() => handleViewDetails(policy)} data-testid={`action-view-${policy.id}`}>
+                                <Eye className="mr-2 h-4 w-4" />
+                                View Details
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleEdit(policy)} data-testid={`action-edit-${policy.id}`}>
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit Policy
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem 
+                                onClick={() => handleDelete(policy.id)}
+                                className="text-destructive focus:text-destructive"
+                                data-testid={`action-delete-${policy.id}`}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete Policy
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
                         <TableCell className="font-medium">
                           <Button 
                             variant="link" 
@@ -584,46 +632,59 @@ export default function PoliciesPage() {
                         <TableCell>
                           {policy.startDate ? format(new Date(policy.startDate), "MMM dd, yyyy") : "N/A"}
                         </TableCell>
-                        <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0" data-testid={`button-actions-${policy.id}`}>
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuItem onClick={() => handleViewDetails(policy)} data-testid={`action-view-${policy.id}`}>
-                                <Eye className="mr-2 h-4 w-4" />
-                                View Details
-                              </DropdownMenuItem>
-                              {canWrite && (
-                                <DropdownMenuItem onClick={() => handleEdit(policy)} data-testid={`action-edit-${policy.id}`}>
-                                  <Edit className="mr-2 h-4 w-4" />
-                                  Edit Policy
-                                </DropdownMenuItem>
-                              )}
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem data-testid={`action-documents-${policy.id}`}>
-                                <FileText className="mr-2 h-4 w-4" />
-                                Documents
-                              </DropdownMenuItem>
-                              <DropdownMenuItem data-testid={`action-payments-${policy.id}`}>
-                                <CreditCard className="mr-2 h-4 w-4" />
-                                Payments
-                              </DropdownMenuItem>
-                              <DropdownMenuItem data-testid={`action-amendments-${policy.id}`}>
-                                <Settings className="mr-2 h-4 w-4" />
-                                Amendments
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
-                {filteredPolicies.length === 0 && (
+
+                {/* Pagination Controls */}
+                {totalPolicies > pageSize && (
+                  <div className="flex items-center justify-between px-2 py-4">
+                    <div className="text-sm text-muted-foreground">
+                      Showing {startIndex + 1} to {Math.min(endIndex, totalPolicies)} of {totalPolicies} policies
+                    </div>
+                    <Pagination>
+                      <PaginationContent>
+                        <PaginationItem>
+                          <PaginationPrevious 
+                            href="#"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              if (hasPrev) setCurrentPage(currentPage - 1);
+                            }}
+                            className={!hasPrev ? "pointer-events-none opacity-50" : ""}
+                          />
+                        </PaginationItem>
+                        {Array.from({length: totalPages}, (_, i) => i + 1).map((page) => (
+                          <PaginationItem key={page}>
+                            <PaginationLink
+                              href="#"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                setCurrentPage(page);
+                              }}
+                              isActive={currentPage === page}
+                            >
+                              {page}
+                            </PaginationLink>
+                          </PaginationItem>
+                        ))}
+                        <PaginationItem>
+                          <PaginationNext
+                            href="#"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              if (hasNext) setCurrentPage(currentPage + 1);
+                            }}
+                            className={!hasNext ? "pointer-events-none opacity-50" : ""}
+                          />
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
+                  </div>
+                )}
+
+                {paginatedPolicies.length === 0 && (
                   <div className="text-center py-8">
                     <Shield className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
                     <h3 className="text-lg font-medium">No policies found</h3>

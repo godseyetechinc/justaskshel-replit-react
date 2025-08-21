@@ -10,8 +10,25 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Switch } from "@/components/ui/switch";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuLabel, 
+  DropdownMenuSeparator, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { useToast } from "@/hooks/use-toast";
 import { useRoleAuth } from "@/hooks/useRoleAuth";
+import { usePagination } from "@/hooks/usePagination";
 import DashboardLayout from "@/components/dashboard-layout";
 import { apiRequest } from "@/lib/queryClient";
 import { useForm } from "react-hook-form";
@@ -35,7 +52,8 @@ import {
   Phone,
   Calendar,
   Building2,
-  Activity
+  Activity,
+  MoreHorizontal
 } from "lucide-react";
 
 type User = {
@@ -75,6 +93,8 @@ export default function UserManagementPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(10);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -205,6 +225,7 @@ export default function UserManagementPage() {
     },
   });
 
+  // Filter users
   const filteredUsers = users?.filter((user: User) => {
     const matchesSearch = user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          user.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -216,6 +237,19 @@ export default function UserManagementPage() {
     
     return matchesSearch && matchesRole && matchesStatus;
   }) || [];
+
+  // Pagination
+  const totalUsers = filteredUsers.length;
+  const pagination = usePagination({
+    currentPage,
+    totalCount: totalUsers,
+    pageSize,
+  });
+
+  const paginatedUsers = filteredUsers.slice(
+    pagination.startIndex,
+    pagination.endIndex + 1
+  );
 
   const handleEditUser = (user: User) => {
     setSelectedUser(user);
@@ -589,12 +623,12 @@ export default function UserManagementPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[70px]">Actions</TableHead>
                     <TableHead>User</TableHead>
                     <TableHead>Role</TableHead>
                     {isSuperAdmin && <TableHead>Organization</TableHead>}
                     <TableHead>Status</TableHead>
                     <TableHead>Last Login</TableHead>
-                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -604,15 +638,41 @@ export default function UserManagementPage() {
                         Loading users...
                       </TableCell>
                     </TableRow>
-                  ) : filteredUsers.length === 0 ? (
+                  ) : paginatedUsers.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center py-4">
                         No users found
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredUsers.map((user: User) => (
+                    paginatedUsers.map((user: User) => (
                       <TableRow key={user.id}>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0" data-testid={`button-actions-${user.id}`}>
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start">
+                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <DropdownMenuItem onClick={() => handleEditUser(user)} data-testid={`action-edit-${user.id}`}>
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit User
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem 
+                                onClick={() => deleteUserMutation.mutate(user.id)}
+                                disabled={deleteUserMutation.isPending}
+                                className="text-destructive focus:text-destructive"
+                                data-testid={`action-delete-${user.id}`}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete User
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
                         <TableCell>
                           <div className="flex items-center space-x-3">
                             <div className="flex-shrink-0">
@@ -623,10 +683,10 @@ export default function UserManagementPage() {
                               </div>
                             </div>
                             <div>
-                              <div className="text-sm font-medium text-gray-900">
+                              <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
                                 {user.firstName} {user.lastName}
                               </div>
-                              <div className="text-sm text-gray-500">{user.email}</div>
+                              <div className="text-sm text-gray-500 dark:text-gray-400">{user.email}</div>
                               {user.phone && (
                                 <div className="text-xs text-gray-400">{user.phone}</div>
                               )}
@@ -676,31 +736,63 @@ export default function UserManagementPage() {
                             </span>
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <div className="flex items-center space-x-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleEditUser(user)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => deleteUserMutation.mutate(user.id)}
-                              disabled={deleteUserMutation.isPending}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
                       </TableRow>
                     ))
                   )}
                 </TableBody>
               </Table>
             </div>
+
+            {/* Pagination Controls */}
+            {totalUsers > pageSize && (
+              <div className="flex items-center justify-between px-2 py-4">
+                <div className="text-sm text-muted-foreground">
+                  Showing {pagination.startIndex + 1} to {Math.min(pagination.endIndex + 1, totalUsers)} of {totalUsers} users
+                </div>
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious 
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          if (pagination.hasPrev) setCurrentPage(currentPage - 1);
+                        }}
+                        className={!pagination.hasPrev ? "pointer-events-none opacity-50" : ""}
+                      />
+                    </PaginationItem>
+                    {pagination.pages.map((page, index) => (
+                      <PaginationItem key={index}>
+                        {page === 'ellipsis' ? (
+                          <span className="flex h-9 w-9 items-center justify-center">...</span>
+                        ) : (
+                          <PaginationLink
+                            href="#"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setCurrentPage(page as number);
+                            }}
+                            isActive={currentPage === page}
+                          >
+                            {page}
+                          </PaginationLink>
+                        )}
+                      </PaginationItem>
+                    ))}
+                    <PaginationItem>
+                      <PaginationNext
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          if (pagination.hasNext) setCurrentPage(currentPage + 1);
+                        }}
+                        className={!pagination.hasNext ? "pointer-events-none opacity-50" : ""}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
+            )}
           </CardContent>
         </Card>
 

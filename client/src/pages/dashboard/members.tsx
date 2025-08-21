@@ -8,6 +8,22 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import DashboardLayout from "@/components/dashboard-layout";
 import { apiRequest } from "@/lib/queryClient";
@@ -29,7 +45,8 @@ import {
   FileText,
   Filter,
   Download,
-  MoreVertical
+  MoreVertical,
+  MoreHorizontal
 } from "lucide-react";
 import type { Member } from "@shared/schema";
 import { format } from "date-fns";
@@ -39,6 +56,8 @@ export default function MembersPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [viewMode, setViewMode] = useState<"grid" | "table">("table");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(10);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -77,6 +96,15 @@ export default function MembersPage() {
     
     return matchesSearch && matchesStatus;
   });
+
+  // Pagination for members
+  const totalMembers = filteredMembers?.length || 0;
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalMembers);
+  const paginatedMembers = filteredMembers?.slice(startIndex, endIndex) || [];
+  const totalPages = Math.ceil(totalMembers / pageSize);
+  const hasNext = currentPage < totalPages;
+  const hasPrev = currentPage > 1;
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -226,17 +254,46 @@ export default function MembersPage() {
                 <table className="w-full border-collapse">
                   <thead>
                     <tr className="border-b border-gray-200">
+                      <th className="text-left p-4 font-medium text-gray-900 w-[70px]">Actions</th>
                       <th className="text-left p-4 font-medium text-gray-900">Member</th>
                       <th className="text-left p-4 font-medium text-gray-900">Contact Info</th>
                       <th className="text-left p-4 font-medium text-gray-900">Member #</th>
                       <th className="text-left p-4 font-medium text-gray-900">Status</th>
                       <th className="text-left p-4 font-medium text-gray-900">Member Since</th>
-                      <th className="text-left p-4 font-medium text-gray-900">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredMembers.map((member) => (
+                    {paginatedMembers.map((member) => (
                       <tr key={member.id} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="p-4">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0" data-testid={`button-actions-${member.id}`}>
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start">
+                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <DropdownMenuItem onClick={() => setSelectedMember(member)} data-testid={`action-view-${member.id}`}>
+                                <Eye className="mr-2 h-4 w-4" />
+                                View Profile
+                              </DropdownMenuItem>
+                              <DropdownMenuItem data-testid={`action-edit-${member.id}`}>
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit Member
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem 
+                                onClick={() => deleteMutation.mutate(member.id)}
+                                className="text-destructive focus:text-destructive"
+                                data-testid={`action-delete-${member.id}`}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete Member
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </td>
                         <td className="p-4">
                           <div className="flex items-center space-x-3">
                             {getAvatarDisplay(member)}
@@ -282,20 +339,65 @@ export default function MembersPage() {
                             {formatDate(member.membershipDate)}
                           </div>
                         </td>
-                        <td className="p-4">
-                          <div className="flex items-center space-x-2">
-                            <Dialog>
-                              <DialogTrigger asChild>
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  onClick={() => setSelectedMember(member)}
-                                >
-                                  <Eye className="h-3 w-3 mr-1" />
-                                  View
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                {/* Pagination Controls */}
+                {totalMembers > pageSize && (
+                  <div className="flex items-center justify-between px-2 py-4">
+                    <div className="text-sm text-muted-foreground">
+                      Showing {startIndex + 1} to {Math.min(endIndex, totalMembers)} of {totalMembers} members
+                    </div>
+                    <Pagination>
+                      <PaginationContent>
+                        <PaginationItem>
+                          <PaginationPrevious 
+                            href="#"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              if (hasPrev) setCurrentPage(currentPage - 1);
+                            }}
+                            className={!hasPrev ? "pointer-events-none opacity-50" : ""}
+                          />
+                        </PaginationItem>
+                        {Array.from({length: totalPages}, (_, i) => i + 1).map((page) => (
+                          <PaginationItem key={page}>
+                            <PaginationLink
+                              href="#"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                setCurrentPage(page);
+                              }}
+                              isActive={currentPage === page}
+                            >
+                              {page}
+                            </PaginationLink>
+                          </PaginationItem>
+                        ))}
+                        <PaginationItem>
+                          <PaginationNext
+                            href="#"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              if (hasNext) setCurrentPage(currentPage + 1);
+                            }}
+                            className={!hasNext ? "pointer-events-none opacity-50" : ""}
+                          />
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Member Detail Dialog */}
+        <Dialog open={!!selectedMember} onOpenChange={() => setSelectedMember(null)}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                                 <DialogHeader>
                                   <DialogTitle className="flex items-center gap-2">
                                     {selectedMember && getAvatarDisplay(selectedMember)}
