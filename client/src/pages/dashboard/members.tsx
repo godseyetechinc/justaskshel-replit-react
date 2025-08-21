@@ -63,7 +63,7 @@ export default function MembersPage() {
 
   const { data: members, isLoading } = useQuery({
     queryKey: ["/api/members"],
-  });
+  }) as { data: Member[] | undefined; isLoading: boolean };
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -147,7 +147,7 @@ export default function MembersPage() {
   };
 
   return (
-    <DashboardLayout title="Member Profile Management" requiredRoles={["Admin"]}>
+    <DashboardLayout title="Member Profile Management" requiredRoles={["Member", "Agent", "LandlordAdmin", "SuperAdmin"]}>
       <div className="space-y-6">
         {/* Header Actions */}
         <div className="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center">
@@ -263,7 +263,7 @@ export default function MembersPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {paginatedMembers.map((member) => (
+                    {paginatedMembers.map((member: Member) => (
                       <tr key={member.id} className="border-b border-gray-100 hover:bg-gray-50">
                         <td className="p-4">
                           <DropdownMenu>
@@ -571,7 +571,7 @@ export default function MembersPage() {
                                             <div>
                                               <label className="text-sm font-medium text-gray-600">Member Preferences</label>
                                               <pre className="text-sm bg-gray-100 p-3 rounded mt-1 overflow-auto">
-                                                {JSON.stringify(selectedMember.preferences, null, 2)}
+                                                {String(JSON.stringify(selectedMember.preferences, null, 2) || 'No preferences set')}
                                               </pre>
                                             </div>
                                           )}
@@ -612,36 +612,11 @@ export default function MembersPage() {
                                 )}
                               </DialogContent>
                             </Dialog>
-                            
-                            <Button variant="outline" size="sm">
-                              <Edit className="h-3 w-3 mr-1" />
-                              Edit
-                            </Button>
-                            
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => deleteMutation.mutate(member.id)}
-                              disabled={deleteMutation.isPending}
-                            >
-                              <Trash2 className="h-3 w-3 mr-1" />
-                              Delete
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Members Grid View */}
         {!isLoading && viewMode === "grid" && filteredMembers && filteredMembers.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredMembers.map((member) => (
+            {filteredMembers.map((member: Member) => (
               <Card key={member.id} className="hover:shadow-lg transition-shadow">
                 <CardHeader className="pb-4">
                   <div className="flex items-center justify-between">
