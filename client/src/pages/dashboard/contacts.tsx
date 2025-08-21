@@ -26,8 +26,26 @@ import {
   MapPin, 
   User,
   Building2,
-  Calendar
+  Calendar,
+  MoreHorizontal,
+  Eye
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useRoleAuth } from "@/hooks/useRoleAuth";
@@ -51,6 +69,8 @@ export default function ContactsPage() {
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<any>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(10);
   const { toast } = useToast();
   const { user } = useAuth();
   const { hasPermission } = useRoleAuth();
@@ -166,6 +186,15 @@ export default function ContactsPage() {
     
     return matchesSearch && matchesStatus;
   });
+
+  // Pagination logic
+  const totalContacts = filteredContacts.length;
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalContacts);
+  const paginatedContacts = filteredContacts.slice(startIndex, endIndex);
+  const totalPages = Math.ceil(totalContacts / pageSize);
+  const hasNext = currentPage < totalPages;
+  const hasPrev = currentPage > 1;
 
   return (
     <DashboardLayout>
@@ -441,34 +470,75 @@ export default function ContactsPage() {
         {/* Contacts Table */}
         <Card>
           <CardHeader>
-            <CardTitle>All Contacts ({filteredContacts.length})</CardTitle>
+            <CardTitle>All Contacts ({totalContacts})</CardTitle>
             <CardDescription>
               Manage your customer contacts and leads
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {isLoading ? (
-              <div className="text-center py-8">Loading contacts...</div>
-            ) : filteredContacts.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                {searchTerm || selectedStatus !== "all" ? "No contacts match your filters" : "No contacts found"}
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[70px]">Actions</TableHead>
+                    <TableHead>Contact</TableHead>
+                    <TableHead>Company</TableHead>
+                    <TableHead>Contact Info</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Created</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isLoading ? (
                     <TableRow>
-                      <TableHead>Contact</TableHead>
-                      <TableHead>Company</TableHead>
-                      <TableHead>Contact Info</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Created</TableHead>
-                      {(canWrite || canDelete) && <TableHead>Actions</TableHead>}
+                      <TableCell colSpan={6} className="text-center py-8">
+                        Loading contacts...
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredContacts.map((contact: any) => (
+                  ) : paginatedContacts.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                        {searchTerm || selectedStatus !== "all" ? "No contacts match your filters" : "No contacts found"}
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    paginatedContacts.map((contact: any) => (
                       <TableRow key={contact.id}>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0" data-testid={`button-actions-${contact.id}`}>
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start">
+                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <DropdownMenuItem data-testid={`action-view-${contact.id}`}>
+                                <Eye className="mr-2 h-4 w-4" />
+                                View Details
+                              </DropdownMenuItem>
+                              {canWrite && (
+                                <DropdownMenuItem onClick={() => handleEdit(contact)} data-testid={`action-edit-${contact.id}`}>
+                                  <Edit className="mr-2 h-4 w-4" />
+                                  Edit Contact
+                                </DropdownMenuItem>
+                              )}
+                              {canDelete && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem 
+                                    onClick={() => handleDelete(contact.id)}
+                                    className="text-destructive focus:text-destructive"
+                                    data-testid={`action-delete-${contact.id}`}
+                                  >
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Delete Contact
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
@@ -519,37 +589,59 @@ export default function ContactsPage() {
                             {format(new Date(contact.createdAt), 'MMM dd, yyyy')}
                           </div>
                         </TableCell>
-                        {(canWrite || canDelete) && (
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              {canWrite && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleEdit(contact)}
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                              )}
-                              {canDelete && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleDelete(contact.id)}
-                                  className="text-red-600 hover:text-red-700"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              )}
-                            </div>
-                          </TableCell>
-                        )}
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+
+              {/* Pagination Controls */}
+              {totalContacts > pageSize && (
+                <div className="flex items-center justify-between px-2 py-4">
+                  <div className="text-sm text-muted-foreground">
+                    Showing {startIndex + 1} to {Math.min(endIndex, totalContacts)} of {totalContacts} contacts
+                  </div>
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious 
+                          href="#"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            if (hasPrev) setCurrentPage(currentPage - 1);
+                          }}
+                          className={!hasPrev ? "pointer-events-none opacity-50" : ""}
+                        />
+                      </PaginationItem>
+                      {Array.from({length: totalPages}, (_, i) => i + 1).map((page) => (
+                        <PaginationItem key={page}>
+                          <PaginationLink
+                            href="#"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setCurrentPage(page);
+                            }}
+                            isActive={currentPage === page}
+                          >
+                            {page}
+                          </PaginationLink>
+                        </PaginationItem>
+                      ))}
+                      <PaginationItem>
+                        <PaginationNext
+                          href="#"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            if (hasNext) setCurrentPage(currentPage + 1);
+                          }}
+                          className={!hasNext ? "pointer-events-none opacity-50" : ""}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
