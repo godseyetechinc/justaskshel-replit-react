@@ -5,7 +5,7 @@ import { useRoleAuth } from "@/hooks/useRoleAuth";
 import { useLogout } from "@/hooks/useLogout";
 import {
   Users,
-  UserCheck,
+  User,
   FileText,
   Shield,
   Star,
@@ -59,13 +59,6 @@ const menuItems: MenuItem[] = [
     icon: Building,
     href: "/dashboard/organizations",
     roles: ["SuperAdmin"],
-  },
-  {
-    id: "my-profile",
-    label: "My Profile",
-    icon: Settings,
-    href: "/dashboard/my-profile",
-    roles: ["Member"],
   },
   {
     id: "contacts",
@@ -154,7 +147,7 @@ const menuItems: MenuItem[] = [
   {
     id: "profile",
     label: "My Profile",
-    icon: UserCheck,
+    icon: User,
     href: "/dashboard/profile",
     roles: ["SuperAdmin", "TenantAdmin", "Agent", "Member"],
   },
