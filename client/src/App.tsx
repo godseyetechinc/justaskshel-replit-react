@@ -103,7 +103,7 @@ function Router() {
           {/* Dashboard sub-routes must come before main dashboard route */}
           <Route path="/dashboard/members" component={MembersPage} />
           <Route path="/dashboard/organizations" component={OrganizationsPage} />
-          <Route path="/dashboard/claims" component={ClaimsWorkflow} />
+          <Route path="/dashboard/claims-workflow" component={ClaimsWorkflow} />
           <Route path="/dashboard/profile" component={ProfilePage} />
           <Route path="/dashboard/my-profile" component={MyProfilePage} />
           <Route path="/dashboard/contacts" component={ContactsPage} />
