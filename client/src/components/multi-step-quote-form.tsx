@@ -557,14 +557,15 @@ export default function MultiStepQuoteForm() {
 
       console.log('Sending quote request:', payload);
 
-      // Make HTTP POST request to external API
-      const response = await fetch('http://api1.justaskshel.com:8700/web-api/v1/quotes/search', {
+      // Make HTTP POST request through our backend proxy
+      const response = await fetch('/api/quotes/search', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        credentials: 'include'
       });
 
       if (!response.ok) {

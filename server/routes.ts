@@ -347,6 +347,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Quote search proxy endpoint
+  app.post('/api/quotes/search', async (req, res) => {
+    try {
+      console.log('Proxying quote search request:', req.body);
+      
+      // Make the external API request from our server
+      const response = await fetch('http://api1.justaskshel.com:8700/web-api/v1/quotes/search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(req.body)
+      });
+      
+      if (!response.ok) {
+        console.error(`External API error: ${response.status} ${response.statusText}`);
+        return res.status(response.status).json({ 
+          message: `External API error: ${response.status} ${response.statusText}` 
+        });
+      }
+      
+      const data = await response.json();
+      console.log('External API response:', data);
+      
+      res.json(data);
+    } catch (error) {
+      console.error('Quote search proxy error:', error);
+      res.status(500).json({ 
+        message: 'Failed to fetch quotes from external API',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   // Initialize default admin user on startup
   app.post('/api/admin/init', async (req, res) => {
     try {
