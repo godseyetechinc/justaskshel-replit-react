@@ -56,9 +56,12 @@ export default function PasswordManagementPage() {
 
   // Change password mutation
   const changePasswordMutation = useMutation({
-    mutationFn: async (data: any) => apiRequest("/api/auth/change-password", "POST", {
-      currentPassword: data.currentPassword,
-      newPassword: data.newPassword,
+    mutationFn: async (data: any) => apiRequest("/api/auth/change-password", {
+      method: "POST",
+      body: JSON.stringify({
+        currentPassword: data.currentPassword,
+        newPassword: data.newPassword,
+      })
     }),
     onSuccess: () => {
       toast({ 
