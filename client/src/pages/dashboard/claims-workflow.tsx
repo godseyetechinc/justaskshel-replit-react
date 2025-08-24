@@ -79,6 +79,14 @@ const priorityColors = {
 
 const claimFormSchema = insertClaimSchema.extend({
   incidentDate: z.string().min(1, "Incident date is required"),
+  estimatedAmount: z.coerce.number().min(0, "Amount must be positive").optional(),
+  policyNumber: z.string().optional(),
+  providerName: z.string().optional(),
+  providerAddress: z.string().optional(),
+  contactPhone: z.string().optional(),
+  emergencyContact: z.string().optional(),
+  emergencyPhone: z.string().optional(),
+  additionalNotes: z.string().optional(),
 });
 
 const communicationFormSchema = insertClaimCommunicationSchema.omit({
@@ -94,6 +102,7 @@ export default function ClaimsWorkflow() {
   const [isCommunicationOpen, setIsCommunicationOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(10);
+  const [uploadedFiles, setUploadedFiles] = useState<Array<{fileName: string, uploadURL: string, fileType: string, fileSize: number}>>([]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -272,6 +281,13 @@ export default function ClaimsWorkflow() {
       incidentDate: "",
       estimatedAmount: "",
       priority: "normal",
+      policyNumber: "",
+      providerName: "",
+      providerAddress: "",
+      contactPhone: "",
+      emergencyContact: "",
+      emergencyPhone: "",
+      additionalNotes: "",
     },
   });
 
@@ -285,12 +301,59 @@ export default function ClaimsWorkflow() {
     },
   });
 
-  const onCreateClaim = (data: any) => {
-    createClaimMutation.mutate({
-      ...data,
-      incidentDate: new Date(data.incidentDate).toISOString(),
-      estimatedAmount: data.estimatedAmount ? parseFloat(data.estimatedAmount) : null,
+  // File upload handler for new claim form
+  const handleNewClaimFileUpload = async (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
+    if (result.successful.length === 0) return;
+
+    const newFiles = result.successful.map(file => ({
+      fileName: file.name,
+      uploadURL: file.uploadURL || '',
+      fileType: file.type || 'application/octet-stream',
+      fileSize: file.size || 0,
+    }));
+
+    setUploadedFiles(prev => [...prev, ...newFiles]);
+    
+    toast({
+      title: "Success",
+      description: `${result.successful.length} file(s) uploaded successfully.`,
     });
+  };
+
+  const onCreateClaim = async (data: any) => {
+    try {
+      const claimData = {
+        ...data,
+        incidentDate: new Date(data.incidentDate).toISOString(),
+        estimatedAmount: data.estimatedAmount ? parseFloat(data.estimatedAmount) : null,
+      };
+      
+      // Create claim first
+      await createClaimMutation.mutateAsync(claimData);
+      
+      // If files were uploaded, attach them to the newly created claim
+      if (uploadedFiles.length > 0 && createClaimMutation.data) {
+        for (const file of uploadedFiles) {
+          const documentType = file.fileType.includes('pdf') ? 'receipt' : 
+                             file.fileType.includes('image') ? 'photo' : 
+                             file.fileType.includes('word') || file.fileType.includes('doc') ? 'medical_record' : 'other';
+          
+          await apiRequest(`/api/claims/${createClaimMutation.data.id}/documents`, {
+            fileName: file.fileName,
+            fileType: file.fileType,
+            fileSize: file.fileSize,
+            documentType,
+            uploadedFileURL: file.uploadURL,
+          });
+        }
+      }
+      
+      // Reset uploaded files
+      setUploadedFiles([]);
+      setIsNewClaimOpen(false);
+    } catch (error) {
+      console.error("Error creating claim:", error);
+    }
   };
 
   const onAddCommunication = (data: any) => {
@@ -314,7 +377,7 @@ export default function ClaimsWorkflow() {
                 New Claim
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Create New Claim</DialogTitle>
                 <DialogDescription>
@@ -430,6 +493,164 @@ export default function ClaimsWorkflow() {
                       </FormItem>
                     )}
                   />
+                  
+                  {/* Additional Important Fields */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={newClaimForm.control}
+                      name="policyNumber"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Policy Number</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Enter policy number" {...field} data-testid="input-policy-number" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={newClaimForm.control}
+                      name="providerName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Healthcare Provider/Hospital</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Provider or hospital name" {...field} data-testid="input-provider-name" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  
+                  <FormField
+                    control={newClaimForm.control}
+                    name="providerAddress"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Provider Address</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Full address of provider/hospital" {...field} data-testid="input-provider-address" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={newClaimForm.control}
+                      name="contactPhone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Contact Phone</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Your phone number" type="tel" {...field} data-testid="input-contact-phone" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={newClaimForm.control}
+                      name="emergencyContact"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Emergency Contact</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Emergency contact name" {...field} data-testid="input-emergency-contact" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  
+                  <FormField
+                    control={newClaimForm.control}
+                    name="emergencyPhone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Emergency Contact Phone</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Emergency contact phone number" type="tel" {...field} data-testid="input-emergency-phone" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={newClaimForm.control}
+                    name="additionalNotes"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Additional Notes</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Any additional information or special circumstances..." 
+                            className="min-h-[80px]"
+                            {...field} 
+                            data-testid="textarea-additional-notes"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  {/* File Attachments Section */}
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium leading-none">Supporting Documents</label>
+                      <p className="text-sm text-muted-foreground">Upload receipts, medical reports, photos, or other supporting documents</p>
+                    </div>
+                    
+                    <ObjectUploader
+                      maxNumberOfFiles={10}
+                      onGetUploadParameters={async () => {
+                        const response = await apiRequest('/api/claims/upload-url');
+                        return {
+                          method: 'PUT' as const,
+                          url: response.uploadURL,
+                        };
+                      }}
+                      onComplete={handleNewClaimFileUpload}
+                      buttonClassName="w-full"
+                      data-testid="button-upload-documents"
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      Upload Supporting Documents (Max 10 files)
+                    </ObjectUploader>
+                    
+                    {/* Show uploaded files */}
+                    {uploadedFiles.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium">Uploaded Files ({uploadedFiles.length})</p>
+                        <div className="space-y-1">
+                          {uploadedFiles.map((file, index) => (
+                            <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded text-sm">
+                              <div className="flex items-center gap-2">
+                                <FileIcon className="h-4 w-4 text-gray-400" />
+                                <span>{file.fileName}</span>
+                                <span className="text-gray-500">({(file.fileSize / 1024).toFixed(1)} KB)</span>
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setUploadedFiles(prev => prev.filter((_, i) => i !== index))}
+                                data-testid={`button-remove-file-${index}`}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                   <div className="flex justify-end gap-2">
                     <Button type="button" variant="outline" onClick={() => setIsNewClaimOpen(false)}>
                       Cancel
