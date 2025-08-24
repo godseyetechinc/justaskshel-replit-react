@@ -2,6 +2,8 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { createSessionConfig } from "./replitAuth";
+import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
+import { ObjectPermission } from "./objectAcl";
 import bcrypt from "bcryptjs";
 import {
   insertInsuranceQuoteSchema,
@@ -1876,6 +1878,149 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching organization members:", error);
       res.status(500).json({ message: "Failed to fetch organization members" });
+    }
+  });
+
+  // File upload endpoints for claims documents
+  // Get upload URL for file attachment
+  app.post("/api/claims/upload-url", auth, async (req: any, res) => {
+    try {
+      const objectStorageService = new ObjectStorageService();
+      const uploadURL = await objectStorageService.getObjectEntityUploadURL();
+      res.json({ uploadURL });
+    } catch (error) {
+      console.error("Error getting upload URL:", error);
+      res.status(500).json({ error: "Failed to get upload URL" });
+    }
+  });
+
+  // Attach uploaded file to claim
+  app.post("/api/claims/:claimId/documents", auth, async (req: any, res) => {
+    try {
+      const claimId = parseInt(req.params.claimId);
+      const userId = req.user.claims.sub;
+      const { fileName, fileType, fileSize, documentType, uploadedFileURL } = req.body;
+
+      if (!uploadedFileURL) {
+        return res.status(400).json({ error: "uploadedFileURL is required" });
+      }
+
+      // Validate file type and size
+      const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+      if (!allowedTypes.includes(fileType)) {
+        return res.status(400).json({ error: "Invalid file type" });
+      }
+
+      const isImage = fileType.startsWith('image/');
+      const maxSize = isImage ? 204800 : 512000; // 200KB for images, 500KB for documents
+      if (fileSize > maxSize) {
+        return res.status(400).json({ error: `File too large. ${isImage ? 'Images' : 'Documents'} must be under ${Math.round(maxSize / 1024)}KB.` });
+      }
+
+      // Verify the claim exists and user has access
+      const claim = await storage.getClaim(claimId);
+      if (!claim) {
+        return res.status(404).json({ error: "Claim not found" });
+      }
+
+      // Check if user owns the claim or is an agent/admin
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(401).json({ error: "User not found" });
+      }
+
+      const canAccess = claim.userId === userId || user.privilegeLevel <= 2; // Member owns claim or Agent/Admin
+      if (!canAccess) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      // Set ACL policy for the uploaded file
+      const objectStorageService = new ObjectStorageService();
+      const objectPath = await objectStorageService.trySetObjectEntityAclPolicy(
+        uploadedFileURL,
+        {
+          owner: userId,
+          visibility: "private", // Claims documents are always private
+        }
+      );
+
+      // Create document record
+      const documentData = {
+        claimId,
+        fileName,
+        fileType,
+        fileSize,
+        documentType: documentType || 'other',
+        uploadedBy: userId,
+        status: 'pending'
+      };
+
+      const document = await storage.uploadClaimDocument(documentData);
+
+      res.status(201).json({
+        document,
+        objectPath,
+      });
+    } catch (error) {
+      console.error("Error attaching document to claim:", error);
+      res.status(500).json({ error: "Failed to attach document" });
+    }
+  });
+
+  // Get documents for a claim
+  app.get("/api/claims/:claimId/documents", auth, async (req: any, res) => {
+    try {
+      const claimId = parseInt(req.params.claimId);
+      const userId = req.user.claims.sub;
+
+      // Verify user has access to the claim
+      const claim = await storage.getClaim(claimId);
+      if (!claim) {
+        return res.status(404).json({ error: "Claim not found" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(401).json({ error: "User not found" });
+      }
+
+      const canAccess = claim.userId === userId || user.privilegeLevel <= 2;
+      if (!canAccess) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const documents = await storage.getClaimDocuments(claimId);
+      res.json(documents);
+    } catch (error) {
+      console.error("Error fetching claim documents:", error);
+      res.status(500).json({ error: "Failed to fetch documents" });
+    }
+  });
+
+  // Download/serve claim document file
+  app.get("/objects/:objectPath(*)", auth, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const objectStorageService = new ObjectStorageService();
+      
+      const objectFile = await objectStorageService.getObjectEntityFile(req.path);
+      const canAccess = await objectStorageService.canAccessObjectEntity({
+        objectFile,
+        userId,
+        requestedPermission: ObjectPermission.READ,
+      });
+      
+      if (!canAccess) {
+        return res.sendStatus(403);
+      }
+      
+      objectStorageService.downloadObject(objectFile, res);
+    } catch (error) {
+      console.error("Error downloading object:", error);
+      if (error instanceof ObjectNotFoundError) {
+        return res.sendStatus(404);
+      }
+      return res.sendStatus(500);
     }
   });
 

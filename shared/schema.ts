@@ -855,15 +855,13 @@ export type Policy = typeof policies.$inferSelect;
 
 export type InsertClaim = typeof claims.$inferInsert;
 export type Claim = typeof claims.$inferSelect;
+export type ClaimCommunication = typeof claimCommunications.$inferSelect;
+export type InsertClaimCommunication = z.infer<typeof insertClaimCommunicationSchema>;
+export type ClaimWorkflowStep = typeof claimWorkflowSteps.$inferSelect;
+export type InsertClaimWorkflowStep = z.infer<typeof insertClaimWorkflowStepSchema>;
 
 export type InsertClaimDocument = typeof claimDocuments.$inferInsert;
 export type ClaimDocument = typeof claimDocuments.$inferSelect;
-
-export type InsertClaimCommunication = typeof claimCommunications.$inferInsert;
-export type ClaimCommunication = typeof claimCommunications.$inferSelect;
-
-export type InsertClaimWorkflowStep = typeof claimWorkflowSteps.$inferInsert;
-export type ClaimWorkflowStep = typeof claimWorkflowSteps.$inferSelect;
 
 export type InsertDependent = typeof dependents.$inferInsert;
 export type Dependent = typeof dependents.$inferSelect;

@@ -50,10 +50,15 @@ import {
   Activity,
   MoreHorizontal,
   Edit,
-  Trash2
+  Trash2,
+  Paperclip,
+  Download,
+  FileIcon
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { ObjectUploader } from "@/components/ObjectUploader";
+import type { UploadResult } from "@uppy/core";
 
 const statusColors = {
   draft: "bg-gray-500",
@@ -91,6 +96,70 @@ export default function ClaimsWorkflow() {
   const [pageSize] = useState(10);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // File upload handling
+  const handleFileUploadComplete = async (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
+    if (!selectedClaim || result.successful.length === 0) return;
+
+    try {
+      // Process each uploaded file
+      for (const file of result.successful) {
+        const uploadedFileURL = file.uploadURL;
+        const fileName = file.name;
+        const fileType = file.type || 'application/octet-stream';
+        const fileSize = file.size || 0;
+
+        // Determine document type based on file type
+        let documentType = 'other';
+        if (fileType.includes('pdf')) documentType = 'receipt';
+        else if (fileType.includes('image')) documentType = 'photo';
+        else if (fileType.includes('word') || fileType.includes('doc')) documentType = 'medical_record';
+
+        // Attach file to claim
+        await apiRequest(`/api/claims/${selectedClaim.id}/documents`, {
+          fileName,
+          fileType,
+          fileSize,
+          documentType,
+          uploadedFileURL,
+        });
+      }
+
+      // Refresh documents list
+      queryClient.invalidateQueries({
+        queryKey: ["/api/claims", selectedClaim.id, "documents"],
+      });
+
+      toast({
+        title: "Success",
+        description: `${result.successful.length} document(s) uploaded successfully.`,
+      });
+    } catch (error) {
+      console.error("Error attaching documents:", error);
+      toast({
+        title: "Error",
+        description: "Failed to attach some documents. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDownloadDocument = async (document: any) => {
+    try {
+      // Create object path from document info
+      const objectPath = `/objects/uploads/${document.fileName.split('-')[0]}`;
+      
+      // Open download in new window/tab
+      window.open(objectPath, '_blank');
+    } catch (error) {
+      console.error("Error downloading document:", error);
+      toast({
+        title: "Error",
+        description: "Failed to download document. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   // Fetch all claims
   const { data: claims = [], isLoading } = useQuery({
@@ -810,10 +879,25 @@ export default function ClaimsWorkflow() {
                           </CardTitle>
                           <CardDescription>Upload and manage claim documents</CardDescription>
                         </div>
-                        <Button size="sm">
+                        <ObjectUploader
+                          maxNumberOfFiles={10}
+                          onGetUploadParameters={async () => {
+                            const response = await apiRequest('/api/claims/upload-url');
+                            return {
+                              method: 'PUT' as const,
+                              url: response.uploadURL,
+                            };
+                          }}
+                          onComplete={(result) => {
+                            handleFileUploadComplete(result);
+                          }}
+                          buttonClassName="h-8"
+                          disabled={!selectedClaim}
+                          data-testid="button-upload-document"
+                        >
                           <Upload className="h-4 w-4 mr-2" />
-                          Upload Document
-                        </Button>
+                          Upload Documents
+                        </ObjectUploader>
                       </div>
                     </CardHeader>
                     <CardContent>
@@ -822,10 +906,25 @@ export default function ClaimsWorkflow() {
                           <div className="text-center py-8">
                             <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                             <p className="text-gray-500">No documents uploaded yet</p>
-                            <Button variant="outline" className="mt-4">
+                            <ObjectUploader
+                              maxNumberOfFiles={10}
+                              onGetUploadParameters={async () => {
+                                const response = await apiRequest('/api/claims/upload-url');
+                                return {
+                                  method: 'PUT' as const,
+                                  url: response.uploadURL,
+                                };
+                              }}
+                              onComplete={(result) => {
+                                handleFileUploadComplete(result);
+                              }}
+                              buttonClassName="mt-4"
+                              disabled={!selectedClaim}
+                              data-testid="button-upload-first-document"
+                            >
                               <Upload className="h-4 w-4 mr-2" />
                               Upload First Document
-                            </Button>
+                            </ObjectUploader>
                           </div>
                         ) : (
                           documents.map((doc: any) => (
@@ -847,8 +946,13 @@ export default function ClaimsWorkflow() {
                                 }`}>
                                   {doc.status}
                                 </Badge>
-                                <Button variant="ghost" size="sm">
-                                  <Eye className="h-4 w-4" />
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => handleDownloadDocument(doc)}
+                                  data-testid={`button-download-document-${doc.id}`}
+                                >
+                                  <Download className="h-4 w-4" />
                                 </Button>
                               </div>
                             </div>
