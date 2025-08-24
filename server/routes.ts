@@ -829,20 +829,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/claims/:id', auth, async (req: any, res) => {
-    try {
-      const { id } = req.params;
-      const claim = await storage.getClaim(parseInt(id));
-      if (!claim) {
-        return res.status(404).json({ message: "Claim not found" });
-      }
-      res.json(claim);
-    } catch (error) {
-      console.error("Error fetching claim:", error);
-      res.status(500).json({ message: "Failed to fetch claim" });
-    }
-  });
-
   app.post('/api/claims', auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -1878,6 +1864,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching organization members:", error);
       res.status(500).json({ message: "Failed to fetch organization members" });
+    }
+  });
+
+  app.get('/api/claims/:id', auth, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const claim = await storage.getClaim(parseInt(id));
+      if (!claim) {
+        return res.status(404).json({ message: "Claim not found" });
+      }
+      res.json(claim);
+    } catch (error) {
+      console.error("Error fetching claim:", error);
+      res.status(500).json({ message: "Failed to fetch claim" });
     }
   });
 

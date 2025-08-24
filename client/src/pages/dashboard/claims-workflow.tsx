@@ -329,30 +329,44 @@ export default function ClaimsWorkflow() {
       };
       
       // Create claim first
-      await createClaimMutation.mutateAsync(claimData);
+      const newClaim = await createClaimMutation.mutateAsync(claimData);
       
       // If files were uploaded, attach them to the newly created claim
-      if (uploadedFiles.length > 0 && createClaimMutation.data) {
+      if (uploadedFiles.length > 0 && newClaim?.id) {
         for (const file of uploadedFiles) {
           const documentType = file.fileType.includes('pdf') ? 'receipt' : 
                              file.fileType.includes('image') ? 'photo' : 
                              file.fileType.includes('word') || file.fileType.includes('doc') ? 'medical_record' : 'other';
           
-          await apiRequest(`/api/claims/${createClaimMutation.data.id}/documents`, {
-            fileName: file.fileName,
-            fileType: file.fileType,
-            fileSize: file.fileSize,
-            documentType,
-            uploadedFileURL: file.uploadURL,
+          await apiRequest(`/api/claims/${newClaim.id}/documents`, {
+            method: "POST",
+            body: JSON.stringify({
+              fileName: file.fileName,
+              fileType: file.fileType,
+              fileSize: file.fileSize,
+              documentType,
+              uploadedFileURL: file.uploadURL,
+            }),
           });
         }
       }
       
-      // Reset uploaded files
+      // Reset form and state
+      newClaimForm.reset();
       setUploadedFiles([]);
       setIsNewClaimOpen(false);
+      
+      toast({
+        title: "Success",
+        description: "Claim created successfully" + (uploadedFiles.length > 0 ? ` with ${uploadedFiles.length} attached document(s)` : ""),
+      });
     } catch (error) {
       console.error("Error creating claim:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create claim. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
