@@ -42,8 +42,8 @@ export default function PasswordManagementPage() {
   const { hasPermission } = useRoleAuth();
   const { logout } = useLogout();
 
-  // Check if user has permission to change passwords
-  const canChangePassword = hasPermission("write");
+  // All authenticated users should be able to change their own password
+  const canChangePassword = !!user;
 
   const form = useForm({
     resolver: zodResolver(passwordFormSchema),
