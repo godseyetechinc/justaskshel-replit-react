@@ -217,7 +217,12 @@ export default function ClaimsWorkflow() {
 
   // Create new claim mutation
   const createClaimMutation = useMutation({
-    mutationFn: async (data: any) => apiRequest("/api/claims", "POST", data),
+    mutationFn: async (data: any) => {
+      return await apiRequest("/api/claims", { 
+        method: "POST", 
+        body: JSON.stringify(data) 
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/claims"] });
     },
