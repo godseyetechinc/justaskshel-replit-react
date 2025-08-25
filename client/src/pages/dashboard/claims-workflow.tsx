@@ -622,7 +622,7 @@ export default function ClaimsWorkflow() {
                     <ObjectUploader
                       maxNumberOfFiles={10}
                       onGetUploadParameters={async () => {
-                        const response = await apiRequest('/api/claims/upload-url', 'POST');
+                        const response = await apiRequest('/api/claims/upload-url', { method: 'POST' });
                         return {
                           method: 'PUT' as const,
                           url: response.uploadURL,
@@ -1115,7 +1115,7 @@ export default function ClaimsWorkflow() {
                         <ObjectUploader
                           maxNumberOfFiles={10}
                           onGetUploadParameters={async () => {
-                            const response = await apiRequest('/api/claims/upload-url', 'POST');
+                            const response = await apiRequest('/api/claims/upload-url', { method: 'POST' });
                             return {
                               method: 'PUT' as const,
                               url: response.uploadURL,
@@ -1142,7 +1142,7 @@ export default function ClaimsWorkflow() {
                             <ObjectUploader
                               maxNumberOfFiles={10}
                               onGetUploadParameters={async () => {
-                                const response = await apiRequest('/api/claims/upload-url', 'POST');
+                                const response = await apiRequest('/api/claims/upload-url', { method: 'POST' });
                                 return {
                                   method: 'PUT' as const,
                                   url: response.uploadURL,
