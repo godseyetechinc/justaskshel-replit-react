@@ -16,6 +16,7 @@ import MembersPage from "@/pages/dashboard/members";
 import ClaimsWorkflow from "@/pages/dashboard/claims-workflow";
 import ProfilePage from "@/pages/dashboard/profile";
 import MyProfilePage from "@/pages/dashboard/my-profile";
+import MyAgentPage from "@/pages/dashboard/my-agent";
 import ContactsPage from "@/pages/dashboard/contacts";
 import ApplicationsPage from "@/pages/dashboard/applications";
 import PoliciesPage from "@/pages/dashboard/policies";
@@ -107,6 +108,7 @@ function Router() {
           <Route path="/dashboard/claims-workflow" component={ClaimsWorkflow} />
           <Route path="/dashboard/profile" component={ProfilePage} />
           <Route path="/dashboard/my-profile" component={MyProfilePage} />
+          <Route path="/dashboard/my-agent" component={MyAgentPage} />
           <Route path="/dashboard/contacts" component={ContactsPage} />
           <Route path="/dashboard/applications" component={ApplicationsPage} />
           <Route path="/dashboard/policies" component={PoliciesPage} />

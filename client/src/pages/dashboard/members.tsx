@@ -61,8 +61,9 @@ export default function MembersPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Check if current user is an Agent and fetch appropriate members
   const { data: members, isLoading } = useQuery({
-    queryKey: ["/api/members"],
+    queryKey: ["/api/my-organization/members"],
   }) as { data: Member[] | undefined; isLoading: boolean };
 
   const deleteMutation = useMutation({

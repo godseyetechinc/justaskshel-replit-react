@@ -151,6 +151,13 @@ const menuItems: MenuItem[] = [
     href: "/dashboard/profile",
     roles: ["SuperAdmin", "TenantAdmin", "Agent", "Member"],
   },
+  {
+    id: "my-agent",
+    label: "My Agent",
+    icon: Users,
+    href: "/dashboard/my-agent",
+    roles: ["Member"],
+  },
 ];
 
 export default function DashboardSidebar() {

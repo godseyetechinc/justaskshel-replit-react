@@ -1867,6 +1867,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get current user's organization members (for agents)
+  app.get("/api/my-organization/members", auth, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+      
+      if (!currentUser || !currentUser.organizationId) {
+        return res.status(404).json({ message: "No organization found for user" });
+      }
+
+      // Allow agents and admins to see organization members
+      if ((currentUser.privilegeLevel || 5) > 2) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const members = await storage.getOrganizationMembers(currentUser.organizationId);
+      res.json(members);
+    } catch (error) {
+      console.error("Error fetching organization members:", error);
+      res.status(500).json({ message: "Failed to fetch organization members" });
+    }
+  });
+
+  // Get agent information for current member
+  app.get("/api/my-agent", auth, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+      
+      if (!currentUser || !currentUser.organizationId) {
+        return res.status(404).json({ message: "No organization found for user" });
+      }
+
+      // Only members can access this endpoint
+      if ((currentUser.privilegeLevel || 5) !== 3) {
+        return res.status(403).json({ message: "This endpoint is only available for members" });
+      }
+
+      // Get all users in the organization with Agent role
+      const orgUsers = await storage.getOrganizationUsers(currentUser.organizationId);
+      const agents = orgUsers.filter(user => user.role === 'Agent');
+      
+      if (agents.length === 0) {
+        return res.status(404).json({ message: "No agents found in your organization" });
+      }
+
+      // Get organization info
+      const organizations = await storage.getOrganizations();
+      const organization = organizations.find(org => org.id === currentUser.organizationId);
+      
+      res.json({
+        agents,
+        organization
+      });
+    } catch (error) {
+      console.error("Error fetching agent information:", error);
+      res.status(500).json({ message: "Failed to fetch agent information" });
+    }
+  });
+
   // File upload endpoints for claims documents
   // Get upload URL for file attachment (MUST come before :id route)
   app.post("/api/claims/upload-url", auth, async (req: any, res) => {
