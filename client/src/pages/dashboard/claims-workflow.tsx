@@ -263,11 +263,11 @@ export default function ClaimsWorkflow() {
   // Update workflow step mutation
   const updateWorkflowMutation = useMutation({
     mutationFn: async ({ stepId, data }: { stepId: number; data: any }) => 
-      apiRequest(`/api/workflow-steps/${stepId}`, "PUT", data),
+      apiRequest(`/api/workflow-steps/${stepId}`, { method: "PUT", body: JSON.stringify(data) }),
     onSuccess: () => {
       toast({ title: "Success", description: "Workflow step updated successfully" });
       queryClient.invalidateQueries({ 
-        queryKey: ["/api/claims", selectedClaim.id, "workflow"] 
+        queryKey: ["/api/claims", selectedClaim?.id, "workflow"] 
       });
     },
     onError: () => {
@@ -306,10 +306,10 @@ export default function ClaimsWorkflow() {
 
   // File upload handler for new claim form
   const handleNewClaimFileUpload = async (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
-    if (result.successful.length === 0) return;
+    if (!result.successful || result.successful.length === 0) return;
 
     const newFiles = result.successful.map(file => ({
-      fileName: file.name,
+      fileName: file.name || 'Unknown file',
       uploadURL: file.uploadURL || '',
       fileType: file.type || 'application/octet-stream',
       fileSize: file.size || 0,
@@ -324,12 +324,21 @@ export default function ClaimsWorkflow() {
   };
 
   const onCreateClaim = async (data: any) => {
+    console.log("Form submitted with data:", data);
+    console.log("Form errors:", newClaimForm.formState.errors);
+    
     try {
+      // Generate a unique claim number
+      const claimNumber = `CLM-${Date.now()}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
+      
       const claimData = {
         ...data,
+        claimNumber,
         incidentDate: new Date(data.incidentDate).toISOString(),
         estimatedAmount: data.estimatedAmount ? parseFloat(data.estimatedAmount) : null,
       };
+      
+      console.log("Sending claim data:", claimData);
       
       // Create claim first
       const newClaim = await createClaimMutation.mutateAsync(claimData);
