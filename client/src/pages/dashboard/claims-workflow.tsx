@@ -79,7 +79,7 @@ const priorityColors = {
 
 const claimFormSchema = insertClaimSchema.extend({
   incidentDate: z.string().min(1, "Incident date is required"),
-  estimatedAmount: z.coerce.number().min(0, "Amount must be positive").optional(),
+  estimatedAmount: z.string().optional().transform((val) => val ? parseFloat(val) : undefined),
   policyNumber: z.string().optional(),
   providerName: z.string().optional(),
   providerAddress: z.string().optional(),
@@ -92,7 +92,6 @@ const claimFormSchema = insertClaimSchema.extend({
 const communicationFormSchema = insertClaimCommunicationSchema.omit({
   claimId: true,
   userId: true,
-  createdAt: true,
 });
 
 export default function ClaimsWorkflow() {
@@ -108,7 +107,7 @@ export default function ClaimsWorkflow() {
 
   // File upload handling
   const handleFileUploadComplete = async (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
-    if (!selectedClaim || result.successful.length === 0) return;
+    if (!selectedClaim || !result.successful || result.successful.length === 0) return;
 
     try {
       // Process each uploaded file
@@ -126,11 +125,14 @@ export default function ClaimsWorkflow() {
 
         // Attach file to claim
         await apiRequest(`/api/claims/${selectedClaim.id}/documents`, {
-          fileName,
-          fileType,
-          fileSize,
-          documentType,
-          uploadedFileURL,
+          method: "POST",
+          body: JSON.stringify({
+            fileName,
+            fileType,
+            fileSize,
+            documentType,
+            uploadedFileURL,
+          })
         });
       }
 
@@ -141,7 +143,7 @@ export default function ClaimsWorkflow() {
 
       toast({
         title: "Success",
-        description: `${result.successful.length} document(s) uploaded successfully.`,
+        description: `${result.successful?.length || 0} document(s) uploaded successfully.`,
       });
     } catch (error) {
       console.error("Error attaching documents:", error);
