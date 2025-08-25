@@ -328,6 +328,7 @@ export default function ClaimsWorkflow() {
   const onCreateClaim = async (data: any) => {
     console.log("Form submitted with data:", data);
     console.log("Form errors:", newClaimForm.formState.errors);
+    console.log("Form is valid:", newClaimForm.formState.isValid);
     
     try {
       // Generate a unique claim number
@@ -337,13 +338,15 @@ export default function ClaimsWorkflow() {
         ...data,
         claimNumber,
         incidentDate: new Date(data.incidentDate).toISOString(),
-        estimatedAmount: data.estimatedAmount ? parseFloat(data.estimatedAmount) : null,
+        estimatedAmount: data.estimatedAmount || null,
       };
       
       console.log("Sending claim data:", claimData);
+      console.log("About to call createClaimMutation.mutateAsync");
       
       // Create claim first
       const newClaim = await createClaimMutation.mutateAsync(claimData);
+      console.log("Claim created:", newClaim);
       
       // If files were uploaded, attach them to the newly created claim
       if (uploadedFiles.length > 0 && newClaim?.id) {
