@@ -219,9 +219,7 @@ export default function ClaimsWorkflow() {
   const createClaimMutation = useMutation({
     mutationFn: async (data: any) => apiRequest("/api/claims", "POST", data),
     onSuccess: () => {
-      toast({ title: "Success", description: "Claim created successfully" });
       queryClient.invalidateQueries({ queryKey: ["/api/claims"] });
-      setIsNewClaimOpen(false);
     },
     onError: () => {
       toast({ title: "Error", description: "Failed to create claim", variant: "destructive" });

@@ -1867,6 +1867,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // File upload endpoints for claims documents
+  // Get upload URL for file attachment (MUST come before :id route)
+  app.post("/api/claims/upload-url", auth, async (req: any, res) => {
+    try {
+      const objectStorageService = new ObjectStorageService();
+      const uploadURL = await objectStorageService.getObjectEntityUploadURL();
+      res.json({ uploadURL });
+    } catch (error) {
+      console.error("Error getting upload URL:", error);
+      res.status(500).json({ error: "Failed to get upload URL" });
+    }
+  });
+
   app.get('/api/claims/:id', auth, async (req: any, res) => {
     try {
       const { id } = req.params;
@@ -1878,19 +1891,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching claim:", error);
       res.status(500).json({ message: "Failed to fetch claim" });
-    }
-  });
-
-  // File upload endpoints for claims documents
-  // Get upload URL for file attachment
-  app.post("/api/claims/upload-url", auth, async (req: any, res) => {
-    try {
-      const objectStorageService = new ObjectStorageService();
-      const uploadURL = await objectStorageService.getObjectEntityUploadURL();
-      res.json({ uploadURL });
-    } catch (error) {
-      console.error("Error getting upload URL:", error);
-      res.status(500).json({ error: "Failed to get upload URL" });
     }
   });
 
