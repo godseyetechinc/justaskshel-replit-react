@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Search, Heart, Check, Star, ChevronLeft, ChevronRight, ArrowLeftRight, X, Plus } from "lucide-react";
+import { Search, Heart, Check, Star, ChevronLeft, ChevronRight, ArrowLeftRight, X, Plus, ChevronDown, ChevronUp } from "lucide-react";
 import { useLocation } from "wouter";
 import quoteComparisonImage from "@assets/generated_images/Quote_comparison_dashboard_94f4b5f2.png";
 
@@ -58,6 +58,18 @@ export default function Quotes() {
   const [searchFilters, setSearchFilters] = useState(() => {
     // Initialize from URL params
     const urlParams = new URLSearchParams(window.location.search);
+    
+    // Parse children from URL parameters
+    const children = [];
+    let childIndex = 0;
+    while (urlParams.get(`child_${childIndex}_age`)) {
+      children.push({
+        id: `child_${childIndex}`,
+        age: urlParams.get(`child_${childIndex}_age`) || ""
+      });
+      childIndex++;
+    }
+
     return {
       typeId: urlParams.get('typeId') || "",
       ageRange: urlParams.get('ageRange') || "",
@@ -68,12 +80,15 @@ export default function Quotes() {
       effectiveDate: urlParams.get('effectiveDate') || "",
       hasSpouse: urlParams.get('hasSpouse') === 'true',
       spouseAge: urlParams.get('spouseAge') || "",
+      children: children,
     };
   });
 
   const [visitorWishlist, setVisitorWishlistState] = useState<number[]>([]);
   const [visitorSelectedQuotes, setVisitorSelectedQuotesState] = useState<number[]>([]);
   const [showComparison, setShowComparison] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showDependents, setShowDependents] = useState(false);
 
   // Initialize visitor storage on mount
   useEffect(() => {
@@ -311,6 +326,34 @@ export default function Quotes() {
     return currentlySelected.length < 5;
   };
 
+  // Children management functions
+  const addChild = () => {
+    const newChild = {
+      id: Date.now().toString(),
+      age: ""
+    };
+    setSearchFilters(prev => ({
+      ...prev,
+      children: [...prev.children, newChild]
+    }));
+  };
+
+  const removeChild = (id: string) => {
+    setSearchFilters(prev => ({
+      ...prev,
+      children: prev.children.filter(child => child.id !== id)
+    }));
+  };
+
+  const updateChildAge = (id: string, age: string) => {
+    setSearchFilters(prev => ({
+      ...prev,
+      children: prev.children.map(child => 
+        child.id === id ? { ...child, age } : child
+      )
+    }));
+  };
+
   // Get comparison data
   const getComparisonQuotes = () => {
     if (!allQuotes) return [];
@@ -455,11 +498,14 @@ export default function Quotes() {
             <CardTitle>Search for Quotes</CardTitle>
           </CardHeader>
           <CardContent>
+            {/* Basic Fields */}
             <div className="grid md:grid-cols-4 gap-4 mb-6">
               <div>
-                <Label htmlFor="coverageType">Coverage Type</Label>
+                <Label htmlFor="coverageType" className="block text-sm font-medium text-gray-700 mb-2">
+                  Coverage Type
+                </Label>
                 <Select value={searchFilters.typeId} onValueChange={(value) => setSearchFilters(prev => ({ ...prev, typeId: value }))}>
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select Type" />
                   </SelectTrigger>
                   <SelectContent>
@@ -473,9 +519,11 @@ export default function Quotes() {
               </div>
               
               <div>
-                <Label htmlFor="age">Age Range</Label>
+                <Label htmlFor="age" className="block text-sm font-medium text-gray-700 mb-2">
+                  Age
+                </Label>
                 <Select value={searchFilters.ageRange} onValueChange={(value) => setSearchFilters(prev => ({ ...prev, ageRange: value }))}>
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select Age" />
                   </SelectTrigger>
                   <SelectContent>
@@ -490,20 +538,25 @@ export default function Quotes() {
               </div>
 
               <div>
-                <Label htmlFor="zipCode">ZIP Code</Label>
+                <Label htmlFor="zipCode" className="block text-sm font-medium text-gray-700 mb-2">
+                  ZIP Code
+                </Label>
                 <Input
                   id="zipCode"
                   placeholder="Enter ZIP"
                   value={searchFilters.zipCode}
                   onChange={(e) => setSearchFilters(prev => ({ ...prev, zipCode: e.target.value }))}
+                  className="w-full"
                   data-testid="input-zip-code"
                 />
               </div>
 
               <div>
-                <Label htmlFor="coverageAmount">Coverage Amount</Label>
+                <Label htmlFor="coverageAmount" className="block text-sm font-medium text-gray-700 mb-2">
+                  Coverage Amount
+                </Label>
                 <Select value={searchFilters.coverageAmount} onValueChange={(value) => setSearchFilters(prev => ({ ...prev, coverageAmount: value }))}>
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select Amount" />
                   </SelectTrigger>
                   <SelectContent>
@@ -516,8 +569,193 @@ export default function Quotes() {
                 </Select>
               </div>
             </div>
+
+            {/* Advanced Options Toggle */}
+            <div className="mb-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowAdvanced(!showAdvanced)}
+                className="text-gray-600 hover:text-gray-800"
+                data-testid="toggle-advanced-options"
+              >
+                {showAdvanced ? <ChevronUp className="h-4 w-4 mr-2" /> : <ChevronDown className="h-4 w-4 mr-2" />}
+                Advanced Options
+              </Button>
+            </div>
+
+            {/* Advanced Fields */}
+            {showAdvanced && (
+              <div className="border-t pt-6 mb-6">
+                <div className="grid md:grid-cols-3 gap-4 mb-6">
+                  <div>
+                    <Label htmlFor="paymentCycle" className="block text-sm font-medium text-gray-700 mb-2">
+                      Payment Cycle
+                    </Label>
+                    <Select value={searchFilters.paymentCycle} onValueChange={(value) => setSearchFilters(prev => ({ ...prev, paymentCycle: value }))}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select Payment" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="monthly">Monthly</SelectItem>
+                        <SelectItem value="quarterly">Quarterly</SelectItem>
+                        <SelectItem value="semi-annually">Semi-Annually</SelectItem>
+                        <SelectItem value="annually">Annually</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="termLength" className="block text-sm font-medium text-gray-700 mb-2">
+                      Term Length
+                    </Label>
+                    <Select value={searchFilters.termLength} onValueChange={(value) => setSearchFilters(prev => ({ ...prev, termLength: value }))}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select Term" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="10">10 Years</SelectItem>
+                        <SelectItem value="15">15 Years</SelectItem>
+                        <SelectItem value="20">20 Years</SelectItem>
+                        <SelectItem value="25">25 Years</SelectItem>
+                        <SelectItem value="30">30 Years</SelectItem>
+                        <SelectItem value="whole-life">Whole Life</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="effectiveDate" className="block text-sm font-medium text-gray-700 mb-2">
+                      Effective Date
+                    </Label>
+                    <Input
+                      id="effectiveDate"
+                      type="date"
+                      value={searchFilters.effectiveDate}
+                      onChange={(e) => setSearchFilters(prev => ({ ...prev, effectiveDate: e.target.value }))}
+                      className="w-full"
+                      min={new Date().toISOString().split('T')[0]}
+                    />
+                  </div>
+                </div>
+
+                {/* Dependents Toggle */}
+                <div className="mb-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowDependents(!showDependents)}
+                    className="text-gray-600 hover:text-gray-800"
+                    data-testid="toggle-dependents"
+                  >
+                    {showDependents ? <ChevronUp className="h-4 w-4 mr-2" /> : <ChevronDown className="h-4 w-4 mr-2" />}
+                    Add Dependents
+                  </Button>
+                </div>
+
+                {/* Dependents Section */}
+                {showDependents && (
+                  <div className="border-t pt-4 space-y-4">
+                    {/* Spouse Section */}
+                    <div className="flex items-center space-x-3 mb-4">
+                      <Checkbox
+                        id="hasSpouse"
+                        checked={searchFilters.hasSpouse}
+                        onCheckedChange={(checked) => setSearchFilters(prev => ({ 
+                          ...prev, 
+                          hasSpouse: !!checked,
+                          spouseAge: checked ? prev.spouseAge : ""
+                        }))}
+                        data-testid="checkbox-spouse"
+                      />
+                      <Label htmlFor="hasSpouse" className="text-sm font-medium text-gray-700">
+                        Include Spouse
+                      </Label>
+                      {searchFilters.hasSpouse && (
+                        <div className="flex-1 max-w-xs">
+                          <Select 
+                            value={searchFilters.spouseAge} 
+                            onValueChange={(value) => setSearchFilters(prev => ({ ...prev, spouseAge: value }))}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Spouse Age" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="18-25">18-25</SelectItem>
+                              <SelectItem value="26-35">26-35</SelectItem>
+                              <SelectItem value="36-45">36-45</SelectItem>
+                              <SelectItem value="46-55">46-55</SelectItem>
+                              <SelectItem value="56-65">56-65</SelectItem>
+                              <SelectItem value="65+">65+</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Children Section */}
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <Label className="text-sm font-medium text-gray-700">Children</Label>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={addChild}
+                          className="text-blue-600 hover:text-blue-800"
+                          data-testid="button-add-child"
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          Add Child
+                        </Button>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        {searchFilters.children.map((child, index) => (
+                          <div key={child.id} className="flex items-center space-x-2">
+                            <Label className="text-sm text-gray-600 w-16">
+                              Child {index + 1}:
+                            </Label>
+                            <Select 
+                              value={child.age} 
+                              onValueChange={(value) => updateChildAge(child.id, value)}
+                            >
+                              <SelectTrigger className="flex-1">
+                                <SelectValue placeholder="Select Age" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="0-2">0-2 years</SelectItem>
+                                <SelectItem value="3-5">3-5 years</SelectItem>
+                                <SelectItem value="6-12">6-12 years</SelectItem>
+                                <SelectItem value="13-17">13-17 years</SelectItem>
+                                <SelectItem value="18-25">18-25 years</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => removeChild(child.id)}
+                              className="text-red-600 hover:text-red-800"
+                              data-testid={`button-remove-child-${index}`}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
             
-            <Button onClick={handleSearch} className="w-full" size="lg" data-testid="button-search-quotes">
+            <Button 
+              onClick={handleSearch}
+              className="w-full font-semibold py-4 px-8 text-lg"
+              size="lg"
+              data-testid="button-search-quotes"
+            >
               <Search className="h-5 w-5 mr-2" />
               Find My Quotes
             </Button>
