@@ -79,20 +79,58 @@ export const insuranceProviders = pgTable("insurance_providers", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Insurance quotes
+// Insurance quotes - Enhanced to support both internal and external provider quotes
 export const insuranceQuotes = pgTable("insurance_quotes", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").references(() => users.id),
   typeId: integer("type_id").references(() => insuranceTypes.id),
   providerId: integer("provider_id").references(() => insuranceProviders.id),
   monthlyPremium: decimal("monthly_premium", { precision: 10, scale: 2 }).notNull(),
+  annualPremium: decimal("annual_premium", { precision: 10, scale: 2 }),
   coverageAmount: decimal("coverage_amount", { precision: 12, scale: 2 }),
   termLength: integer("term_length"), // in years
   deductible: decimal("deductible", { precision: 10, scale: 2 }),
   medicalExamRequired: boolean("medical_exam_required").default(false),
   conversionOption: boolean("conversion_option").default(false),
   features: jsonb("features"), // array of features
+  rating: decimal("rating", { precision: 2, scale: 1 }),
+  // External provider integration fields
+  isExternal: boolean("is_external").default(false),
+  externalQuoteId: varchar("external_quote_id", { length: 255 }),
+  externalProviderId: varchar("external_provider_id", { length: 100 }),
+  externalProviderName: varchar("external_provider_name", { length: 255 }),
+  applicationUrl: varchar("application_url", { length: 500 }),
+  expiresAt: timestamp("expires_at"),
+  metadata: jsonb("metadata"), // Store API response and additional data
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// External quote requests - Track real-time API quote requests
+export const externalQuoteRequests = pgTable("external_quote_requests", {
+  id: serial("id").primaryKey(),
+  requestId: varchar("request_id", { length: 100 }).notNull().unique(),
+  userId: varchar("user_id").references(() => users.id),
+  coverageType: varchar("coverage_type", { length: 100 }).notNull(),
+  applicantAge: integer("applicant_age").notNull(),
+  zipCode: varchar("zip_code", { length: 10 }).notNull(),
+  coverageAmount: decimal("coverage_amount", { precision: 12, scale: 2 }).notNull(),
+  termLength: integer("term_length"),
+  paymentFrequency: varchar("payment_frequency", { length: 20 }),
+  effectiveDate: timestamp("effective_date"),
+  requestData: jsonb("request_data"), // Full request payload
+  providersQueried: jsonb("providers_queried"), // List of providers contacted
+  totalQuotesReceived: integer("total_quotes_received").default(0),
+  successfulProviders: integer("successful_providers").default(0),
+  failedProviders: integer("failed_providers").default(0),
+  errors: jsonb("errors"), // Provider errors and issues
+  status: varchar("status", { 
+    enum: ["pending", "processing", "completed", "failed", "expired"] 
+  }).default("pending"),
+  processingStartedAt: timestamp("processing_started_at"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // User selected quotes
@@ -1049,11 +1087,28 @@ export const insertRoleSchema = createInsertSchema(roles).omit({
   updatedAt: true,
 });
 
+export const insertExternalQuoteRequestSchema = createInsertSchema(externalQuoteRequests).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Enhanced quote schema that includes external provider fields
+export const insertQuoteSchema = createInsertSchema(insuranceQuotes).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type Role = typeof roles.$inferSelect;
+export type InsuranceQuote = typeof insuranceQuotes.$inferSelect;
+export type ExternalQuoteRequest = typeof externalQuoteRequests.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertRole = z.infer<typeof insertRoleSchema>;
+export type InsertQuote = z.infer<typeof insertQuoteSchema>;
+export type InsertExternalQuoteRequest = z.infer<typeof insertExternalQuoteRequestSchema>;
 
 // Role-based authorization types
 export type UserRole = "SuperAdmin" | "TenantAdmin" | "Agent" | "Member" | "Guest" | "Visitor";

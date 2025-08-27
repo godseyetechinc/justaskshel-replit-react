@@ -5,6 +5,9 @@ import { createSessionConfig } from "./replitAuth";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
 import bcrypt from "bcryptjs";
+import { quoteAggregator } from "./insuranceApiClient";
+import { QuoteNormalizationService } from "./quoteNormalizationService";
+import { QuoteRequest } from "./insuranceProviderConfig";
 import {
   insertInsuranceQuoteSchema,
   insertSelectedQuoteSchema,
@@ -28,6 +31,7 @@ import {
   insertPolicyDocumentSchema,
   insertPremiumPaymentSchema,
   insertPolicyAmendmentSchema,
+  insertExternalQuoteRequestSchema,
   loginSchema,
   signupSchema,
   memberProfileSchema,
@@ -386,17 +390,141 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Quote search
+  // Enhanced quote search with external provider integration
   app.get('/api/quotes/search', async (req, res) => {
     try {
-      const { typeId, ageRange, zipCode, coverageAmount } = req.query;
-      const quotes = await storage.searchQuotes({
+      const { typeId, ageRange, zipCode, coverageAmount, includeExternal = "true", userId } = req.query;
+      
+      // Get internal quotes first
+      const internalQuotes = await storage.searchQuotes({
         typeId: typeId ? parseInt(typeId as string) : undefined,
         ageRange: ageRange as string,
         zipCode: zipCode as string,
         coverageAmount: coverageAmount as string,
       });
-      res.json(quotes);
+
+      // If external quotes are not requested, return only internal
+      if (includeExternal !== "true") {
+        return res.json({
+          quotes: internalQuotes,
+          providers: { total: 0, successful: 0, failed: 0, errors: [] },
+          requestId: null,
+          source: "internal_only"
+        });
+      }
+
+      // Prepare external API request
+      const coverageTypeName = typeId ? await storage.getInsuranceTypeName(parseInt(typeId as string)) : "Life Insurance";
+      
+      // Parse age from ageRange (e.g., "25-35" -> 30, "35+" -> 35)
+      let applicantAge = 30; // default
+      if (ageRange) {
+        const ageMatch = ageRange.toString().match(/(\d+)/);
+        if (ageMatch) {
+          applicantAge = parseInt(ageMatch[1]);
+        }
+      }
+
+      // Validate zip code format
+      const zipCodeStr = zipCode?.toString() || "10001";
+      const validZipCode = /^\d{5}$/.test(zipCodeStr) ? zipCodeStr : "10001";
+
+      // Parse coverage amount
+      const coverageAmountNum = coverageAmount ? 
+        parseFloat(coverageAmount.toString().replace(/[,$]/g, "")) : 100000;
+
+      const externalRequest: QuoteRequest = {
+        coverageType: coverageTypeName,
+        applicantAge,
+        zipCode: validZipCode,
+        coverageAmount: coverageAmountNum,
+        termLength: 20, // default term
+        paymentFrequency: "monthly",
+      };
+
+      // Log external request for tracking
+      let requestRecord = null;
+      try {
+        requestRecord = await storage.createExternalQuoteRequest({
+          requestId: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          userId: userId as string || null,
+          coverageType: coverageTypeName,
+          applicantAge,
+          zipCode: validZipCode,
+          coverageAmount: coverageAmountNum.toString(),
+          termLength: 20,
+          paymentFrequency: "monthly",
+          requestData: externalRequest,
+          status: "processing",
+          processingStartedAt: new Date(),
+        });
+      } catch (error) {
+        console.warn("Could not create external quote request record:", error);
+      }
+
+      // Get external quotes concurrently
+      let externalResult = null;
+      try {
+        externalResult = await quoteAggregator.getQuotes(externalRequest);
+        
+        // Update request record with results
+        if (requestRecord) {
+          await storage.updateExternalQuoteRequest(requestRecord.requestId, {
+            totalQuotesReceived: externalResult.quotes.length,
+            successfulProviders: externalResult.providers.successful,
+            failedProviders: externalResult.providers.failed,
+            errors: externalResult.providers.errors,
+            status: "completed",
+            completedAt: new Date(),
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching external quotes:", error);
+        
+        // Update request record with failure
+        if (requestRecord) {
+          await storage.updateExternalQuoteRequest(requestRecord.requestId, {
+            status: "failed",
+            errors: [{ providerId: "system", error: error.message }],
+            completedAt: new Date(),
+          });
+        }
+        
+        // Return internal quotes only if external fails
+        return res.json({
+          quotes: internalQuotes,
+          providers: { total: 0, successful: 0, failed: 1, errors: [{ providerId: "system", error: "External provider error" }] },
+          requestId: requestRecord?.requestId || null,
+          source: "internal_fallback"
+        });
+      }
+
+      // Normalize and merge external quotes with internal quotes
+      const normalizedExternal = QuoteNormalizationService.normalizeExternalQuotes(
+        externalResult.quotes,
+        userId as string,
+        typeId ? parseInt(typeId as string) : undefined
+      );
+
+      const mergedQuotes = QuoteNormalizationService.mergeQuotes(normalizedExternal, internalQuotes);
+      
+      // Apply filtering and sorting
+      const filteredQuotes = QuoteNormalizationService.filterQuotes(mergedQuotes, {
+        maxMonthlyPremium: 1000, // reasonable upper limit
+        minCoverageAmount: coverageAmountNum * 0.5, // at least 50% of requested amount
+      });
+
+      // Enrich for display
+      const enrichedQuotes = QuoteNormalizationService.enrichQuotesForDisplay(filteredQuotes);
+
+      res.json({
+        quotes: enrichedQuotes,
+        providers: externalResult.providers,
+        requestId: externalResult.requestId,
+        summary: QuoteNormalizationService.generateComparisonSummary(enrichedQuotes),
+        source: "combined"
+      });
+
     } catch (error) {
       console.error("Error searching quotes:", error);
       res.status(500).json({ message: "Failed to search quotes" });

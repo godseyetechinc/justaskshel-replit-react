@@ -13,6 +13,7 @@ import {
   insuranceTypes,
   insuranceProviders,
   insuranceQuotes,
+  externalQuoteRequests,
   selectedQuotes,
   wishlist,
   policies,
@@ -73,6 +74,8 @@ import {
   type InsertPremiumPayment,
   type PolicyAmendment,
   type InsertPolicyAmendment,
+  type ExternalQuoteRequest,
+  type InsertExternalQuoteRequest,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc } from "drizzle-orm";
@@ -91,9 +94,14 @@ export interface IStorage {
   
   // Insurance types
   getInsuranceTypes(): Promise<InsuranceType[]>;
+  getInsuranceTypeName(id: number): Promise<string>;
   
   // Insurance providers
   getInsuranceProviders(): Promise<InsuranceProvider[]>;
+
+  // External quote requests
+  createExternalQuoteRequest(data: InsertExternalQuoteRequest): Promise<ExternalQuoteRequest>;
+  updateExternalQuoteRequest(requestId: string, data: Partial<ExternalQuoteRequest>): Promise<void>;
   
   // Insurance quotes
   searchQuotes(filters: {
@@ -341,6 +349,27 @@ export class DatabaseStorage implements IStorage {
   // Insurance providers
   async getInsuranceProviders(): Promise<InsuranceProvider[]> {
     return await db.select().from(insuranceProviders);
+  }
+
+  async getInsuranceTypeName(id: number): Promise<string> {
+    const [type] = await db.select({ name: insuranceTypes.name }).from(insuranceTypes).where(eq(insuranceTypes.id, id));
+    return type?.name || "Life Insurance";
+  }
+
+  // External quote requests
+  async createExternalQuoteRequest(data: InsertExternalQuoteRequest): Promise<ExternalQuoteRequest> {
+    const [request] = await db
+      .insert(externalQuoteRequests)
+      .values(data)
+      .returning();
+    return request;
+  }
+
+  async updateExternalQuoteRequest(requestId: string, data: Partial<ExternalQuoteRequest>): Promise<void> {
+    await db
+      .update(externalQuoteRequests)
+      .set(data)
+      .where(eq(externalQuoteRequests.requestId, requestId));
   }
 
   // Insurance quotes
