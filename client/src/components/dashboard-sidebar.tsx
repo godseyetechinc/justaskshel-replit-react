@@ -113,7 +113,7 @@ const menuItems: MenuItem[] = [
     id: "claims",
     label: "Claims Workflow",
     icon: FileText,
-    href: "/dashboard/claims",
+    href: "/dashboard/claims-workflow",
     roles: ["SuperAdmin", "TenantAdmin", "Agent", "Member"],
   },
   {
