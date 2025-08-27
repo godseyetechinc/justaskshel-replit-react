@@ -75,15 +75,15 @@ export default function Navigation() {
               <div className="flex items-baseline space-x-4">
                 {navigation.map((item) => (
                   <Link key={item.name} href={item.href}>
-                    <a
-                      className={`px-4 py-2 text-sm font-medium transition-all duration-200 rounded-md ${
+                    <span
+                      className={`px-4 py-2 text-sm font-medium transition-all duration-200 rounded-md cursor-pointer ${
                         isActive(item.href)
                           ? "text-white bg-primary shadow-md"
                           : "text-gray-700 hover:text-primary hover:bg-gray-50"
                       }`}
                     >
                       {item.name}
-                    </a>
+                    </span>
                   </Link>
                 ))}
 
@@ -105,14 +105,14 @@ export default function Navigation() {
                   <DropdownMenuContent className="w-56">
                     <DropdownMenuItem asChild>
                       <Link href="/insurance-types">
-                        <a className="w-full">View All Coverage Types</a>
+                        <span className="w-full">View All Coverage Types</span>
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     {coverageTypes.map((type) => (
                       <DropdownMenuItem key={type.name} asChild>
                         <Link href={type.href}>
-                          <a className="w-full">{type.name}</a>
+                          <span className="w-full">{type.name}</span>
                         </Link>
                       </DropdownMenuItem>
                     ))}
@@ -249,8 +249,8 @@ export default function Navigation() {
             <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 border-t border-gray-200">
               {navigation.map((item) => (
                 <Link key={item.name} href={item.href}>
-                  <a
-                    className={`block px-3 py-2 text-base font-medium transition-colors ${
+                  <span
+                    className={`block px-3 py-2 text-base font-medium transition-colors cursor-pointer ${
                       isActive(item.href)
                         ? "text-primary bg-primary/10"
                         : "text-gray-500 hover:text-primary hover:bg-gray-50"
@@ -258,15 +258,15 @@ export default function Navigation() {
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     {item.name}
-                  </a>
+                  </span>
                 </Link>
               ))}
 
               {/* Coverage Types Section */}
               <div className="pt-2">
                 <Link href="/insurance-types">
-                  <a
-                    className={`block px-3 py-2 text-base font-medium transition-colors ${
+                  <span
+                    className={`block px-3 py-2 text-base font-medium transition-colors cursor-pointer ${
                       isActive("/insurance-types")
                         ? "text-primary bg-primary/10"
                         : "text-gray-500 hover:text-primary hover:bg-gray-50"
@@ -274,13 +274,13 @@ export default function Navigation() {
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     All Coverage Types
-                  </a>
+                  </span>
                 </Link>
 
                 {coverageTypes.map((type) => (
                   <Link key={type.name} href={type.href}>
-                    <a
-                      className={`block px-6 py-2 text-sm font-medium transition-colors ${
+                    <span
+                      className={`block px-6 py-2 text-sm font-medium transition-colors cursor-pointer ${
                         isActive(type.href)
                           ? "text-primary bg-primary/10"
                           : "text-gray-400 hover:text-primary hover:bg-gray-50"
@@ -288,7 +288,7 @@ export default function Navigation() {
                       onClick={() => setMobileMenuOpen(false)}
                     >
                       {type.name}
-                    </a>
+                    </span>
                   </Link>
                 ))}
               </div>
@@ -298,21 +298,21 @@ export default function Navigation() {
                 {isAuthenticated && user ? (
                   <>
                     <Link href="/dashboard">
-                      <a
-                        className="flex items-center px-3 py-2 text-base font-medium text-gray-700 hover:text-primary hover:bg-gray-50 rounded-md border border-gray-300"
+                      <span
+                        className="flex items-center px-3 py-2 text-base font-medium text-gray-700 hover:text-primary hover:bg-gray-50 rounded-md border border-gray-300 cursor-pointer"
                         onClick={() => setMobileMenuOpen(false)}
                       >
                         <Settings className="h-4 w-4 mr-2" />
                         Dashboard
-                      </a>
+                      </span>
                     </Link>
                     <Link href="/quotes">
-                      <a
-                        className="block px-3 py-2 text-base font-medium text-gray-500 hover:text-primary hover:bg-gray-50"
+                      <span
+                        className="block px-3 py-2 text-base font-medium text-gray-500 hover:text-primary hover:bg-gray-50 cursor-pointer"
                         onClick={() => setMobileMenuOpen(false)}
                       >
                         My Quotes
-                      </a>
+                      </span>
                     </Link>
                     <button
                       className="block w-full text-left px-3 py-2 text-base font-medium text-gray-500 hover:text-primary hover:bg-gray-50"
@@ -328,20 +328,20 @@ export default function Navigation() {
                 ) : (
                   <>
                     <Link href="/login">
-                      <a
-                        className="block px-3 py-2 text-base font-medium text-gray-500 hover:text-primary hover:bg-gray-50"
+                      <span
+                        className="block px-3 py-2 text-base font-medium text-gray-500 hover:text-primary hover:bg-gray-50 cursor-pointer"
                         onClick={() => setMobileMenuOpen(false)}
                       >
                         Sign In
-                      </a>
+                      </span>
                     </Link>
                     <Link href="/signup">
-                      <a
-                        className="block px-3 py-2 text-base font-medium text-primary hover:bg-primary/10"
+                      <span
+                        className="block px-3 py-2 text-base font-medium text-primary hover:bg-primary/10 cursor-pointer"
                         onClick={() => setMobileMenuOpen(false)}
                       >
                         Get Started
-                      </a>
+                      </span>
                     </Link>
                   </>
                 )}
