@@ -78,7 +78,7 @@ import {
   type InsertExternalQuoteRequest,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, count } from "drizzle-orm";
 
 // Interface for storage operations
 export interface IStorage {

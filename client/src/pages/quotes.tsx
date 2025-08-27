@@ -243,7 +243,7 @@ export default function Quotes() {
   };
 
   // Pagination logic
-  const sortedQuotes = sortQuotes(allQuotes);
+  const sortedQuotes = sortQuotes(allQuotes?.quotes || allQuotes || []);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const quotes = sortedQuotes?.slice(startIndex, endIndex) || [];
@@ -431,7 +431,8 @@ export default function Quotes() {
   // Get comparison data
   const getComparisonQuotes = () => {
     if (!allQuotes) return [];
-    return allQuotes.filter((quote: any) => currentlySelected.includes(quote.id));
+    const quotesArray = allQuotes?.quotes || allQuotes || [];
+    return quotesArray.filter((quote: any) => currentlySelected.includes(quote.id));
   };
 
   const ComparisonModal = () => {
@@ -1129,7 +1130,7 @@ export default function Quotes() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {allQuotes?.filter((quote: any) => currentWishlistIds.includes(quote.id)).map((quote: any) => (
+                    {(allQuotes?.quotes || allQuotes || [])?.filter((quote: any) => currentWishlistIds.includes(quote.id)).map((quote: any) => (
                       <div key={quote.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                         <div>
                           <div className="font-medium">{quote.provider.name}</div>
