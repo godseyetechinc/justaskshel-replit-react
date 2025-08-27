@@ -98,6 +98,28 @@ export default function Quotes() {
     }
   }, [isAuthenticated]);
 
+  // Auto-expand advanced sections if they contain data from URL and trigger search
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const hasSearchParams = urlParams.has('typeId') || urlParams.has('ageRange') || 
+                           urlParams.has('zipCode') || urlParams.has('coverageAmount');
+    const hasAdvancedParams = urlParams.has('paymentCycle') || urlParams.has('termLength') || 
+                             urlParams.has('effectiveDate') || urlParams.has('hasSpouse');
+    const hasChildrenParams = Array.from(urlParams.keys()).some(key => key.startsWith('child_'));
+    
+    if (hasAdvancedParams || hasChildrenParams) {
+      setShowAdvanced(true);
+    }
+    if (hasChildrenParams || urlParams.has('hasSpouse')) {
+      setShowDependents(true);
+    }
+    
+    if (hasSearchParams) {
+      // Trigger search automatically when coming from home page
+      setShouldSearch(true);
+    }
+  }, []);
+
   // Sync visitor data after login
   useEffect(() => {
     if (isAuthenticated && user) {
@@ -146,12 +168,19 @@ export default function Quotes() {
     queryKey: ["/api/insurance-types"],
   });
 
+  // State to control when to search
+  const [shouldSearch, setShouldSearch] = useState(false);
+
   const { data: allQuotes, isLoading: quotesLoading, refetch: refetchQuotes } = useQuery({
     queryKey: ["/api/quotes/search", searchFilters],
     queryFn: async () => {
       const params = new URLSearchParams();
       Object.entries(searchFilters).forEach(([key, value]) => {
-        if (value && typeof value !== 'boolean') {
+        if (key === 'children' && Array.isArray(value)) {
+          value.forEach((child, index) => {
+            if (child.age) params.append(`child_${index}_age`, child.age);
+          });
+        } else if (value && typeof value !== 'boolean') {
           params.append(key, value.toString());
         } else if (typeof value === 'boolean' && value) {
           params.append(key, 'true');
@@ -161,7 +190,7 @@ export default function Quotes() {
       if (!response.ok) throw new Error('Failed to fetch quotes');
       return response.json();
     },
-    enabled: false,
+    enabled: shouldSearch,
   });
 
   const { data: selectedQuotes } = useQuery({
@@ -311,7 +340,7 @@ export default function Quotes() {
 
   const handleSearch = () => {
     setCurrentPage(1); // Reset to first page on new search
-    refetchQuotes();
+    setShouldSearch(true);
   };
 
   const isQuoteSelected = (quoteId: number) => {
