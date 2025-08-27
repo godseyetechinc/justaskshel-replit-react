@@ -327,9 +327,17 @@ export default function ClaimsWorkflow() {
   };
 
   const onCreateClaim = async (data: any) => {
+    console.log("=== CLAIM CREATION DEBUG ===");
     console.log("Form submitted with data:", data);
     console.log("Form errors:", newClaimForm.formState.errors);
     console.log("Form is valid:", newClaimForm.formState.isValid);
+    console.log("Form dirty fields:", newClaimForm.formState.dirtyFields);
+    
+    // Don't proceed if form has validation errors
+    if (!newClaimForm.formState.isValid) {
+      console.log("Form is invalid, not proceeding with submission");
+      return;
+    }
     
     let claimCreated = false;
     let newClaimId: number | null = null;
@@ -350,7 +358,7 @@ export default function ClaimsWorkflow() {
       
       // Create claim first
       const newClaim = await createClaimMutation.mutateAsync(claimData);
-      console.log("Claim created:", newClaim);
+      console.log("Claim created successfully:", newClaim);
       claimCreated = true;
       newClaimId = newClaim?.id;
       
