@@ -228,7 +228,8 @@ export default function ClaimsWorkflow() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/claims"] });
     },
-    onError: () => {
+    onError: (error) => {
+      console.error("Create claim mutation error:", error);
       toast({ title: "Error", description: "Failed to create claim", variant: "destructive" });
     },
   });
@@ -330,6 +331,9 @@ export default function ClaimsWorkflow() {
     console.log("Form errors:", newClaimForm.formState.errors);
     console.log("Form is valid:", newClaimForm.formState.isValid);
     
+    let claimCreated = false;
+    let newClaimId: number | null = null;
+    
     try {
       // Generate a unique claim number
       const claimNumber = `CLM-${Date.now()}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
@@ -347,28 +351,50 @@ export default function ClaimsWorkflow() {
       // Create claim first
       const newClaim = await createClaimMutation.mutateAsync(claimData);
       console.log("Claim created:", newClaim);
+      claimCreated = true;
+      newClaimId = newClaim?.id;
       
-      // If files were uploaded, attach them to the newly created claim
+      // Try to attach files if they exist, but don't let file attachment failures prevent claim creation success
       if (uploadedFiles.length > 0 && newClaim?.id) {
-        for (const file of uploadedFiles) {
-          const documentType = file.fileType.includes('pdf') ? 'receipt' : 
-                             file.fileType.includes('image') ? 'photo' : 
-                             file.fileType.includes('word') || file.fileType.includes('doc') ? 'medical_record' : 'other';
-          
-          await apiRequest(`/api/claims/${newClaim.id}/documents`, {
-            method: "POST",
-            body: JSON.stringify({
-              fileName: file.fileName,
-              fileType: file.fileType,
-              fileSize: file.fileSize,
-              documentType,
-              uploadedFileURL: file.uploadURL,
-            }),
+        try {
+          for (const file of uploadedFiles) {
+            const documentType = file.fileType.includes('pdf') ? 'receipt' : 
+                               file.fileType.includes('image') ? 'photo' : 
+                               file.fileType.includes('word') || file.fileType.includes('doc') ? 'medical_record' : 'other';
+            
+            await apiRequest(`/api/claims/${newClaim.id}/documents`, {
+              method: "POST",
+              body: JSON.stringify({
+                fileName: file.fileName,
+                fileType: file.fileType,
+                fileSize: file.fileSize,
+                documentType,
+                uploadedFileURL: file.uploadURL,
+              }),
+            });
+          }
+        } catch (fileError) {
+          console.error("Error attaching files (but claim was created):", fileError);
+          toast({
+            title: "Partial Success",
+            description: "Claim created successfully, but some file attachments failed. You can add them later.",
+            variant: "default",
           });
         }
       }
       
-      // Reset form and state
+    } catch (error) {
+      console.error("Error creating claim:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create claim. Please try again.",
+        variant: "destructive",
+      });
+      return; // Exit early if claim creation failed
+    }
+    
+    // Always close modal and reset form if claim was created successfully
+    if (claimCreated) {
       newClaimForm.reset();
       setUploadedFiles([]);
       setIsNewClaimOpen(false);
@@ -376,13 +402,6 @@ export default function ClaimsWorkflow() {
       toast({
         title: "Success",
         description: "Claim created successfully" + (uploadedFiles.length > 0 ? ` with ${uploadedFiles.length} attached document(s)` : ""),
-      });
-    } catch (error) {
-      console.error("Error creating claim:", error);
-      toast({
-        title: "Error",
-        description: "Failed to create claim. Please try again.",
-        variant: "destructive",
       });
     }
   };
@@ -683,10 +702,22 @@ export default function ClaimsWorkflow() {
                     )}
                   </div>
                   <div className="flex justify-end gap-2">
-                    <Button type="button" variant="outline" onClick={() => setIsNewClaimOpen(false)}>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={() => {
+                        setIsNewClaimOpen(false);
+                        newClaimForm.reset();
+                        setUploadedFiles([]);
+                      }}
+                    >
                       Cancel
                     </Button>
-                    <Button type="submit" disabled={createClaimMutation.isPending}>
+                    <Button 
+                      type="submit" 
+                      disabled={createClaimMutation.isPending}
+                      data-testid="button-create-claim"
+                    >
                       {createClaimMutation.isPending ? "Creating..." : "Create Claim"}
                     </Button>
                   </div>
