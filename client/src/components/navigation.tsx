@@ -2,7 +2,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useRoleAuth } from "@/hooks/useRoleAuth";
 import { useLogout } from "@/hooks/useLogout";
 import { Button } from "@/components/ui/button";
-import { Shield, Menu, X, ChevronDown, Settings } from "lucide-react";
+import { Shield, Menu, X, ChevronDown, Settings, Heart } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import jasBrandLogo from "@/assets/jas-brand-logo.svg";
@@ -25,6 +26,14 @@ export default function Navigation() {
   
   // Type-safe user object
   const typedUser = user as any;
+
+  // Fetch wishlist count
+  const { data: wishlist } = useQuery({
+    queryKey: ["/api/wishlist"],
+    enabled: isAuthenticated,
+  });
+
+  const wishlistCount = wishlist?.length || 0;
 
   const navigation = [
     { name: "Home", href: "/" },
@@ -126,6 +135,18 @@ export default function Navigation() {
           <div className="hidden md:flex items-center space-x-4">
             {isAuthenticated && user ? (
               <>
+                {/* Wishlist Button with Count Badge */}
+                <Link href="/dashboard/wishlist">
+                  <Button variant="outline" size="sm" className="relative">
+                    <Heart className="h-4 w-4 mr-2" />
+                    Wishlist
+                    {wishlistCount > 0 && (
+                      <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                        {wishlistCount}
+                      </span>
+                    )}
+                  </Button>
+                </Link>
                 <Link href="/dashboard">
                   <Button variant="outline" size="sm">
                     <Settings className="h-4 w-4 mr-2" />
@@ -168,6 +189,18 @@ export default function Navigation() {
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
                       <Link href="/dashboard">Dashboard</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/dashboard/wishlist">
+                        <div className="flex items-center justify-between w-full">
+                          <span>Wishlist</span>
+                          {wishlistCount > 0 && (
+                            <span className="bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                              {wishlistCount}
+                            </span>
+                          )}
+                        </div>
+                      </Link>
                     </DropdownMenuItem>
                     
                     <RoleGuard requiredRoles={["Admin", "Agent", "Member"]}>
@@ -304,6 +337,22 @@ export default function Navigation() {
                       >
                         <Settings className="h-4 w-4 mr-2" />
                         Dashboard
+                      </span>
+                    </Link>
+                    <Link href="/dashboard/wishlist">
+                      <span
+                        className="flex items-center justify-between px-3 py-2 text-base font-medium text-gray-500 hover:text-primary hover:bg-gray-50 cursor-pointer"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <div className="flex items-center">
+                          <Heart className="h-4 w-4 mr-2" />
+                          Wishlist
+                        </div>
+                        {wishlistCount > 0 && (
+                          <span className="bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                            {wishlistCount}
+                          </span>
+                        )}
                       </span>
                     </Link>
                     <Link href="/quotes">

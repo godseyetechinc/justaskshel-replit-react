@@ -135,7 +135,7 @@ export default function Quotes() {
     if (wishlistItems.length > 0) {
       try {
         for (const quoteId of wishlistItems) {
-          await apiRequest("/api/wishlist", "POST", { quoteId });
+          await apiRequest("/api/wishlist", { method: "POST", body: JSON.stringify({ quoteId }) });
         }
         localStorage.removeItem(VISITOR_WISHLIST_KEY);
         queryClient.invalidateQueries({ queryKey: ["/api/wishlist"] });
@@ -151,7 +151,7 @@ export default function Quotes() {
     if (selectedItems.length > 0) {
       try {
         for (const quoteId of selectedItems) {
-          await apiRequest("/api/selected-quotes", "POST", { quoteId });
+          await apiRequest("/api/selected-quotes", { method: "POST", body: JSON.stringify({ quoteId }) });
         }
         localStorage.removeItem(VISITOR_SELECTED_KEY);
         queryClient.invalidateQueries({ queryKey: ["/api/selected-quotes"] });
@@ -270,7 +270,7 @@ export default function Quotes() {
   const addToSelectedMutation = useMutation({
     mutationFn: async (quoteId: number) => {
       if (isAuthenticated) {
-        await apiRequest("/api/selected-quotes", "POST", { quoteId });
+        await apiRequest("/api/selected-quotes", { method: "POST", body: JSON.stringify({ quoteId }) });
       } else {
         // Visitor functionality - store in browser
         const currentSelected = getVisitorSelectedQuotes();
@@ -316,7 +316,7 @@ export default function Quotes() {
   const addToWishlistMutation = useMutation({
     mutationFn: async (quoteId: number) => {
       if (isAuthenticated) {
-        await apiRequest("/api/wishlist", "POST", { quoteId });
+        await apiRequest("/api/wishlist", { method: "POST", body: JSON.stringify({ quoteId }) });
       } else {
         // Visitor functionality - store in browser
         const currentWishlist = getVisitorWishlist();
@@ -359,7 +359,7 @@ export default function Quotes() {
   const removeFromSelectedMutation = useMutation({
     mutationFn: async (quoteId: number) => {
       if (isAuthenticated) {
-        await apiRequest(`/api/selected-quotes/${quoteId}`, "DELETE");
+        await apiRequest(`/api/selected-quotes/${quoteId}`, { method: "DELETE" });
       } else {
         const currentSelected = getVisitorSelectedQuotes();
         const updatedSelected = currentSelected.filter(id => id !== quoteId);
@@ -534,29 +534,69 @@ export default function Quotes() {
           </div>
         </div>
 
-        {/* Action Bar */}
-        {currentlySelected.length > 0 && (
-          <Card className="mb-6 bg-green-50 border-green-200">
-            <CardContent className="py-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <Check className="h-5 w-5 text-green-600 mr-2" />
-                  <span className="font-medium text-green-800">
-                    {currentlySelected.length} of 5 quotes selected for comparison
-                  </span>
+        {/* Action Bars */}
+        <div className="space-y-4 mb-6">
+          {/* Wishlist Counter - Shopping Cart Style */}
+          {currentWishlistIds.length > 0 && (
+            <Card className="bg-blue-50 border-blue-200">
+              <CardContent className="py-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <Heart className="h-5 w-5 text-blue-600 mr-2 fill-current" />
+                    <span className="font-medium text-blue-800">
+                      {currentWishlistIds.length} quote{currentWishlistIds.length !== 1 ? 's' : ''} in your wishlist
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    {isAuthenticated ? (
+                      <Button 
+                        variant="outline"
+                        onClick={() => setLocation("/dashboard")}
+                        className="text-blue-600 border-blue-600 hover:bg-blue-600 hover:text-white"
+                        data-testid="button-view-wishlist"
+                      >
+                        View in Dashboard
+                      </Button>
+                    ) : (
+                      <Button 
+                        variant="outline"
+                        onClick={() => window.location.href = "/login"}
+                        className="text-blue-600 border-blue-600 hover:bg-blue-600 hover:text-white"
+                        data-testid="button-login-to-save"
+                      >
+                        Sign in to Save
+                      </Button>
+                    )}
+                  </div>
                 </div>
-                <Button 
-                  onClick={() => setShowComparison(true)}
-                  disabled={currentlySelected.length < 2}
-                  data-testid="button-compare-quotes"
-                >
-                  <ArrowLeftRight className="h-4 w-4 mr-2" />
-                  Compare Selected
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Comparison Action Bar */}
+          {currentlySelected.length > 0 && (
+            <Card className="bg-green-50 border-green-200">
+              <CardContent className="py-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <Check className="h-5 w-5 text-green-600 mr-2" />
+                    <span className="font-medium text-green-800">
+                      {currentlySelected.length} of 5 quotes selected for comparison
+                    </span>
+                  </div>
+                  <Button 
+                    onClick={() => setShowComparison(true)}
+                    disabled={currentlySelected.length < 2}
+                    data-testid="button-compare-quotes"
+                  >
+                    <ArrowLeftRight className="h-4 w-4 mr-2" />
+                    Compare Selected
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
 
         {/* Search Form */}
         <Card className="mb-8">
