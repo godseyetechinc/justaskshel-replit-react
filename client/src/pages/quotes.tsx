@@ -89,6 +89,7 @@ export default function Quotes() {
   const [showComparison, setShowComparison] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showDependents, setShowDependents] = useState(false);
+  const [sortBy, setSortBy] = useState("monthly_premium_asc");
 
   // Initialize visitor storage on mount
   useEffect(() => {
@@ -203,11 +204,50 @@ export default function Quotes() {
     enabled: isAuthenticated,
   });
 
+  // Sorting logic
+  const sortQuotes = (quotes: any[]) => {
+    if (!quotes) return [];
+    
+    const sorted = [...quotes].sort((a, b) => {
+      switch (sortBy) {
+        case "monthly_premium_asc":
+          return (a.monthlyPremium || 0) - (b.monthlyPremium || 0);
+        case "monthly_premium_desc":
+          return (b.monthlyPremium || 0) - (a.monthlyPremium || 0);
+        case "annual_premium_asc":
+          return (a.annualPremium || 0) - (b.annualPremium || 0);
+        case "annual_premium_desc":
+          return (b.annualPremium || 0) - (a.annualPremium || 0);
+        case "coverage_amount_asc":
+          return (a.coverageAmount || 0) - (b.coverageAmount || 0);
+        case "coverage_amount_desc":
+          return (b.coverageAmount || 0) - (a.coverageAmount || 0);
+        case "deductible_asc":
+          return (a.deductible || 0) - (b.deductible || 0);
+        case "deductible_desc":
+          return (b.deductible || 0) - (a.deductible || 0);
+        case "provider_asc":
+          return (a.provider || "").localeCompare(b.provider || "");
+        case "provider_desc":
+          return (b.provider || "").localeCompare(a.provider || "");
+        case "rating_desc":
+          return (b.rating || 0) - (a.rating || 0);
+        case "rating_asc":
+          return (a.rating || 0) - (b.rating || 0);
+        default:
+          return 0;
+      }
+    });
+    
+    return sorted;
+  };
+
   // Pagination logic
+  const sortedQuotes = sortQuotes(allQuotes);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const quotes = allQuotes?.slice(startIndex, endIndex) || [];
-  const totalPages = allQuotes ? Math.ceil(allQuotes.length / itemsPerPage) : 0;
+  const quotes = sortedQuotes?.slice(startIndex, endIndex) || [];
+  const totalPages = sortedQuotes ? Math.ceil(sortedQuotes.length / itemsPerPage) : 0;
 
   // Get current selected quotes for comparison
   const getCurrentSelectedQuotes = () => {
@@ -342,6 +382,11 @@ export default function Quotes() {
     setCurrentPage(1); // Reset to first page on new search
     setShouldSearch(true);
   };
+
+  // Reset pagination when sort order changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [sortBy]);
 
   const isQuoteSelected = (quoteId: number) => {
     return currentlySelected.includes(quoteId);
@@ -786,17 +831,45 @@ export default function Quotes() {
         {/* Search Results */}
         {allQuotes && (
           <div className="mb-8">
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-4">
               <h2 className="text-2xl font-bold text-gray-900">
-                Found {allQuotes.length} Quote{allQuotes.length !== 1 ? 's' : ''}
+                Found {sortedQuotes.length} Quote{sortedQuotes.length !== 1 ? 's' : ''}
               </h2>
               
               {/* Pagination Info */}
               {totalPages > 1 && (
                 <div className="text-sm text-gray-600">
-                  Showing {startIndex + 1}-{Math.min(endIndex, allQuotes.length)} of {allQuotes.length}
+                  Showing {startIndex + 1}-{Math.min(endIndex, sortedQuotes.length)} of {sortedQuotes.length}
                 </div>
               )}
+            </div>
+
+            {/* Sort Options */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center space-x-4">
+                <Label htmlFor="sortBy" className="text-sm font-medium text-gray-700">
+                  Sort by:
+                </Label>
+                <Select value={sortBy} onValueChange={setSortBy}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Sort by" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="monthly_premium_asc">Monthly Premium: Low to High</SelectItem>
+                    <SelectItem value="monthly_premium_desc">Monthly Premium: High to Low</SelectItem>
+                    <SelectItem value="annual_premium_asc">Annual Premium: Low to High</SelectItem>
+                    <SelectItem value="annual_premium_desc">Annual Premium: High to Low</SelectItem>
+                    <SelectItem value="coverage_amount_asc">Coverage Amount: Low to High</SelectItem>
+                    <SelectItem value="coverage_amount_desc">Coverage Amount: High to Low</SelectItem>
+                    <SelectItem value="deductible_asc">Deductible: Low to High</SelectItem>
+                    <SelectItem value="deductible_desc">Deductible: High to Low</SelectItem>
+                    <SelectItem value="provider_asc">Provider: A to Z</SelectItem>
+                    <SelectItem value="provider_desc">Provider: Z to A</SelectItem>
+                    <SelectItem value="rating_desc">Rating: High to Low</SelectItem>
+                    <SelectItem value="rating_asc">Rating: Low to High</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             
             {quotesLoading ? (
