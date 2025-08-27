@@ -506,8 +506,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/policies', auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const policies = await storage.getUserPolicies(userId);
-      res.json(policies);
+      const user = await storage.getUser(userId);
+      
+      // If user is Agent or higher privilege, show all policies for testing
+      if (user && user.privilegeLevel <= 2) {
+        const policies = await storage.getAllPolicies();
+        res.json(policies);
+      } else {
+        const policies = await storage.getUserPolicies(userId);
+        res.json(policies);
+      }
     } catch (error) {
       console.error("Error fetching policies:", error);
       res.status(500).json({ message: "Failed to fetch policies" });
