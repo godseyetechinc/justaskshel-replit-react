@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -11,36 +11,142 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Search, Heart, Check, Star } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Search, Heart, Check, Star, ChevronLeft, ChevronRight, ArrowLeftRight, X, Plus } from "lucide-react";
+import { useLocation } from "wouter";
 import quoteComparisonImage from "@assets/generated_images/Quote_comparison_dashboard_94f4b5f2.png";
+
+// Browser storage utilities for visitor wishlist and selected quotes
+const VISITOR_WISHLIST_KEY = 'visitor-wishlist';
+const VISITOR_SELECTED_KEY = 'visitor-selected-quotes';
+
+const getVisitorWishlist = (): number[] => {
+  try {
+    const stored = localStorage.getItem(VISITOR_WISHLIST_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+};
+
+const getVisitorSelectedQuotes = (): number[] => {
+  try {
+    const stored = localStorage.getItem(VISITOR_SELECTED_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+};
+
+const setVisitorWishlist = (quoteIds: number[]) => {
+  localStorage.setItem(VISITOR_WISHLIST_KEY, JSON.stringify(quoteIds));
+};
+
+const setVisitorSelectedQuotes = (quoteIds: number[]) => {
+  localStorage.setItem(VISITOR_SELECTED_KEY, JSON.stringify(quoteIds));
+};
 
 export default function Quotes() {
   const { isAuthenticated } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   
-  const [searchFilters, setSearchFilters] = useState({
-    typeId: "",
-    ageRange: "",
-    zipCode: "",
-    coverageAmount: "",
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(9);
+  const [searchFilters, setSearchFilters] = useState(() => {
+    // Initialize from URL params
+    const urlParams = new URLSearchParams(window.location.search);
+    return {
+      typeId: urlParams.get('typeId') || "",
+      ageRange: urlParams.get('ageRange') || "",
+      zipCode: urlParams.get('zipCode') || "",
+      coverageAmount: urlParams.get('coverageAmount') || "",
+      paymentCycle: urlParams.get('paymentCycle') || "",
+      termLength: urlParams.get('termLength') || "",
+      effectiveDate: urlParams.get('effectiveDate') || "",
+      hasSpouse: urlParams.get('hasSpouse') === 'true',
+      spouseAge: urlParams.get('spouseAge') || "",
+    };
   });
+
+  const [visitorWishlist, setVisitorWishlistState] = useState<number[]>([]);
+  const [visitorSelectedQuotes, setVisitorSelectedQuotesState] = useState<number[]>([]);
+  const [showComparison, setShowComparison] = useState(false);
+
+  // Initialize visitor storage on mount
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setVisitorWishlistState(getVisitorWishlist());
+      setVisitorSelectedQuotesState(getVisitorSelectedQuotes());
+    }
+  }, [isAuthenticated]);
+
+  // Sync visitor data after login
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      syncVisitorDataAfterLogin();
+    }
+  }, [isAuthenticated, user]);
+
+  const syncVisitorDataAfterLogin = async () => {
+    const wishlistItems = getVisitorWishlist();
+    const selectedItems = getVisitorSelectedQuotes();
+
+    if (wishlistItems.length > 0) {
+      try {
+        for (const quoteId of wishlistItems) {
+          await apiRequest("/api/wishlist", "POST", { quoteId });
+        }
+        localStorage.removeItem(VISITOR_WISHLIST_KEY);
+        queryClient.invalidateQueries({ queryKey: ["/api/wishlist"] });
+        toast({
+          title: "Wishlist Synced",
+          description: `${wishlistItems.length} items added to your account`,
+        });
+      } catch (error) {
+        console.error("Failed to sync wishlist:", error);
+      }
+    }
+
+    if (selectedItems.length > 0) {
+      try {
+        for (const quoteId of selectedItems) {
+          await apiRequest("/api/selected-quotes", "POST", { quoteId });
+        }
+        localStorage.removeItem(VISITOR_SELECTED_KEY);
+        queryClient.invalidateQueries({ queryKey: ["/api/selected-quotes"] });
+        toast({
+          title: "Selected Quotes Synced",
+          description: `${selectedItems.length} quotes added to your account`,
+        });
+      } catch (error) {
+        console.error("Failed to sync selected quotes:", error);
+      }
+    }
+  };
 
   const { data: insuranceTypes } = useQuery({
     queryKey: ["/api/insurance-types"],
   });
 
-  const { data: quotes, isLoading: quotesLoading, refetch: refetchQuotes } = useQuery({
+  const { data: allQuotes, isLoading: quotesLoading, refetch: refetchQuotes } = useQuery({
     queryKey: ["/api/quotes/search", searchFilters],
     queryFn: async () => {
       const params = new URLSearchParams();
       Object.entries(searchFilters).forEach(([key, value]) => {
-        if (value) params.append(key, value);
+        if (value && typeof value !== 'boolean') {
+          params.append(key, value.toString());
+        } else if (typeof value === 'boolean' && value) {
+          params.append(key, 'true');
+        }
       });
       const response = await fetch(`/api/quotes/search?${params}`);
       if (!response.ok) throw new Error('Failed to fetch quotes');
       return response.json();
     },
-    enabled: false, // Only fetch when search is triggered
+    enabled: false,
   });
 
   const { data: selectedQuotes } = useQuery({
@@ -53,12 +159,51 @@ export default function Quotes() {
     enabled: isAuthenticated,
   });
 
+  // Pagination logic
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const quotes = allQuotes?.slice(startIndex, endIndex) || [];
+  const totalPages = allQuotes ? Math.ceil(allQuotes.length / itemsPerPage) : 0;
+
+  // Get current selected quotes for comparison
+  const getCurrentSelectedQuotes = () => {
+    if (isAuthenticated) {
+      return selectedQuotes?.map((sq: any) => sq.quoteId) || [];
+    }
+    return visitorSelectedQuotes;
+  };
+
+  const getCurrentWishlist = () => {
+    if (isAuthenticated) {
+      return wishlist?.map((w: any) => w.quoteId) || [];
+    }
+    return visitorWishlist;
+  };
+
+  const currentlySelected = getCurrentSelectedQuotes();
+  const currentWishlistIds = getCurrentWishlist();
+
   const addToSelectedMutation = useMutation({
     mutationFn: async (quoteId: number) => {
-      await apiRequest("POST", "/api/selected-quotes", { quoteId });
+      if (isAuthenticated) {
+        await apiRequest("/api/selected-quotes", "POST", { quoteId });
+      } else {
+        // Visitor functionality - store in browser
+        const currentSelected = getVisitorSelectedQuotes();
+        if (currentSelected.length >= 5) {
+          throw new Error("You can select up to 5 quotes for comparison");
+        }
+        if (!currentSelected.includes(quoteId)) {
+          const updatedSelected = [...currentSelected, quoteId];
+          setVisitorSelectedQuotes(updatedSelected);
+          setVisitorSelectedQuotesState(updatedSelected);
+        }
+      }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/selected-quotes"] });
+      if (isAuthenticated) {
+        queryClient.invalidateQueries({ queryKey: ["/api/selected-quotes"] });
+      }
       toast({
         title: "Success",
         description: "Quote added to selected quotes",
@@ -78,7 +223,7 @@ export default function Quotes() {
       }
       toast({
         title: "Error",
-        description: "Failed to add quote to selected quotes",
+        description: error instanceof Error ? error.message : "Failed to add quote to selected quotes",
         variant: "destructive",
       });
     },
@@ -86,10 +231,22 @@ export default function Quotes() {
 
   const addToWishlistMutation = useMutation({
     mutationFn: async (quoteId: number) => {
-      await apiRequest("POST", "/api/wishlist", { quoteId });
+      if (isAuthenticated) {
+        await apiRequest("/api/wishlist", "POST", { quoteId });
+      } else {
+        // Visitor functionality - store in browser
+        const currentWishlist = getVisitorWishlist();
+        if (!currentWishlist.includes(quoteId)) {
+          const updatedWishlist = [...currentWishlist, quoteId];
+          setVisitorWishlist(updatedWishlist);
+          setVisitorWishlistState(updatedWishlist);
+        }
+      }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/wishlist"] });
+      if (isAuthenticated) {
+        queryClient.invalidateQueries({ queryKey: ["/api/wishlist"] });
+      }
       toast({
         title: "Success",
         description: "Quote added to wishlist",
@@ -115,16 +272,130 @@ export default function Quotes() {
     },
   });
 
+  const removeFromSelectedMutation = useMutation({
+    mutationFn: async (quoteId: number) => {
+      if (isAuthenticated) {
+        await apiRequest(`/api/selected-quotes/${quoteId}`, "DELETE");
+      } else {
+        const currentSelected = getVisitorSelectedQuotes();
+        const updatedSelected = currentSelected.filter(id => id !== quoteId);
+        setVisitorSelectedQuotes(updatedSelected);
+        setVisitorSelectedQuotesState(updatedSelected);
+      }
+    },
+    onSuccess: () => {
+      if (isAuthenticated) {
+        queryClient.invalidateQueries({ queryKey: ["/api/selected-quotes"] });
+      }
+      toast({
+        title: "Success",
+        description: "Quote removed from selected quotes",
+      });
+    },
+  });
+
   const handleSearch = () => {
+    setCurrentPage(1); // Reset to first page on new search
     refetchQuotes();
   };
 
   const isQuoteSelected = (quoteId: number) => {
-    return selectedQuotes?.some(sq => sq.quoteId === quoteId);
+    return currentlySelected.includes(quoteId);
   };
 
   const isQuoteInWishlist = (quoteId: number) => {
-    return wishlist?.some(w => w.quoteId === quoteId);
+    return currentWishlistIds.includes(quoteId);
+  };
+
+  const canSelectMore = () => {
+    return currentlySelected.length < 5;
+  };
+
+  // Get comparison data
+  const getComparisonQuotes = () => {
+    if (!allQuotes) return [];
+    return allQuotes.filter((quote: any) => currentlySelected.includes(quote.id));
+  };
+
+  const ComparisonModal = () => {
+    const comparisonQuotes = getComparisonQuotes();
+    
+    return (
+      <Dialog open={showComparison} onOpenChange={setShowComparison}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Compare Selected Quotes ({comparisonQuotes.length})</DialogTitle>
+          </DialogHeader>
+          
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {comparisonQuotes.map((quote: any) => (
+              <Card key={quote.id} className="relative">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="absolute top-2 right-2 h-8 w-8 p-0"
+                  onClick={() => removeFromSelectedMutation.mutate(quote.id)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+                
+                <CardHeader className="pb-4">
+                  <div className="flex items-center justify-between pr-8">
+                    <div>
+                      <h3 className="font-semibold">{quote.provider.name}</h3>
+                      <p className="text-sm text-muted-foreground">{quote.type.name}</p>
+                    </div>
+                    <div className="flex items-center">
+                      <Star className="h-4 w-4 text-yellow-400 mr-1" />
+                      <span className="text-sm">{quote.provider.rating || '4.5'}</span>
+                    </div>
+                  </div>
+                </CardHeader>
+                
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-primary">${quote.monthlyPremium}</div>
+                      <div className="text-sm text-muted-foreground">per month</div>
+                    </div>
+                    
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span>Coverage:</span>
+                        <span className="font-medium">${quote.coverageAmount}</span>
+                      </div>
+                      {quote.termLength && (
+                        <div className="flex justify-between">
+                          <span>Term:</span>
+                          <span className="font-medium">{quote.termLength} years</span>
+                        </div>
+                      )}
+                      {quote.deductible && (
+                        <div className="flex justify-between">
+                          <span>Deductible:</span>
+                          <span className="font-medium">${quote.deductible}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex gap-2 flex-wrap">
+                      {quote.medicalExamRequired ? (
+                        <Badge variant="outline">Medical Exam Required</Badge>
+                      ) : (
+                        <Badge variant="secondary">No Medical Exam</Badge>
+                      )}
+                      {quote.conversionOption && (
+                        <Badge variant="outline">Conversion Option</Badge>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
   };
 
   return (
@@ -136,6 +407,13 @@ export default function Quotes() {
           <div>
             <h1 className="text-3xl font-bold text-gray-900 mb-4">Compare Coverage Quotes</h1>
             <p className="text-lg text-gray-600">Find the perfect coverage for your needs</p>
+            {!isAuthenticated && (currentlySelected.length > 0 || currentWishlistIds.length > 0) && (
+              <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>Sign in to sync your selections:</strong> You have {currentlySelected.length} selected quotes and {currentWishlistIds.length} wishlist items stored locally.
+                </p>
+              </div>
+            )}
           </div>
           
           <div className="hidden lg:block">
@@ -146,6 +424,30 @@ export default function Quotes() {
             />
           </div>
         </div>
+
+        {/* Action Bar */}
+        {currentlySelected.length > 0 && (
+          <Card className="mb-6 bg-green-50 border-green-200">
+            <CardContent className="py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Check className="h-5 w-5 text-green-600 mr-2" />
+                  <span className="font-medium text-green-800">
+                    {currentlySelected.length} of 5 quotes selected for comparison
+                  </span>
+                </div>
+                <Button 
+                  onClick={() => setShowComparison(true)}
+                  disabled={currentlySelected.length < 2}
+                  data-testid="button-compare-quotes"
+                >
+                  <ArrowLeftRight className="h-4 w-4 mr-2" />
+                  Compare Selected
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Search Form */}
         <Card className="mb-8">
@@ -161,7 +463,7 @@ export default function Quotes() {
                     <SelectValue placeholder="Select Type" />
                   </SelectTrigger>
                   <SelectContent>
-                    {insuranceTypes?.map((type) => (
+                    {insuranceTypes?.map((type: any) => (
                       <SelectItem key={type.id} value={type.id.toString()}>
                         {type.name}
                       </SelectItem>
@@ -194,6 +496,7 @@ export default function Quotes() {
                   placeholder="Enter ZIP"
                   value={searchFilters.zipCode}
                   onChange={(e) => setSearchFilters(prev => ({ ...prev, zipCode: e.target.value }))}
+                  data-testid="input-zip-code"
                 />
               </div>
 
@@ -214,7 +517,7 @@ export default function Quotes() {
               </div>
             </div>
             
-            <Button onClick={handleSearch} className="w-full" size="lg">
+            <Button onClick={handleSearch} className="w-full" size="lg" data-testid="button-search-quotes">
               <Search className="h-5 w-5 mr-2" />
               Find My Quotes
             </Button>
@@ -222,11 +525,20 @@ export default function Quotes() {
         </Card>
 
         {/* Search Results */}
-        {quotes && (
+        {allQuotes && (
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">
-              Found {quotes.length} Quote{quotes.length !== 1 ? 's' : ''}
-            </h2>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">
+                Found {allQuotes.length} Quote{allQuotes.length !== 1 ? 's' : ''}
+              </h2>
+              
+              {/* Pagination Info */}
+              {totalPages > 1 && (
+                <div className="text-sm text-gray-600">
+                  Showing {startIndex + 1}-{Math.min(endIndex, allQuotes.length)} of {allQuotes.length}
+                </div>
+              )}
+            </div>
             
             {quotesLoading ? (
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -237,90 +549,141 @@ export default function Quotes() {
                 ))}
               </div>
             ) : quotes.length > 0 ? (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {quotes.map((quote) => (
-                  <Card key={quote.id} className="hover:shadow-lg transition-shadow">
-                    <CardHeader className="pb-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="font-semibold">{quote.provider.name}</h3>
-                          <p className="text-sm text-muted-foreground">{quote.type.name}</p>
-                        </div>
-                        <div className="flex items-center">
-                          <Star className="h-4 w-4 text-yellow-400 mr-1" />
-                          <span className="text-sm">{quote.provider.rating || '4.5'}</span>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    
-                    <CardContent>
-                      <div className="space-y-3">
-                        <div className="text-center">
-                          <div className="text-3xl font-bold text-primary">${quote.monthlyPremium}</div>
-                          <div className="text-sm text-muted-foreground">per month</div>
-                        </div>
-                        
-                        <div className="space-y-2 text-sm">
-                          <div className="flex justify-between">
-                            <span>Coverage:</span>
-                            <span className="font-medium">${quote.coverageAmount}</span>
+              <>
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                  {quotes.map((quote: any) => (
+                    <Card key={quote.id} className="hover:shadow-lg transition-shadow">
+                      <CardHeader className="pb-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h3 className="font-semibold">{quote.provider.name}</h3>
+                            <p className="text-sm text-muted-foreground">{quote.type.name}</p>
                           </div>
-                          {quote.termLength && (
-                            <div className="flex justify-between">
-                              <span>Term:</span>
-                              <span className="font-medium">{quote.termLength} years</span>
-                            </div>
-                          )}
-                          {quote.deductible && (
-                            <div className="flex justify-between">
-                              <span>Deductible:</span>
-                              <span className="font-medium">${quote.deductible}</span>
-                            </div>
-                          )}
+                          <div className="flex items-center">
+                            <Star className="h-4 w-4 text-yellow-400 mr-1" />
+                            <span className="text-sm">{quote.provider.rating || '4.5'}</span>
+                          </div>
                         </div>
-
-                        <div className="flex gap-2 flex-wrap">
-                          {quote.medicalExamRequired ? (
-                            <Badge variant="outline">Medical Exam Required</Badge>
-                          ) : (
-                            <Badge variant="secondary">No Medical Exam</Badge>
-                          )}
-                          {quote.conversionOption && (
-                            <Badge variant="outline">Conversion Option</Badge>
-                          )}
-                        </div>
-
-                        <div className="flex flex-col gap-2 pt-4">
-                          <Button
-                            onClick={() => addToSelectedMutation.mutate(quote.id)}
-                            disabled={isQuoteSelected(quote.id) || !isAuthenticated || addToSelectedMutation.isPending}
-                            className="w-full"
-                          >
-                            {isQuoteSelected(quote.id) ? (
-                              <>
-                                <Check className="h-4 w-4 mr-2" />
-                                Selected
-                              </>
-                            ) : (
-                              'Select Quote'
-                            )}
-                          </Button>
+                      </CardHeader>
+                      
+                      <CardContent>
+                        <div className="space-y-3">
+                          <div className="text-center">
+                            <div className="text-3xl font-bold text-primary">${quote.monthlyPremium}</div>
+                            <div className="text-sm text-muted-foreground">per month</div>
+                          </div>
                           
-                          <Button
-                            variant="outline"
-                            onClick={() => addToWishlistMutation.mutate(quote.id)}
-                            disabled={isQuoteInWishlist(quote.id) || !isAuthenticated || addToWishlistMutation.isPending}
-                            className="w-full"
-                          >
-                            <Heart className={`h-4 w-4 mr-2 ${isQuoteInWishlist(quote.id) ? 'fill-current text-red-500' : ''}`} />
-                            {isQuoteInWishlist(quote.id) ? 'In Wishlist' : 'Add to Wishlist'}
-                          </Button>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                              <span>Coverage:</span>
+                              <span className="font-medium">${quote.coverageAmount}</span>
+                            </div>
+                            {quote.termLength && (
+                              <div className="flex justify-between">
+                                <span>Term:</span>
+                                <span className="font-medium">{quote.termLength} years</span>
+                              </div>
+                            )}
+                            {quote.deductible && (
+                              <div className="flex justify-between">
+                                <span>Deductible:</span>
+                                <span className="font-medium">${quote.deductible}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex gap-2 flex-wrap">
+                            {quote.medicalExamRequired ? (
+                              <Badge variant="outline">Medical Exam Required</Badge>
+                            ) : (
+                              <Badge variant="secondary">No Medical Exam</Badge>
+                            )}
+                            {quote.conversionOption && (
+                              <Badge variant="outline">Conversion Option</Badge>
+                            )}
+                          </div>
+
+                          <div className="flex flex-col gap-2 pt-4">
+                            <Button
+                              onClick={() => addToSelectedMutation.mutate(quote.id)}
+                              disabled={isQuoteSelected(quote.id) || !canSelectMore() || addToSelectedMutation.isPending}
+                              className="w-full"
+                              data-testid={`button-select-quote-${quote.id}`}
+                            >
+                              {isQuoteSelected(quote.id) ? (
+                                <>
+                                  <Check className="h-4 w-4 mr-2" />
+                                  Selected
+                                </>
+                              ) : !canSelectMore() ? (
+                                'Max 5 Selected'
+                              ) : (
+                                'Select Quote'
+                              )}
+                            </Button>
+                            
+                            <Button
+                              variant="outline"
+                              onClick={() => addToWishlistMutation.mutate(quote.id)}
+                              disabled={isQuoteInWishlist(quote.id) || addToWishlistMutation.isPending}
+                              className="w-full"
+                              data-testid={`button-wishlist-quote-${quote.id}`}
+                            >
+                              <Heart className={`h-4 w-4 mr-2 ${isQuoteInWishlist(quote.id) ? 'fill-current text-red-500' : ''}`} />
+                              {isQuoteInWishlist(quote.id) ? 'In Wishlist' : 'Add to Wishlist'}
+                            </Button>
+                          </div>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-center space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      data-testid="button-prev-page"
+                    >
+                      <ChevronLeft className="h-4 w-4 mr-1" />
+                      Previous
+                    </Button>
+                    
+                    <div className="flex space-x-1">
+                      {[...Array(totalPages)].map((_, index) => {
+                        const pageNum = index + 1;
+                        return (
+                          <Button
+                            key={pageNum}
+                            variant={currentPage === pageNum ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setCurrentPage(pageNum)}
+                            className="w-10"
+                            data-testid={`button-page-${pageNum}`}
+                          >
+                            {pageNum}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      data-testid="button-next-page"
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </div>
+                )}
+              </>
             ) : (
               <Card>
                 <CardContent className="text-center py-12">
@@ -333,27 +696,49 @@ export default function Quotes() {
           </div>
         )}
 
-        {/* Selected Quotes and Wishlist Summary */}
-        {isAuthenticated && (selectedQuotes || wishlist) && (
+        {/* Summary Cards for Selected/Wishlist */}
+        {(currentlySelected.length > 0 || currentWishlistIds.length > 0) && (
           <div className="grid md:grid-cols-2 gap-8">
-            {selectedQuotes && selectedQuotes.length > 0 && (
+            {currentlySelected.length > 0 && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Check className="h-5 w-5 text-green-500 mr-2" />
-                    Selected Quotes ({selectedQuotes.length})
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <Check className="h-5 w-5 text-green-500 mr-2" />
+                      Selected Quotes ({currentlySelected.length})
+                    </div>
+                    {currentlySelected.length >= 2 && (
+                      <Button 
+                        size="sm" 
+                        onClick={() => setShowComparison(true)}
+                        data-testid="button-compare-selected"
+                      >
+                        <ArrowLeftRight className="h-4 w-4 mr-1" />
+                        Compare
+                      </Button>
+                    )}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {selectedQuotes.map((selected) => (
-                      <div key={selected.id} className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
+                    {getComparisonQuotes().map((quote: any) => (
+                      <div key={quote.id} className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
                         <div>
-                          <div className="font-medium">{selected.quote.provider.name}</div>
-                          <div className="text-sm text-muted-foreground">{selected.quote.type.name}</div>
+                          <div className="font-medium">{quote.provider.name}</div>
+                          <div className="text-sm text-muted-foreground">{quote.type.name}</div>
                         </div>
-                        <div className="text-right">
-                          <div className="font-semibold text-green-600">${selected.quote.monthlyPremium}/mo</div>
+                        <div className="flex items-center space-x-2">
+                          <div className="text-right">
+                            <div className="font-semibold text-green-600">${quote.monthlyPremium}/mo</div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeFromSelectedMutation.mutate(quote.id)}
+                            className="h-8 w-8 p-0"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
                         </div>
                       </div>
                     ))}
@@ -362,32 +747,32 @@ export default function Quotes() {
               </Card>
             )}
 
-            {wishlist && wishlist.length > 0 && (
+            {currentWishlistIds.length > 0 && (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center">
                     <Heart className="h-5 w-5 text-red-500 mr-2" />
-                    Wishlist ({wishlist.length})
+                    Wishlist ({currentWishlistIds.length})
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {wishlist.map((item) => (
-                      <div key={item.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    {allQuotes?.filter((quote: any) => currentWishlistIds.includes(quote.id)).map((quote: any) => (
+                      <div key={quote.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                         <div>
-                          <div className="font-medium">{item.quote.provider.name}</div>
-                          <div className="text-sm text-muted-foreground">{item.quote.type.name}</div>
+                          <div className="font-medium">{quote.provider.name}</div>
+                          <div className="text-sm text-muted-foreground">{quote.type.name}</div>
                         </div>
                         <div className="text-right">
-                          <div className="font-semibold">${item.quote.monthlyPremium}/mo</div>
+                          <div className="font-semibold">${quote.monthlyPremium}/mo</div>
                           <Button
                             variant="link"
                             size="sm"
                             className="p-0 h-auto text-xs"
-                            onClick={() => addToSelectedMutation.mutate(item.quote.id)}
-                            disabled={isQuoteSelected(item.quote.id)}
+                            onClick={() => addToSelectedMutation.mutate(quote.id)}
+                            disabled={isQuoteSelected(quote.id) || !canSelectMore()}
                           >
-                            {isQuoteSelected(item.quote.id) ? 'Selected' : 'Move to Selected'}
+                            {isQuoteSelected(quote.id) ? 'Selected' : canSelectMore() ? 'Move to Selected' : 'Max Selected'}
                           </Button>
                         </div>
                       </div>
@@ -399,6 +784,8 @@ export default function Quotes() {
           </div>
         )}
       </div>
+
+      <ComparisonModal />
     </div>
   );
 }
