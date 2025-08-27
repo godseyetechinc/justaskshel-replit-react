@@ -372,6 +372,22 @@ export class DatabaseStorage implements IStorage {
       .where(eq(externalQuoteRequests.requestId, requestId));
   }
 
+  async getExternalQuoteRequests({ limit, offset }: { limit: number; offset: number }): Promise<ExternalQuoteRequest[]> {
+    return await db
+      .select()
+      .from(externalQuoteRequests)
+      .orderBy(desc(externalQuoteRequests.createdAt))
+      .limit(limit)
+      .offset(offset);
+  }
+
+  async getExternalQuoteRequestsCount(): Promise<number> {
+    const result = await db
+      .select({ count: count() })
+      .from(externalQuoteRequests);
+    return result[0]?.count || 0;
+  }
+
   // Insurance quotes
   async searchQuotes(filters: {
     typeId?: number;

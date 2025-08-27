@@ -2220,6 +2220,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // SuperAdmin: External quote requests management  
+  app.get('/api/admin/external-quote-requests', auth, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.privilegeLevel !== 0) {
+        return res.status(403).json({ message: "SuperAdmin access required" });
+      }
+
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = (page - 1) * limit;
+
+      const requests = await storage.getExternalQuoteRequests({ limit, offset });
+      const totalCount = await storage.getExternalQuoteRequestsCount();
+      
+      res.json({
+        requests,
+        pagination: {
+          page,
+          limit,
+          total: totalCount,
+          totalPages: Math.ceil(totalCount / limit)
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching external quote requests:', error);
+      res.status(500).json({ message: 'Failed to fetch external quote requests' });
+    }
+  });
+
+  // SuperAdmin: Provider configuration management
+  app.get('/api/admin/provider-configs', auth, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.privilegeLevel !== 0) {
+        return res.status(403).json({ message: "SuperAdmin access required" });
+      }
+
+      const { getActiveProviders, getAllProviders } = await import('./insuranceProviderConfig');
+      const activeProviders = getActiveProviders();
+      const allProviders = getAllProviders();
+      
+      res.json({
+        active: activeProviders,
+        all: allProviders,
+        summary: {
+          totalProviders: allProviders.length,
+          activeProviders: activeProviders.length,
+          inactiveProviders: allProviders.length - activeProviders.length
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching provider configs:', error);
+      res.status(500).json({ message: 'Failed to fetch provider configurations' });
+    }
+  });
+
   // Seeding endpoint (for development only)
   app.post('/api/seed-users', async (req: any, res) => {
     try {

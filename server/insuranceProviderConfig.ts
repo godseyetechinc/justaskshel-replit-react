@@ -185,6 +185,10 @@ export function getActiveProviders(): ProviderConfig[] {
   return INSURANCE_PROVIDERS.filter(provider => provider.isActive);
 }
 
+export function getAllProviders(): ProviderConfig[] {
+  return INSURANCE_PROVIDERS;
+}
+
 export function getProvidersForCoverage(coverageType: string): ProviderConfig[] {
   return getActiveProviders()
     .filter(provider => 

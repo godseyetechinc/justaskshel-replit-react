@@ -61,6 +61,13 @@ const menuItems: MenuItem[] = [
     roles: ["SuperAdmin"],
   },
   {
+    id: "provider-management",
+    label: "Provider Management",
+    icon: Settings,
+    href: "/dashboard/admin/provider-management",
+    roles: ["SuperAdmin"],
+  },
+  {
     id: "contacts",
     label: "Contacts",
     icon: Phone,

@@ -43,6 +43,7 @@ import TermsOfService from "@/pages/terms-of-service";
 import NeedsAnalysisPage from "@/pages/needs-analysis";
 import OrganizationsPage from "@/pages/dashboard/organizations";
 import OrganizationProfilePage from "@/pages/dashboard/organization-profile";
+import AdminProviderManagement from "@/pages/admin-provider-management";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -116,6 +117,7 @@ function Router() {
           <Route path="/dashboard/rewards-management" component={RewardsManagementPage} />
           <Route path="/dashboard/dependents" component={DependentsPage} />
           <Route path="/dashboard/user-management" component={UserManagementPage} />
+          <Route path="/dashboard/admin/provider-management" component={AdminProviderManagement} />
           <Route path="/dashboard/organization-profile" component={OrganizationProfilePage} />
           <Route path="/dashboard/password-management" component={PasswordManagementPage} />
           <Route path="/dashboard/analytics" component={AnalyticsPage} />
