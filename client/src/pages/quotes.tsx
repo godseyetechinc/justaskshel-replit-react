@@ -474,26 +474,18 @@ export default function Quotes() {
     <div className="min-h-screen bg-gray-50">
       <Navigation />
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid lg:grid-cols-2 gap-12 items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">Compare Coverage Quotes</h1>
-            <p className="text-lg text-gray-600">Find the perfect coverage for your needs</p>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="mb-6">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Compare Coverage Quotes</h1>
+            <p className="text-gray-600">Find the perfect coverage for your needs</p>
             {!isAuthenticated && (currentlySelected.length > 0 || currentWishlistIds.length > 0) && (
-              <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg max-w-2xl mx-auto">
                 <p className="text-sm text-blue-800">
                   <strong>Sign in to sync your selections:</strong> You have {currentlySelected.length} selected quotes and {currentWishlistIds.length} wishlist items stored locally.
                 </p>
               </div>
             )}
-          </div>
-          
-          <div className="hidden lg:block">
-            <img 
-              src={quoteComparisonImage} 
-              alt="Quote comparison dashboard" 
-              className="rounded-xl shadow-lg w-full h-auto"
-            />
           </div>
         </div>
 
