@@ -77,13 +77,17 @@ export default function WishlistPage() {
 
   // Remove from selected quotes mutation
   const removeFromSelectedMutation = useMutation({
-    mutationFn: async (quoteId: number) => apiRequest(`/api/selected-quotes/${quoteId}`, { method: "DELETE" }),
+    mutationFn: async (quoteId: number) => {
+      const response = await apiRequest(`/api/selected-quotes/${quoteId}`, { method: "DELETE" });
+      return response;
+    },
     onSuccess: () => {
       toast({ title: "Success", description: "Quote removed from selection" });
       queryClient.invalidateQueries({ queryKey: ["/api/selected-quotes"] });
     },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to remove quote from selection", variant: "destructive" });
+    onError: (error: any) => {
+      console.error("Remove from selected error:", error);
+      toast({ title: "Error", description: error?.message || "Failed to remove quote from selection", variant: "destructive" });
     },
   });
 

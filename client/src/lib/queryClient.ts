@@ -28,7 +28,15 @@ export async function apiRequest(
   });
 
   await throwIfResNotOk(res);
-  return await res.json();
+  
+  // Handle 204 No Content responses
+  if (res.status === 204) {
+    return null;
+  }
+  
+  // For other successful responses, parse JSON
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
