@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { AlertCircle, CheckCircle, Clock, Settings, Eye, Search, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
+import DashboardLayout from "@/components/dashboard-layout";
 
 interface ExternalQuoteRequest {
   id: number;
@@ -44,19 +45,21 @@ export default function AdminProviderManagement() {
   // Ensure only SuperAdmin can access this page
   if (!user || user.privilegeLevel !== 0) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <Card className="max-w-md mx-auto">
-          <CardHeader>
-            <CardTitle className="text-red-600 flex items-center">
-              <AlertCircle className="h-5 w-5 mr-2" />
-              Access Denied
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p>SuperAdmin privileges required to access this page.</p>
-          </CardContent>
-        </Card>
-      </div>
+      <DashboardLayout>
+        <div className="container mx-auto px-4 py-8">
+          <Card className="max-w-md mx-auto">
+            <CardHeader>
+              <CardTitle className="text-red-600 flex items-center">
+                <AlertCircle className="h-5 w-5 mr-2" />
+                Access Denied
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p>SuperAdmin privileges required to access this page.</p>
+            </CardContent>
+          </Card>
+        </div>
+      </DashboardLayout>
     );
   }
 
@@ -107,25 +110,26 @@ export default function AdminProviderManagement() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Provider Management</h1>
-          <p className="text-gray-600 mt-2">Monitor external API requests and manage provider configurations</p>
+    <DashboardLayout>
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Provider Management</h1>
+            <p className="text-gray-600 mt-2">Monitor external API requests and manage provider configurations</p>
+          </div>
+          <Button onClick={handleRefresh} variant="outline" data-testid="button-refresh">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
         </div>
-        <Button onClick={handleRefresh} variant="outline" data-testid="button-refresh">
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Refresh
-        </Button>
-      </div>
 
-      <Tabs defaultValue="requests" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="requests" data-testid="tab-requests">Quote Requests</TabsTrigger>
-          <TabsTrigger value="providers" data-testid="tab-providers">Provider Configuration</TabsTrigger>
-        </TabsList>
+        <Tabs defaultValue="requests" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="requests" data-testid="tab-requests">Quote Requests</TabsTrigger>
+            <TabsTrigger value="providers" data-testid="tab-providers">Provider Configuration</TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="requests" className="space-y-6">
+          <TabsContent value="requests" className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center">
@@ -382,6 +386,7 @@ export default function AdminProviderManagement() {
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }
