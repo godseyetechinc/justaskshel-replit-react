@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { Home } from "lucide-react";
 
 type SignupFormData = z.infer<typeof signupSchema>;
 
@@ -228,13 +229,27 @@ export default function Signup() {
             Sign up with Replit
           </Button>
 
-          <div className="text-center text-sm">
-            <span className="text-muted-foreground">Already have an account? </span>
-            <Link href="/login">
-              <Button variant="link" className="p-0 h-auto font-medium" data-testid="link-login">
-                Sign in here
-              </Button>
-            </Link>
+          <div className="text-center text-sm space-y-2">
+            <div>
+              <span className="text-muted-foreground">Already have an account? </span>
+              <Link href="/login">
+                <Button variant="link" className="p-0 h-auto font-medium" data-testid="link-login">
+                  Sign in here
+                </Button>
+              </Link>
+            </div>
+            <div>
+              <Link href="/">
+                <Button
+                  variant="link"
+                  className="p-0 h-auto font-medium text-muted-foreground"
+                  data-testid="link-home"
+                >
+                  <Home className="h-3 w-3 mr-1" />
+                  Back to Home
+                </Button>
+              </Link>
+            </div>
           </div>
         </CardContent>
       </Card>

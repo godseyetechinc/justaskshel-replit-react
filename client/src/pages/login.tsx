@@ -20,7 +20,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Building2, Globe } from "lucide-react";
+import { Building2, Globe, Home } from "lucide-react";
 
 type LoginFormData = z.infer<typeof loginSchema>;
 
@@ -220,19 +220,33 @@ export default function Login() {
 
 
 
-          <div className="text-center text-sm">
-            <span className="text-muted-foreground">
-              Don't have an account?{" "}
-            </span>
-            <Link href="/signup">
-              <Button
-                variant="link"
-                className="p-0 h-auto font-medium"
-                data-testid="link-signup"
-              >
-                Sign up here
-              </Button>
-            </Link>
+          <div className="text-center text-sm space-y-2">
+            <div>
+              <span className="text-muted-foreground">
+                Don't have an account?{" "}
+              </span>
+              <Link href="/signup">
+                <Button
+                  variant="link"
+                  className="p-0 h-auto font-medium"
+                  data-testid="link-signup"
+                >
+                  Sign up here
+                </Button>
+              </Link>
+            </div>
+            <div>
+              <Link href="/">
+                <Button
+                  variant="link"
+                  className="p-0 h-auto font-medium text-muted-foreground"
+                  data-testid="link-home"
+                >
+                  <Home className="h-3 w-3 mr-1" />
+                  Back to Home
+                </Button>
+              </Link>
+            </div>
           </div>
 
           {/* Test Account Info */}
