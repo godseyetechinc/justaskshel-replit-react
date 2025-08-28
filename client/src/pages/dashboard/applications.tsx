@@ -68,9 +68,15 @@ export default function ApplicationsPage() {
   const applicationMutation = useMutation({
     mutationFn: async (data: any) => {
       if (editingApplication) {
-        return apiRequest(`/api/applications/${editingApplication.id}`, "PUT", data);
+        return apiRequest(`/api/applications/${editingApplication.id}`, {
+          method: "PUT",
+          body: JSON.stringify(data),
+        });
       } else {
-        return apiRequest("/api/applications", "POST", data);
+        return apiRequest("/api/applications", {
+          method: "POST",
+          body: JSON.stringify(data),
+        });
       }
     },
     onSuccess: () => {
@@ -93,7 +99,9 @@ export default function ApplicationsPage() {
 
   // Delete application mutation
   const deleteApplicationMutation = useMutation({
-    mutationFn: async (id: number) => apiRequest(`/api/applications/${id}`, "DELETE"),
+    mutationFn: async (id: number) => apiRequest(`/api/applications/${id}`, {
+      method: "DELETE",
+    }),
     onSuccess: () => {
       toast({ title: "Success", description: "Application deleted successfully" });
       queryClient.invalidateQueries({ queryKey: ["/api/applications"] });
@@ -151,7 +159,7 @@ export default function ApplicationsPage() {
     }
   };
 
-  const filteredApplications = applications.filter((application: any) => {
+  const filteredApplications = (applications as any[]).filter((application: any) => {
     const matchesSearch = 
       application.beneficiaryName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       application.beneficiaryRelation?.toLowerCase().includes(searchTerm.toLowerCase()) ||

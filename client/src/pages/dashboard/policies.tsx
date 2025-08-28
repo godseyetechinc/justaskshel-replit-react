@@ -115,9 +115,15 @@ export default function PoliciesPage() {
   const policyMutation = useMutation({
     mutationFn: async (data: any) => {
       if (editingPolicy) {
-        return apiRequest(`/api/policies/${editingPolicy.id}`, "PUT", data);
+        return apiRequest(`/api/policies/${editingPolicy.id}`, {
+          method: "PUT",
+          body: JSON.stringify(data),
+        });
       } else {
-        return apiRequest("/api/policies", "POST", data);
+        return apiRequest("/api/policies", {
+          method: "POST",
+          body: JSON.stringify(data),
+        });
       }
     },
     onSuccess: () => {

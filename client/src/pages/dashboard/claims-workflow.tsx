@@ -847,7 +847,13 @@ export default function ClaimsWorkflow() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {claim.incidentDate ? format(new Date(claim.incidentDate), "MMM dd, yyyy") : "N/A"}
+                          {claim.incidentDate ? (() => {
+                            try {
+                              return format(new Date(claim.incidentDate), "MMM dd, yyyy");
+                            } catch {
+                              return "Invalid date";
+                            }
+                          })() : "N/A"}
                         </TableCell>
                         <TableCell>
                           {claim.estimatedAmount ? `$${parseFloat(claim.estimatedAmount).toLocaleString()}` : "N/A"}
@@ -957,7 +963,13 @@ export default function ClaimsWorkflow() {
                           <div>
                             <label className="text-sm font-medium text-gray-700">Incident Date</label>
                             <p className="text-sm text-gray-900">
-                              {selectedClaim.incidentDate ? format(new Date(selectedClaim.incidentDate), 'MMM dd, yyyy') : 'N/A'}
+                              {selectedClaim.incidentDate ? (() => {
+                                try {
+                                  return format(new Date(selectedClaim.incidentDate), 'MMM dd, yyyy');
+                                } catch {
+                                  return "Invalid date";
+                                }
+                              })() : 'N/A'}
                             </p>
                           </div>
                           <div>
@@ -969,7 +981,13 @@ export default function ClaimsWorkflow() {
                           <div>
                             <label className="text-sm font-medium text-gray-700">Created</label>
                             <p className="text-sm text-gray-900">
-                              {format(new Date(selectedClaim.createdAt), 'MMM dd, yyyy')}
+                              {(() => {
+                                try {
+                                  return format(new Date(selectedClaim.createdAt), 'MMM dd, yyyy');
+                                } catch {
+                                  return "Invalid date";
+                                }
+                              })()}
                             </p>
                           </div>
                         </div>
@@ -1023,7 +1041,13 @@ export default function ClaimsWorkflow() {
                               <p className="text-sm text-gray-600 mt-1">{step.stepDescription}</p>
                               {step.completedAt && (
                                 <p className="text-xs text-gray-500 mt-2">
-                                  Completed {format(new Date(step.completedAt), 'MMM dd, yyyy HH:mm')}
+                                  Completed {(() => {
+                                    try {
+                                      return format(new Date(step.completedAt), 'MMM dd, yyyy HH:mm');
+                                    } catch {
+                                      return "Invalid date";
+                                    }
+                                  })()}
                                 </p>
                               )}
                             </div>
@@ -1144,7 +1168,13 @@ export default function ClaimsWorkflow() {
                                   </Badge>
                                 </div>
                                 <span className="text-xs text-gray-500">
-                                  {format(new Date(comm.createdAt), 'MMM dd, yyyy HH:mm')}
+                                  {(() => {
+                                    try {
+                                      return format(new Date(comm.createdAt), 'MMM dd, yyyy HH:mm');
+                                    } catch {
+                                      return "Invalid date";
+                                    }
+                                  })()}
                                 </span>
                               </div>
                               {comm.subject && (
