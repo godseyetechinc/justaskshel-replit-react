@@ -381,10 +381,20 @@ export class DatabaseStorage implements IStorage {
       .offset(offset);
   }
 
-  async getExternalQuoteRequestsCount(): Promise<number> {
-    const result = await db
+  async getExternalQuoteRequestsCount(filters?: { providerId?: string; status?: string }): Promise<number> {
+    let query = db
       .select({ count: count() })
       .from(externalQuoteRequests);
+    
+    if (filters?.providerId) {
+      query = query.where(sql`${externalQuoteRequests.providersRequested} ? ${filters.providerId}`);
+    }
+    
+    if (filters?.status) {
+      query = query.where(eq(externalQuoteRequests.status, filters.status as any));
+    }
+    
+    const result = await query;
     return result[0]?.count || 0;
   }
 

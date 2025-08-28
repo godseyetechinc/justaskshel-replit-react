@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -7,10 +7,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { AlertCircle, CheckCircle, Clock, Settings, Eye, Search, RefreshCw } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { AlertCircle, CheckCircle, Clock, Settings, Eye, Search, RefreshCw, Edit, Play, Zap, BarChart3, Activity } from "lucide-react";
 import { format } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 import DashboardLayout from "@/components/dashboard-layout";
+import { apiRequest } from "@/lib/queryClient";
 
 interface ExternalQuoteRequest {
   id: number;
@@ -29,18 +38,84 @@ interface ExternalQuoteRequest {
 interface ProviderConfig {
   id: string;
   name: string;
+  displayName: string;
+  baseUrl: string;
+  apiKey?: string;
+  authHeader?: string;
   isActive: boolean;
-  apiUrl: string;
   supportedCoverageTypes: string[];
   priority: number;
   mockMode: boolean;
+  rateLimit: {
+    requestsPerSecond: number;
+    burstLimit: number;
+  };
+  timeout: number;
+  retryConfig: {
+    maxRetries: number;
+    backoffMultiplier: number;
+    initialDelay: number;
+  };
 }
+
+interface ProviderStats {
+  providerId: string;
+  providerName: string;
+  isActive: boolean;
+  mockMode: boolean;
+  priority: number;
+  successfulRequests: number;
+  failedRequests: number;
+  totalRequests: number;
+  successRate: number;
+  supportedCoverageTypes: string[];
+}
+
+// Form validation schema
+const editProviderSchema = z.object({
+  displayName: z.string().min(1, "Display name is required"),
+  baseUrl: z.string().url("Invalid URL format"),
+  apiKey: z.string().optional(),
+  authHeader: z.string().optional(),
+  isActive: z.boolean(),
+  priority: z.number().min(1).max(100),
+  mockMode: z.boolean(),
+  supportedCoverageTypes: z.array(z.string()).min(1, "At least one coverage type required"),
+  timeout: z.number().min(1000).max(30000),
+  requestsPerSecond: z.number().min(1).max(100),
+  burstLimit: z.number().min(1).max(1000),
+  maxRetries: z.number().min(0).max(10),
+  backoffMultiplier: z.number().min(1).max(5),
+  initialDelay: z.number().min(100).max(5000),
+});
+
+type EditProviderFormData = z.infer<typeof editProviderSchema>;
 
 export default function AdminProviderManagement() {
   const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [searchTerm, setSearchTerm] = useState("");
+  const [editingProvider, setEditingProvider] = useState<ProviderConfig | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+
+  const form = useForm<EditProviderFormData>({
+    resolver: zodResolver(editProviderSchema),
+    defaultValues: {
+      isActive: true,
+      mockMode: false,
+      priority: 1,
+      timeout: 5000,
+      requestsPerSecond: 10,
+      burstLimit: 50,
+      maxRetries: 3,
+      backoffMultiplier: 2,
+      initialDelay: 500,
+      supportedCoverageTypes: [],
+    },
+  });
 
   // Ensure only SuperAdmin can access this page
   if (!user || user.privilegeLevel !== 0) {
@@ -81,10 +156,128 @@ export default function AdminProviderManagement() {
     },
   });
 
+  const { data: providerStats, isLoading: loadingStats, refetch: refetchStats } = useQuery({
+    queryKey: ['/api/admin/provider-stats'],
+    queryFn: async () => {
+      const response = await fetch('/api/admin/provider-stats');
+      if (!response.ok) throw new Error('Failed to fetch provider stats');
+      return response.json();
+    },
+  });
+
+  // Mutations
+  const updateProviderMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<EditProviderFormData> }) => {
+      return await apiRequest(`/api/admin/provider-configs/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          displayName: data.displayName,
+          baseUrl: data.baseUrl,
+          apiKey: data.apiKey,
+          authHeader: data.authHeader,
+          isActive: data.isActive,
+          priority: data.priority,
+          mockMode: data.mockMode,
+          supportedCoverageTypes: data.supportedCoverageTypes,
+          timeout: data.timeout,
+          rateLimit: {
+            requestsPerSecond: data.requestsPerSecond || 10,
+            burstLimit: data.burstLimit || 50,
+          },
+          retryConfig: {
+            maxRetries: data.maxRetries || 3,
+            backoffMultiplier: data.backoffMultiplier || 2,
+            initialDelay: data.initialDelay || 500,
+          },
+        }),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/provider-configs'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/provider-stats'] });
+      setEditDialogOpen(false);
+      setEditingProvider(null);
+      form.reset();
+      toast({
+        title: "Success",
+        description: "Provider configuration updated successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update provider configuration",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const testProviderMutation = useMutation({
+    mutationFn: async (providerId: string) => {
+      const response = await fetch(`/api/admin/provider-configs/${providerId}/test`, {
+        method: 'POST',
+      });
+      if (!response.ok) throw new Error('Failed to test provider');
+      return response.json();
+    },
+    onSuccess: (data, providerId) => {
+      toast({
+        title: data.success ? "Connection Successful" : "Connection Failed",
+        description: data.success 
+          ? `Provider responded in ${data.responseTime}ms`
+          : `Error: ${data.error}`,
+        variant: data.success ? "default" : "destructive",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Test Failed",
+        description: error.message || "Failed to test provider connection",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleRefresh = () => {
     refetchRequests();
     refetchProviders();
+    refetchStats();
   };
+
+  const handleEditProvider = (provider: ProviderConfig) => {
+    setEditingProvider(provider);
+    form.reset({
+      displayName: provider.displayName,
+      baseUrl: provider.baseUrl,
+      apiKey: provider.apiKey || "",
+      authHeader: provider.authHeader || "",
+      isActive: provider.isActive,
+      priority: provider.priority,
+      mockMode: provider.mockMode,
+      supportedCoverageTypes: provider.supportedCoverageTypes,
+      timeout: provider.timeout,
+      requestsPerSecond: provider.rateLimit.requestsPerSecond,
+      burstLimit: provider.rateLimit.burstLimit,
+      maxRetries: provider.retryConfig.maxRetries,
+      backoffMultiplier: provider.retryConfig.backoffMultiplier,
+      initialDelay: provider.retryConfig.initialDelay,
+    });
+    setEditDialogOpen(true);
+  };
+
+  const onSubmit = (data: EditProviderFormData) => {
+    if (editingProvider) {
+      updateProviderMutation.mutate({ id: editingProvider.id, data });
+    }
+  };
+
+  const handleTestProvider = (providerId: string) => {
+    testProviderMutation.mutate(providerId);
+  };
+
+  const availableCoverageTypes = [
+    "life", "health", "dental", "vision", "disability", "auto", "home", "renters"
+  ];
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -123,11 +316,142 @@ export default function AdminProviderManagement() {
           </Button>
         </div>
 
-        <Tabs defaultValue="requests" className="space-y-6">
+        <Tabs defaultValue="statistics" className="space-y-6">
           <TabsList>
+            <TabsTrigger value="statistics" data-testid="tab-statistics">Statistics</TabsTrigger>
+            <TabsTrigger value="providers" data-testid="tab-providers">Provider Management</TabsTrigger>
             <TabsTrigger value="requests" data-testid="tab-requests">Quote Requests</TabsTrigger>
-            <TabsTrigger value="providers" data-testid="tab-providers">Provider Configuration</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="statistics" className="space-y-6">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Providers</CardTitle>
+                  <Settings className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{providerConfigsData?.summary?.totalProviders || 0}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Active Providers</CardTitle>
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{providerConfigsData?.summary?.activeProviders || 0}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Requests</CardTitle>
+                  <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {providerStats?.reduce((acc: number, stat: ProviderStats) => acc + stat.totalRequests, 0) || 0}
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Average Success Rate</CardTitle>
+                  <Activity className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {providerStats?.length 
+                      ? Math.round(providerStats.reduce((acc: number, stat: ProviderStats) => acc + stat.successRate, 0) / providerStats.length)
+                      : 0}%
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <BarChart3 className="h-5 w-5 mr-2" />
+                  Provider Performance Statistics
+                </CardTitle>
+                <CardDescription>
+                  Detailed performance metrics for all insurance providers
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {loadingStats ? (
+                  <div className="flex items-center justify-center py-8">
+                    <RefreshCw className="h-6 w-6 animate-spin mr-2" />
+                    Loading statistics...
+                  </div>
+                ) : (
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Provider</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Priority</TableHead>
+                          <TableHead>Total Requests</TableHead>
+                          <TableHead>Success Rate</TableHead>
+                          <TableHead>Coverage Types</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {providerStats?.map((stat: ProviderStats) => (
+                          <TableRow key={stat.providerId}>
+                            <TableCell className="font-medium">{stat.providerName}</TableCell>
+                            <TableCell>{getProviderBadge(stat.isActive, stat.mockMode)}</TableCell>
+                            <TableCell>
+                              <Badge variant="secondary">{stat.priority}</Badge>
+                            </TableCell>
+                            <TableCell>{stat.totalRequests}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center">
+                                <div className="w-16 mr-2">
+                                  <div className="h-2 bg-gray-200 rounded-full">
+                                    <div 
+                                      className={`h-2 rounded-full ${
+                                        stat.successRate >= 90 ? 'bg-green-500' :
+                                        stat.successRate >= 70 ? 'bg-yellow-500' : 'bg-red-500'
+                                      }`}
+                                      style={{ width: `${stat.successRate}%` }}
+                                    />
+                                  </div>
+                                </div>
+                                <span className="text-sm">{stat.successRate.toFixed(1)}%</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-wrap gap-1">
+                                {stat.supportedCoverageTypes?.slice(0, 3).map((type: string) => (
+                                  <Badge key={type} variant="outline" className="text-xs">
+                                    {type}
+                                  </Badge>
+                                ))}
+                                {stat.supportedCoverageTypes?.length > 3 && (
+                                  <Badge variant="outline" className="text-xs">
+                                    +{stat.supportedCoverageTypes.length - 3}
+                                  </Badge>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )) || (
+                          <TableRow>
+                            <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                              No statistics available
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           <TabsContent value="requests" className="space-y-6">
           <Card>

@@ -202,6 +202,80 @@ export function getProviderById(id: string): ProviderConfig | undefined {
   return INSURANCE_PROVIDERS.find(provider => provider.id === id);
 }
 
+// Validation schema for provider configuration updates
+export const UpdateProviderConfigSchema = z.object({
+  name: z.string().min(1).optional(),
+  displayName: z.string().min(1).optional(),
+  baseUrl: z.string().url().optional(),
+  apiKey: z.string().optional(),
+  authHeader: z.string().optional(),
+  isActive: z.boolean().optional(),
+  priority: z.number().min(1).max(100).optional(),
+  mockMode: z.boolean().optional(),
+  supportedCoverageTypes: z.array(z.string()).optional(),
+  rateLimit: z.object({
+    requestsPerSecond: z.number().positive(),
+    burstLimit: z.number().positive(),
+  }).optional(),
+  timeout: z.number().positive().optional(),
+  retryConfig: z.object({
+    maxRetries: z.number().min(0).max(10),
+    backoffMultiplier: z.number().positive(),
+    initialDelay: z.number().positive(),
+  }).optional(),
+});
+
+export type UpdateProviderConfig = z.infer<typeof UpdateProviderConfigSchema>;
+
+// Provider management functions
+export function updateProvider(id: string, updates: UpdateProviderConfig): ProviderConfig | null {
+  const providerIndex = INSURANCE_PROVIDERS.findIndex(p => p.id === id);
+  if (providerIndex === -1) return null;
+  
+  const provider = INSURANCE_PROVIDERS[providerIndex];
+  const updatedProvider = {
+    ...provider,
+    ...updates,
+    rateLimit: updates.rateLimit ? { ...provider.rateLimit, ...updates.rateLimit } : provider.rateLimit,
+    retryConfig: updates.retryConfig ? { ...provider.retryConfig, ...updates.retryConfig } : provider.retryConfig,
+  };
+  
+  INSURANCE_PROVIDERS[providerIndex] = updatedProvider;
+  return updatedProvider;
+}
+
+export function testProviderConnection(provider: ProviderConfig): Promise<{ success: boolean; responseTime?: number; error?: string }> {
+  return new Promise((resolve) => {
+    const startTime = Date.now();
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), provider.timeout);
+    
+    fetch(`${provider.baseUrl}/health`, {
+      method: 'GET',
+      headers: provider.apiKey ? {
+        [provider.authHeader || 'Authorization']: `${provider.authHeader === 'Bearer' ? 'Bearer ' : ''}${provider.apiKey}`
+      } : {},
+      signal: controller.signal,
+    })
+    .then(response => {
+      clearTimeout(timeoutId);
+      const responseTime = Date.now() - startTime;
+      resolve({
+        success: response.ok,
+        responseTime,
+        error: !response.ok ? `HTTP ${response.status}` : undefined,
+      });
+    })
+    .catch(error => {
+      clearTimeout(timeoutId);
+      resolve({
+        success: false,
+        error: error.name === 'AbortError' ? 'Timeout' : error.message,
+      });
+    });
+  });
+}
+
 // Coverage type mapping for provider APIs
 export const COVERAGE_TYPE_MAPPING: Record<string, Record<string, string>> = {
   life_secure: {

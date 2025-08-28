@@ -2281,6 +2281,111 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // SuperAdmin: Update provider configuration
+  app.put('/api/admin/provider-configs/:id', auth, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.privilegeLevel !== 0) {
+        return res.status(403).json({ message: "SuperAdmin access required" });
+      }
+
+      const { id } = req.params;
+      const { UpdateProviderConfigSchema, updateProvider } = await import('./insuranceProviderConfig');
+      
+      const validatedData = UpdateProviderConfigSchema.parse(req.body);
+      const updatedProvider = updateProvider(id, validatedData);
+      
+      if (!updatedProvider) {
+        return res.status(404).json({ message: "Provider not found" });
+      }
+      
+      res.json(updatedProvider);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error('Error updating provider config:', error);
+      res.status(500).json({ message: 'Failed to update provider configuration' });
+    }
+  });
+
+  // SuperAdmin: Test provider connection
+  app.post('/api/admin/provider-configs/:id/test', auth, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.privilegeLevel !== 0) {
+        return res.status(403).json({ message: "SuperAdmin access required" });
+      }
+
+      const { id } = req.params;
+      const { getProviderById, testProviderConnection } = await import('./insuranceProviderConfig');
+      
+      const provider = getProviderById(id);
+      if (!provider) {
+        return res.status(404).json({ message: "Provider not found" });
+      }
+      
+      const testResult = await testProviderConnection(provider);
+      res.json(testResult);
+    } catch (error) {
+      console.error('Error testing provider connection:', error);
+      res.status(500).json({ message: 'Failed to test provider connection' });
+    }
+  });
+
+  // SuperAdmin: Get provider statistics
+  app.get('/api/admin/provider-stats', auth, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.privilegeLevel !== 0) {
+        return res.status(403).json({ message: "SuperAdmin access required" });
+      }
+
+      const { getAllProviders } = await import('./insuranceProviderConfig');
+      const allProviders = getAllProviders();
+      
+      // Get provider statistics from database
+      const statsPromises = allProviders.map(async (provider) => {
+        const successfulRequests = await storage.getExternalQuoteRequestsCount({
+          providerId: provider.id,
+          status: 'success'
+        });
+        const failedRequests = await storage.getExternalQuoteRequestsCount({
+          providerId: provider.id,
+          status: 'error'
+        });
+        const totalRequests = await storage.getExternalQuoteRequestsCount({
+          providerId: provider.id
+        });
+        
+        return {
+          providerId: provider.id,
+          providerName: provider.displayName,
+          isActive: provider.isActive,
+          mockMode: provider.mockMode,
+          priority: provider.priority,
+          successfulRequests,
+          failedRequests,
+          totalRequests,
+          successRate: totalRequests > 0 ? (successfulRequests / totalRequests) * 100 : 0,
+          supportedCoverageTypes: provider.supportedCoverageTypes,
+        };
+      });
+      
+      const stats = await Promise.all(statsPromises);
+      res.json(stats);
+    } catch (error) {
+      console.error('Error fetching provider stats:', error);
+      res.status(500).json({ message: 'Failed to fetch provider statistics' });
+    }
+  });
+
   // Seeding endpoint (for development only)
   app.post('/api/seed-users', async (req: any, res) => {
     try {
