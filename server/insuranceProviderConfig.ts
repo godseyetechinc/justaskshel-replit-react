@@ -31,18 +31,28 @@ export const QuoteRequestSchema = z.object({
   zipCode: z.string().regex(/^\d{5}$/),
   coverageAmount: z.number().positive(),
   termLength: z.number().optional(),
-  paymentFrequency: z.enum(['monthly', 'quarterly', 'semi-annually', 'annually']).optional(),
+  paymentFrequency: z
+    .enum(["monthly", "quarterly", "semi-annually", "annually"])
+    .optional(),
   effectiveDate: z.string().optional(),
-  spouse: z.object({
-    age: z.number().min(18).max(100),
-  }).optional(),
-  children: z.array(z.object({
-    age: z.number().min(0).max(25),
-  })).optional(),
-  healthInfo: z.object({
-    smoker: z.boolean().optional(),
-    medicalConditions: z.array(z.string()).optional(),
-  }).optional(),
+  spouse: z
+    .object({
+      age: z.number().min(18).max(100),
+    })
+    .optional(),
+  children: z
+    .array(
+      z.object({
+        age: z.number().min(0).max(25),
+      }),
+    )
+    .optional(),
+  healthInfo: z
+    .object({
+      smoker: z.boolean().optional(),
+      medicalConditions: z.array(z.string()).optional(),
+    })
+    .optional(),
 });
 
 export const QuoteResponseSchema = z.object({
@@ -69,6 +79,32 @@ export type QuoteResponse = z.infer<typeof QuoteResponseSchema>;
 // Provider-specific configurations
 export const INSURANCE_PROVIDERS: ProviderConfig[] = [
   {
+    id: "jas_assure",
+    name: "jas_assure",
+    displayName: "JAS Assurance",
+    baseUrl:
+      process.env.LIFESECURE_API_URL ||
+      "http://api1.justaskshel.com:8700/web-api/v1",
+    apiKey: process.env.LIFESECURE_API_KEY,
+    authHeader: "X-API-Key",
+    rateLimit: {
+      requestsPerSecond: 10,
+      burstLimit: 50,
+    },
+    timeout: 8000,
+    retryConfig: {
+      maxRetries: 3,
+      backoffMultiplier: 2,
+      initialDelay: 1000,
+    },
+    supportedCoverageTypes: ["life"],
+    isActive: true,
+    priority: 1,
+    mockMode: !process.env.LIFESECURE_API_KEY,
+  },
+
+  // ------------------
+  {
     id: "life_secure",
     name: "life_secure",
     displayName: "LifeSecure Insurance",
@@ -92,9 +128,10 @@ export const INSURANCE_PROVIDERS: ProviderConfig[] = [
   },
   {
     id: "health_plus",
-    name: "health_plus", 
+    name: "health_plus",
     displayName: "HealthPlus Coverage",
-    baseUrl: process.env.HEALTHPLUS_API_URL || "https://api.healthplus.com/quotes",
+    baseUrl:
+      process.env.HEALTHPLUS_API_URL || "https://api.healthplus.com/quotes",
     apiKey: process.env.HEALTHPLUS_API_KEY,
     authHeader: "Authorization",
     rateLimit: {
@@ -138,7 +175,8 @@ export const INSURANCE_PROVIDERS: ProviderConfig[] = [
     id: "vision_first",
     name: "vision_first",
     displayName: "VisionFirst Insurance",
-    baseUrl: process.env.VISIONFIRST_API_URL || "https://api.visionfirst.com/quotes",
+    baseUrl:
+      process.env.VISIONFIRST_API_URL || "https://api.visionfirst.com/quotes",
     apiKey: process.env.VISIONFIRST_API_KEY,
     authHeader: "Bearer",
     rateLimit: {
@@ -160,7 +198,9 @@ export const INSURANCE_PROVIDERS: ProviderConfig[] = [
     id: "family_shield",
     name: "family_shield",
     displayName: "FamilyShield Insurance",
-    baseUrl: process.env.FAMILYSHIELD_API_URL || "https://api.familyshield.com/v1/quotes",
+    baseUrl:
+      process.env.FAMILYSHIELD_API_URL ||
+      "https://api.familyshield.com/v1/quotes",
     apiKey: process.env.FAMILYSHIELD_API_KEY,
     authHeader: "X-Client-Key",
     rateLimit: {
@@ -173,7 +213,13 @@ export const INSURANCE_PROVIDERS: ProviderConfig[] = [
       backoffMultiplier: 2.5,
       initialDelay: 1200,
     },
-    supportedCoverageTypes: ["life", "health", "dental", "vision", "disability"],
+    supportedCoverageTypes: [
+      "life",
+      "health",
+      "dental",
+      "vision",
+      "disability",
+    ],
     isActive: true,
     priority: 5,
     mockMode: !process.env.FAMILYSHIELD_API_KEY,
@@ -182,24 +228,27 @@ export const INSURANCE_PROVIDERS: ProviderConfig[] = [
 
 // Helper functions
 export function getActiveProviders(): ProviderConfig[] {
-  return INSURANCE_PROVIDERS.filter(provider => provider.isActive);
+  return INSURANCE_PROVIDERS.filter((provider) => provider.isActive);
 }
 
 export function getAllProviders(): ProviderConfig[] {
   return INSURANCE_PROVIDERS;
 }
 
-export function getProvidersForCoverage(coverageType: string): ProviderConfig[] {
+export function getProvidersForCoverage(
+  coverageType: string,
+): ProviderConfig[] {
   return getActiveProviders()
-    .filter(provider => 
-      provider.supportedCoverageTypes.includes(coverageType.toLowerCase()) ||
-      provider.supportedCoverageTypes.includes('all')
+    .filter(
+      (provider) =>
+        provider.supportedCoverageTypes.includes(coverageType.toLowerCase()) ||
+        provider.supportedCoverageTypes.includes("all"),
     )
     .sort((a, b) => a.priority - b.priority);
 }
 
 export function getProviderById(id: string): ProviderConfig | undefined {
-  return INSURANCE_PROVIDERS.find(provider => provider.id === id);
+  return INSURANCE_PROVIDERS.find((provider) => provider.id === id);
 }
 
 // Validation schema for provider configuration updates
@@ -213,66 +262,82 @@ export const UpdateProviderConfigSchema = z.object({
   priority: z.number().min(1).max(100).optional(),
   mockMode: z.boolean().optional(),
   supportedCoverageTypes: z.array(z.string()).optional(),
-  rateLimit: z.object({
-    requestsPerSecond: z.number().positive(),
-    burstLimit: z.number().positive(),
-  }).optional(),
+  rateLimit: z
+    .object({
+      requestsPerSecond: z.number().positive(),
+      burstLimit: z.number().positive(),
+    })
+    .optional(),
   timeout: z.number().positive().optional(),
-  retryConfig: z.object({
-    maxRetries: z.number().min(0).max(10),
-    backoffMultiplier: z.number().positive(),
-    initialDelay: z.number().positive(),
-  }).optional(),
+  retryConfig: z
+    .object({
+      maxRetries: z.number().min(0).max(10),
+      backoffMultiplier: z.number().positive(),
+      initialDelay: z.number().positive(),
+    })
+    .optional(),
 });
 
 export type UpdateProviderConfig = z.infer<typeof UpdateProviderConfigSchema>;
 
 // Provider management functions
-export function updateProvider(id: string, updates: UpdateProviderConfig): ProviderConfig | null {
-  const providerIndex = INSURANCE_PROVIDERS.findIndex(p => p.id === id);
+export function updateProvider(
+  id: string,
+  updates: UpdateProviderConfig,
+): ProviderConfig | null {
+  const providerIndex = INSURANCE_PROVIDERS.findIndex((p) => p.id === id);
   if (providerIndex === -1) return null;
-  
+
   const provider = INSURANCE_PROVIDERS[providerIndex];
   const updatedProvider = {
     ...provider,
     ...updates,
-    rateLimit: updates.rateLimit ? { ...provider.rateLimit, ...updates.rateLimit } : provider.rateLimit,
-    retryConfig: updates.retryConfig ? { ...provider.retryConfig, ...updates.retryConfig } : provider.retryConfig,
+    rateLimit: updates.rateLimit
+      ? { ...provider.rateLimit, ...updates.rateLimit }
+      : provider.rateLimit,
+    retryConfig: updates.retryConfig
+      ? { ...provider.retryConfig, ...updates.retryConfig }
+      : provider.retryConfig,
   };
-  
+
   INSURANCE_PROVIDERS[providerIndex] = updatedProvider;
   return updatedProvider;
 }
 
-export function testProviderConnection(provider: ProviderConfig): Promise<{ success: boolean; responseTime?: number; error?: string }> {
+export function testProviderConnection(
+  provider: ProviderConfig,
+): Promise<{ success: boolean; responseTime?: number; error?: string }> {
   return new Promise((resolve) => {
     const startTime = Date.now();
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), provider.timeout);
-    
+
     fetch(`${provider.baseUrl}/health`, {
-      method: 'GET',
-      headers: provider.apiKey ? {
-        [provider.authHeader || 'Authorization']: `${provider.authHeader === 'Bearer' ? 'Bearer ' : ''}${provider.apiKey}`
-      } : {},
+      method: "GET",
+      headers: provider.apiKey
+        ? {
+            [provider.authHeader || "Authorization"]:
+              `${provider.authHeader === "Bearer" ? "Bearer " : ""}${provider.apiKey}`,
+          }
+        : {},
       signal: controller.signal,
     })
-    .then(response => {
-      clearTimeout(timeoutId);
-      const responseTime = Date.now() - startTime;
-      resolve({
-        success: response.ok,
-        responseTime,
-        error: !response.ok ? `HTTP ${response.status}` : undefined,
+      .then((response) => {
+        clearTimeout(timeoutId);
+        const responseTime = Date.now() - startTime;
+        resolve({
+          success: response.ok,
+          responseTime,
+          error: !response.ok ? `HTTP ${response.status}` : undefined,
+        });
+      })
+      .catch((error) => {
+        clearTimeout(timeoutId);
+        resolve({
+          success: false,
+          error: error.name === "AbortError" ? "Timeout" : error.message,
+        });
       });
-    })
-    .catch(error => {
-      clearTimeout(timeoutId);
-      resolve({
-        success: false,
-        error: error.name === 'AbortError' ? 'Timeout' : error.message,
-      });
-    });
   });
 }
 
@@ -280,21 +345,21 @@ export function testProviderConnection(provider: ProviderConfig): Promise<{ succ
 export const COVERAGE_TYPE_MAPPING: Record<string, Record<string, string>> = {
   life_secure: {
     "Life Insurance": "term_life",
-    "life": "term_life",
-    "whole_life": "whole_life",
+    life: "term_life",
+    whole_life: "whole_life",
   },
   health_plus: {
     "Health Insurance": "medical",
-    "health": "medical",
+    health: "medical",
     "Hospital Indemnity Insurance": "hospital_indemnity",
   },
   dental_care: {
     "Dental Insurance": "dental",
-    "dental": "dental",
+    dental: "dental",
   },
   vision_first: {
     "Vision Insurance": "vision",
-    "vision": "vision",
+    vision: "vision",
   },
   family_shield: {
     "Life Insurance": "life",
@@ -304,7 +369,10 @@ export const COVERAGE_TYPE_MAPPING: Record<string, Record<string, string>> = {
   },
 };
 
-export function mapCoverageTypeForProvider(providerId: string, coverageType: string): string {
+export function mapCoverageTypeForProvider(
+  providerId: string,
+  coverageType: string,
+): string {
   const mapping = COVERAGE_TYPE_MAPPING[providerId];
   return mapping?.[coverageType] || coverageType.toLowerCase();
 }

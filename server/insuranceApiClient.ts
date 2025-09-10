@@ -1,12 +1,12 @@
-import { 
-  ProviderConfig, 
-  QuoteRequest, 
-  QuoteResponse, 
-  QuoteRequestSchema, 
+import {
+  ProviderConfig,
+  QuoteRequest,
+  QuoteResponse,
+  QuoteRequestSchema,
   QuoteResponseSchema,
   getProvidersForCoverage,
   getActiveProviders,
-  mapCoverageTypeForProvider 
+  mapCoverageTypeForProvider,
 } from "./insuranceProviderConfig";
 
 // Rate limiting utility
@@ -25,13 +25,13 @@ class RateLimiter {
 
   async acquire(): Promise<void> {
     this.refill();
-    
+
     if (this.tokens < 1) {
       const waitTime = (1 / this.refillRate) * 1000;
-      await new Promise(resolve => setTimeout(resolve, waitTime));
+      await new Promise((resolve) => setTimeout(resolve, waitTime));
       return this.acquire();
     }
-    
+
     this.tokens--;
   }
 
@@ -39,7 +39,7 @@ class RateLimiter {
     const now = Date.now();
     const timePassed = (now - this.lastRefill) / 1000;
     const tokensToAdd = timePassed * this.refillRate;
-    
+
     this.tokens = Math.min(this.maxTokens, this.tokens + tokensToAdd);
     this.lastRefill = now;
   }
@@ -52,7 +52,7 @@ export class ProviderApiClient {
   constructor(private config: ProviderConfig) {
     this.rateLimiter = new RateLimiter(
       config.rateLimit.requestsPerSecond,
-      config.rateLimit.burstLimit
+      config.rateLimit.burstLimit,
     );
   }
 
@@ -65,8 +65,11 @@ export class ProviderApiClient {
     return this.makeApiRequest(request);
   }
 
-  private async makeApiRequest(request: QuoteRequest): Promise<QuoteResponse[]> {
-    const { maxRetries, backoffMultiplier, initialDelay } = this.config.retryConfig;
+  private async makeApiRequest(
+    request: QuoteRequest,
+  ): Promise<QuoteResponse[]> {
+    const { maxRetries, backoffMultiplier, initialDelay } =
+      this.config.retryConfig;
     let lastError: Error;
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -75,42 +78,50 @@ export class ProviderApiClient {
         return response;
       } catch (error) {
         lastError = error as Error;
-        
+
         if (attempt === maxRetries) {
           throw lastError;
         }
 
         const delay = initialDelay * Math.pow(backoffMultiplier, attempt);
-        await new Promise(resolve => setTimeout(resolve, delay));
+        await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }
 
     throw lastError!;
   }
 
-  private async executeRequest(request: QuoteRequest): Promise<QuoteResponse[]> {
+  private async executeRequest(
+    request: QuoteRequest,
+  ): Promise<QuoteResponse[]> {
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      'User-Agent': 'JustAskShel/1.0',
+      "Content-Type": "application/json",
+      "User-Agent": "JustAskShel/1.0",
     };
 
     if (this.config.apiKey && this.config.authHeader) {
-      if (this.config.authHeader === 'Bearer') {
-        headers['Authorization'] = `Bearer ${this.config.apiKey}`;
+      if (this.config.authHeader === "Bearer") {
+        headers["Authorization"] = `Bearer ${this.config.apiKey}`;
       } else {
         headers[this.config.authHeader] = this.config.apiKey;
       }
     }
 
-    const mappedCoverageType = mapCoverageTypeForProvider(this.config.id, request.coverageType);
-    const providerRequest = this.transformRequestForProvider(request, mappedCoverageType);
+    const mappedCoverageType = mapCoverageTypeForProvider(
+      this.config.id,
+      request.coverageType,
+    );
+    const providerRequest = this.transformRequestForProvider(
+      request,
+      mappedCoverageType,
+    );
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
 
     try {
       const response = await fetch(`${this.config.baseUrl}/quotes`, {
-        method: 'POST',
+        method: "POST",
         headers,
         body: JSON.stringify(providerRequest),
         signal: controller.signal,
@@ -119,21 +130,32 @@ export class ProviderApiClient {
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        throw new Error(`Provider ${this.config.name} returned ${response.status}: ${response.statusText}`);
+        throw new Error(
+          `Provider ${this.config.name} returned ${response.status}: ${response.statusText}`,
+        );
       }
 
       const data = await response.json();
+
+      //if (this.config.id == "jas_assure")
+      //  throw new Error(await response.json());
+
       return this.transformResponseFromProvider(data);
     } catch (error) {
       clearTimeout(timeoutId);
-      if (error instanceof Error && error.name === 'AbortError') {
-        throw new Error(`Provider ${this.config.name} request timed out after ${this.config.timeout}ms`);
+      if (error instanceof Error && error.name === "AbortError") {
+        throw new Error(
+          `Provider ${this.config.name} request timed out after ${this.config.timeout}ms`,
+        );
       }
       throw error;
     }
   }
 
-  private transformRequestForProvider(request: QuoteRequest, coverageType: string): any {
+  private transformRequestForProvider(
+    request: QuoteRequest,
+    coverageType: string,
+  ): any {
     // Transform the normalized request to provider-specific format
     const baseRequest = {
       coverage_type: coverageType,
@@ -155,43 +177,106 @@ export class ProviderApiClient {
     }
 
     if (request.children && request.children.length > 0) {
-      baseRequest.applicant.children = request.children.map(child => ({ age: child.age }));
+      baseRequest.applicant.children = request.children.map((child) => ({
+        age: child.age,
+      }));
     }
 
     // Provider-specific transformations
     switch (this.config.id) {
-      case 'life_secure':
+      case "jas_assure":
+        // https://transform.tools/json-to-typescript
+        /*
+        {
+          "isLifeInsuranceRequest": true,
+          "subCategoryFilter": [
+            "string"
+          ],
+          "quoteCriteria": {
+            "quoteSearchId": 0,
+            "coverage": 0,
+            "coverageAmount": 1000000,
+            "state": "FL",
+            "zipCode": "33073",
+            "county": "Broward",
+            "applicant": {
+              "dateOfBirth": "1999-03-17",
+              "gender": "M",
+              "healthClass": "good",
+              "tobacco": true,
+              "heightInInches": 69,
+              "weight": 175,
+              "ignore": true
+            },
+            "paymentMode": "string",
+            "effectiveDate": "2024-03-17",
+            "quoteSource": "string",
+            "termLength": 0,
+            "includeWaiverPremium": true,
+            "multiTermQuote": true
+          }
+        }
+        */
+        return {
+          isLifeInsuranceRequest: true,
+          subCategoryFilter: [],
+          quoteCriteria: {
+            quoteSearchId: 0,
+            coverage: 0,
+            coverageAmount: 1000000,
+            state: "FL",
+            zipCode: "33073",
+            county: "Broward",
+            applicant: {
+              dateOfBirth: "1999-03-17",
+              gender: "M",
+              healthClass: "good",
+              tobacco: true,
+              heightInInches: 69,
+              weight: 175,
+              ignore: true,
+            },
+            paymentMode: "string",
+            effectiveDate: "2024-03-17",
+            quoteSource: "string",
+            termLength: 0,
+            includeWaiverPremium: true,
+            multiTermQuote: true,
+          },
+        };
+
+      case "life_secure":
         return {
           ...baseRequest,
           product_type: coverageType,
           client_info: baseRequest.applicant,
           coverage_details: baseRequest.coverage,
         };
-      
-      case 'health_plus':
+
+      case "health_plus":
         return {
           ...baseRequest,
           plan_type: coverageType,
           member_info: baseRequest.applicant,
           benefit_details: baseRequest.coverage,
         };
-      
-      case 'dental_care':
+
+      case "dental_care":
         return {
           ...baseRequest,
           service_type: coverageType,
           patient_info: baseRequest.applicant,
           plan_options: baseRequest.coverage,
         };
-      
-      case 'vision_first':
+
+      case "vision_first":
         return {
           ...baseRequest,
           vision_plan: coverageType,
           subscriber: baseRequest.applicant,
           benefits: baseRequest.coverage,
         };
-      
+
       default:
         return baseRequest;
     }
@@ -200,7 +285,7 @@ export class ProviderApiClient {
   private transformResponseFromProvider(data: any): QuoteResponse[] {
     // Handle different provider response formats
     let quotes: any[] = [];
-    
+
     if (Array.isArray(data)) {
       quotes = data;
     } else if (data.quotes && Array.isArray(data.quotes)) {
@@ -213,30 +298,46 @@ export class ProviderApiClient {
       quotes = [data];
     }
 
-    return quotes.map(quote => this.normalizeQuote(quote));
+    return quotes.map((quote) => this.normalizeQuote(quote));
   }
 
   private normalizeQuote(quote: any): QuoteResponse {
     // Normalize different provider response formats to our standard format
     const normalized: QuoteResponse = {
-      quoteId: quote.id || quote.quote_id || quote.quoteId || `${this.config.id}_${Date.now()}_${Math.random()}`,
+      quoteId:
+        quote.id ||
+        quote.quote_id ||
+        quote.quoteId ||
+        `${this.config.id}_${Date.now()}_${Math.random()}`,
       providerId: this.config.id,
       providerName: this.config.displayName,
       monthlyPremium: this.extractMonthlyPremium(quote),
       annualPremium: this.extractAnnualPremium(quote),
-      coverageAmount: quote.coverage_amount || quote.coverageAmount || quote.benefit_amount || 0,
+      coverageAmount:
+        quote.coverage_amount ||
+        quote.coverageAmount ||
+        quote.benefit_amount ||
+        0,
       deductible: quote.deductible || quote.deductible_amount || 0,
-      termLength: quote.term_length || quote.termLength || quote.term || undefined,
+      termLength:
+        quote.term_length || quote.termLength || quote.term || undefined,
       features: this.extractFeatures(quote),
       rating: quote.rating || quote.provider_rating || quote.score || undefined,
-      medicalExamRequired: quote.medical_exam_required || quote.medicalExam || quote.exam_required || false,
+      medicalExamRequired:
+        quote.medical_exam_required ||
+        quote.medicalExam ||
+        quote.exam_required ||
+        false,
       conversionOption: quote.conversion_option || quote.convertible || false,
       metadata: {
         providerId: this.config.id,
         originalResponse: quote,
         responseTimestamp: new Date().toISOString(),
       },
-      expiresAt: quote.expires_at || quote.expirationDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      expiresAt:
+        quote.expires_at ||
+        quote.expirationDate ||
+        new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
       applicationUrl: quote.application_url || quote.applyUrl || undefined,
     };
 
@@ -244,35 +345,48 @@ export class ProviderApiClient {
   }
 
   private extractMonthlyPremium(quote: any): number {
-    return quote.monthly_premium || 
-           quote.monthlyPremium || 
-           quote.premium_monthly ||
-           quote.monthly_cost ||
-           (quote.annual_premium || quote.annualPremium || quote.yearly_cost || 0) / 12 ||
-           0;
+    return (
+      quote.monthly_premium ||
+      quote.monthlyPremium ||
+      quote.premium_monthly ||
+      quote.monthly_cost ||
+      (quote.annual_premium || quote.annualPremium || quote.yearly_cost || 0) /
+        12 ||
+      0
+    );
   }
 
   private extractAnnualPremium(quote: any): number {
-    return quote.annual_premium || 
-           quote.annualPremium || 
-           quote.yearly_cost ||
-           (quote.monthly_premium || quote.monthlyPremium || quote.monthly_cost || 0) * 12 ||
-           0;
+    return (
+      quote.annual_premium ||
+      quote.annualPremium ||
+      quote.yearly_cost ||
+      (quote.monthly_premium ||
+        quote.monthlyPremium ||
+        quote.monthly_cost ||
+        0) * 12 ||
+      0
+    );
   }
 
   private extractFeatures(quote: any): string[] {
-    const features = quote.features || quote.benefits || quote.coverage_details || [];
-    
+    const features =
+      quote.features || quote.benefits || quote.coverage_details || [];
+
     if (Array.isArray(features)) {
-      return features.map(f => typeof f === 'string' ? f : f.name || f.description || String(f));
+      return features.map((f) =>
+        typeof f === "string" ? f : f.name || f.description || String(f),
+      );
     }
-    
-    if (typeof features === 'object') {
+
+    if (typeof features === "object") {
       return Object.entries(features)
         .filter(([, value]) => value)
-        .map(([key]) => key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()));
+        .map(([key]) =>
+          key.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
+        );
     }
-    
+
     return [];
   }
 
@@ -280,13 +394,13 @@ export class ProviderApiClient {
     // Generate realistic mock quotes for demo/testing
     const baseMonthlyPremium = Math.floor(Math.random() * 200) + 50;
     const numQuotes = Math.floor(Math.random() * 3) + 1; // 1-3 quotes per provider
-    
+
     const quotes: QuoteResponse[] = [];
-    
+
     for (let i = 0; i < numQuotes; i++) {
       const variance = 1 + (Math.random() - 0.5) * 0.4; // ±20% variance
       const monthlyPremium = Math.round(baseMonthlyPremium * variance);
-      
+
       quotes.push({
         quoteId: `${this.config.id}_mock_${Date.now()}_${i}`,
         providerId: this.config.id,
@@ -294,7 +408,9 @@ export class ProviderApiClient {
         monthlyPremium,
         annualPremium: monthlyPremium * 12,
         coverageAmount: request.coverageAmount,
-        deductible: request.coverageType.toLowerCase().includes('health') ? Math.floor(Math.random() * 5000) + 500 : 0,
+        deductible: request.coverageType.toLowerCase().includes("health")
+          ? Math.floor(Math.random() * 5000) + 500
+          : 0,
         termLength: request.termLength,
         features: this.generateMockFeatures(request.coverageType),
         rating: Math.round((Math.random() * 2 + 3) * 10) / 10, // 3.0-5.0 rating
@@ -309,7 +425,7 @@ export class ProviderApiClient {
         applicationUrl: `https://demo.${this.config.id}.com/apply?quote=${quotes.length}`,
       });
     }
-    
+
     return quotes;
   }
 
@@ -350,7 +466,7 @@ export class ProviderApiClient {
 
     const specific = typeSpecificFeatures[coverageType.toLowerCase()] || [];
     const selected = [...commonFeatures.slice(0, 2), ...specific.slice(0, 3)];
-    
+
     return selected;
   }
 }
@@ -362,7 +478,7 @@ export class InsuranceQuoteAggregator {
   constructor() {
     // Initialize clients for all active providers
     const activeProviders = getActiveProviders();
-    activeProviders.forEach(provider => {
+    activeProviders.forEach((provider) => {
       this.clients.set(provider.id, new ProviderApiClient(provider));
     });
   }
@@ -380,12 +496,14 @@ export class InsuranceQuoteAggregator {
     // Validate the request
     const validatedRequest = QuoteRequestSchema.parse(request);
     const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
+
     // Get providers that support the requested coverage type
     const eligibleProviders = getProvidersForCoverage(request.coverageType);
-    
+
     if (eligibleProviders.length === 0) {
-      throw new Error(`No providers available for coverage type: ${request.coverageType}`);
+      throw new Error(
+        `No providers available for coverage type: ${request.coverageType}`,
+      );
     }
 
     // Execute requests concurrently with Promise.allSettled
@@ -394,21 +512,21 @@ export class InsuranceQuoteAggregator {
       if (!client) {
         throw new Error(`Client not found for provider: ${provider.id}`);
       }
-      
+
       try {
         const quotes = await client.getQuotes(validatedRequest);
         return { providerId: provider.id, quotes, error: null };
       } catch (error) {
-        return { 
-          providerId: provider.id, 
-          quotes: [], 
-          error: error instanceof Error ? error.message : String(error) 
+        return {
+          providerId: provider.id,
+          quotes: [],
+          error: error instanceof Error ? error.message : String(error),
         };
       }
     });
 
     const results = await Promise.allSettled(quotePromises);
-    
+
     // Aggregate results
     const allQuotes: QuoteResponse[] = [];
     const errors: Array<{ providerId: string; error: string }> = [];
@@ -416,7 +534,7 @@ export class InsuranceQuoteAggregator {
     let failed = 0;
 
     results.forEach((result) => {
-      if (result.status === 'fulfilled') {
+      if (result.status === "fulfilled") {
         const { quotes, error, providerId } = result.value;
         if (error) {
           failed++;
@@ -427,9 +545,9 @@ export class InsuranceQuoteAggregator {
         }
       } else {
         failed++;
-        errors.push({ 
-          providerId: 'unknown', 
-          error: result.reason?.message || 'Unknown error' 
+        errors.push({
+          providerId: "unknown",
+          error: result.reason?.message || "Unknown error",
         });
       }
     });
@@ -450,7 +568,10 @@ export class InsuranceQuoteAggregator {
   }
 
   // Get specific provider quotes (for testing individual providers)
-  async getQuotesFromProvider(providerId: string, request: QuoteRequest): Promise<QuoteResponse[]> {
+  async getQuotesFromProvider(
+    providerId: string,
+    request: QuoteRequest,
+  ): Promise<QuoteResponse[]> {
     const client = this.clients.get(providerId);
     if (!client) {
       throw new Error(`Provider not found: ${providerId}`);
@@ -463,7 +584,7 @@ export class InsuranceQuoteAggregator {
   // Health check for all providers
   async healthCheck(): Promise<Record<string, boolean>> {
     const results: Record<string, boolean> = {};
-    
+
     const testRequest: QuoteRequest = {
       coverageType: "life",
       applicantAge: 30,
@@ -471,14 +592,16 @@ export class InsuranceQuoteAggregator {
       coverageAmount: 100000,
     };
 
-    const healthPromises = Array.from(this.clients.entries()).map(async ([providerId, client]) => {
-      try {
-        await client.getQuotes(testRequest);
-        results[providerId] = true;
-      } catch {
-        results[providerId] = false;
-      }
-    });
+    const healthPromises = Array.from(this.clients.entries()).map(
+      async ([providerId, client]) => {
+        try {
+          await client.getQuotes(testRequest);
+          results[providerId] = true;
+        } catch {
+          results[providerId] = false;
+        }
+      },
+    );
 
     await Promise.allSettled(healthPromises);
     return results;
