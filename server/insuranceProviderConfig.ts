@@ -24,6 +24,26 @@ export interface ProviderConfig {
   mockMode?: boolean; // For testing/demo purposes
 }
 
+// Enhanced multi-tenant provider configuration
+export interface OrganizationProviderConfig extends ProviderConfig {
+  organizationId?: number;
+  organizationOverrides?: {
+    priority?: number;
+    isActive?: boolean;
+    commissionRate?: number;
+    customDisplayName?: string;
+    timeout?: number;
+    rateLimit?: {
+      requestsPerSecond: number;
+      burstLimit: number;
+    };
+  };
+  lastHealthCheck?: Date;
+  healthScore?: number; // 0-100 score
+  errorCount?: number;
+  successCount?: number;
+}
+
 // Request/Response schemas for quote requests
 export const QuoteRequestSchema = z.object({
   coverageType: z.string(),

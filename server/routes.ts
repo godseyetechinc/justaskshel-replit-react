@@ -5,9 +5,10 @@ import { createSessionConfig } from "./replitAuth";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
 import bcrypt from "bcryptjs";
-import { quoteAggregator } from "./insuranceApiClient";
-import { QuoteNormalizationService } from "./quoteNormalizationService";
+// Removed unused imports after provider orchestrator integration
 import { QuoteRequest } from "./insuranceProviderConfig";
+import { providerOrchestrator } from "./providerOrchestrator";
+import { initializeQuoteWebSocket, quoteWebSocketServer } from "./websocketServer";
 import {
   insertInsuranceQuoteSchema,
   insertSelectedQuoteSchema,
@@ -390,11 +391,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Enhanced quote search with external provider integration
-  app.get('/api/quotes/search', async (req, res) => {
+  // Enhanced quote search with multi-tenant provider integration
+  app.get('/api/quotes/search', async (req: any, res) => {
     try {
       const { typeId, ageRange, zipCode, coverageAmount, includeExternal = "true", userId } = req.query;
       
+      // Get user information and organization context
+      const user = req.user?.claims?.sub ? req.user.claims.sub : userId;
+      let organizationId: number | undefined = undefined;
+      let userRole: string | undefined = undefined;
+
+      if (user) {
+        try {
+          const userInfo = await storage.getUserById(user);
+          organizationId = userInfo?.organizationId || undefined;
+          userRole = userInfo?.role;
+        } catch (error) {
+          console.warn("Could not fetch user organization:", error);
+        }
+      }
+
       // Get internal quotes first
       const internalQuotes = await storage.searchQuotes({
         typeId: typeId ? parseInt(typeId as string) : undefined,
@@ -409,7 +425,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           quotes: internalQuotes,
           providers: { total: 0, successful: 0, failed: 0, errors: [] },
           requestId: null,
-          source: "internal_only"
+          source: "internal_only",
+          organizationId
         });
       }
 
@@ -434,20 +451,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         parseFloat(coverageAmount.toString().replace(/[,$]/g, "")) : 100000;
 
       const externalRequest: QuoteRequest = {
-        coverageType: coverageTypeName,
+        coverageType: coverageTypeName.toLowerCase(),
         applicantAge,
         zipCode: validZipCode,
         coverageAmount: coverageAmountNum,
-        termLength: 20, // default term
+        termLength: 20,
         paymentFrequency: "monthly",
       };
 
-      // Log external request for tracking
-      let requestRecord = null;
+      // Use the new provider orchestrator for multi-tenant quote aggregation
+      const result = await providerOrchestrator.getQuotesForOrganization(
+        externalRequest,
+        organizationId,
+        userRole
+      );
+
+      // Combine internal and external quotes
+      const allQuotes = [...internalQuotes, ...result.quotes];
+
+      // Send WebSocket updates if available
+      if (quoteWebSocketServer && result.requestId) {
+        quoteWebSocketServer.sendQuoteCompletion(result.requestId, organizationId, allQuotes.length);
+      }
+
+      // Log request for tracking
       try {
-        requestRecord = await storage.createExternalQuoteRequest({
-          requestId: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          userId: userId as string || null,
+        await storage.createExternalQuoteRequest({
+          requestId: result.requestId,
+          userId: user || null,
           coverageType: coverageTypeName,
           applicantAge,
           zipCode: validZipCode,
@@ -455,74 +486,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
           termLength: 20,
           paymentFrequency: "monthly",
           requestData: externalRequest,
-          status: "processing",
+          status: "completed",
           processingStartedAt: new Date(),
+          completedAt: new Date(),
+          totalQuotesReceived: result.quotes.length,
+          successfulProviders: result.providers.successful,
+          failedProviders: result.providers.failed,
+          errors: result.providers.errors,
         });
       } catch (error) {
         console.warn("Could not create external quote request record:", error);
       }
 
-      // Get external quotes concurrently
-      let externalResult = null;
-      try {
-        externalResult = await quoteAggregator.getQuotes(externalRequest);
-        
-        // Update request record with results
-        if (requestRecord) {
-          await storage.updateExternalQuoteRequest(requestRecord.requestId, {
-            totalQuotesReceived: externalResult.quotes.length,
-            successfulProviders: externalResult.providers.successful,
-            failedProviders: externalResult.providers.failed,
-            errors: externalResult.providers.errors,
-            status: "completed",
-            completedAt: new Date(),
-          });
-        }
-      } catch (error) {
-        console.error("Error fetching external quotes:", error);
-        
-        // Update request record with failure
-        if (requestRecord) {
-          await storage.updateExternalQuoteRequest(requestRecord.requestId, {
-            status: "failed",
-            errors: [{ providerId: "system", error: error.message }],
-            completedAt: new Date(),
-          });
-        }
-        
-        // Return internal quotes only if external fails
-        return res.json({
-          quotes: internalQuotes,
-          providers: { total: 0, successful: 0, failed: 1, errors: [{ providerId: "system", error: "External provider error" }] },
-          requestId: requestRecord?.requestId || null,
-          source: "internal_fallback"
-        });
-      }
-
-      // Normalize and merge external quotes with internal quotes
-      const normalizedExternal = QuoteNormalizationService.normalizeExternalQuotes(
-        externalResult.quotes,
-        userId as string,
-        typeId ? parseInt(typeId as string) : undefined
-      );
-
-      const mergedQuotes = QuoteNormalizationService.mergeQuotes(normalizedExternal, internalQuotes);
-      
-      // Apply filtering and sorting
-      const filteredQuotes = QuoteNormalizationService.filterQuotes(mergedQuotes, {
-        maxMonthlyPremium: 1000, // reasonable upper limit
-        minCoverageAmount: coverageAmountNum * 0.5, // at least 50% of requested amount
-      });
-
-      // Enrich for display
-      const enrichedQuotes = QuoteNormalizationService.enrichQuotesForDisplay(filteredQuotes);
-
-      res.json({
-        quotes: enrichedQuotes,
-        providers: externalResult.providers,
-        requestId: externalResult.requestId,
-        summary: QuoteNormalizationService.generateComparisonSummary(enrichedQuotes),
-        source: "combined"
+      return res.json({
+        quotes: allQuotes,
+        providers: result.providers,
+        requestId: result.requestId,
+        source: result.cached ? "cached" : "live",
+        organizationId
       });
 
     } catch (error) {
@@ -2403,5 +2384,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   const httpServer = createServer(app);
+  
+  // Initialize WebSocket server for real-time quote updates
+  initializeQuoteWebSocket(httpServer);
+  
   return httpServer;
 }
