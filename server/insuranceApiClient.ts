@@ -294,11 +294,66 @@ export class ProviderApiClient {
       quotes = data.results;
     } else if (data.plans && Array.isArray(data.plans)) {
       quotes = data.plans;
+    } else if (data.Data && Array.isArray(data.Data)) {
+      let jasQuotes: any[] = data.Data;
+      let responses: QuoteResponse[] = [];
+
+      for (let quoteGroup in jasQuotes) {
+        responses.push(...this.normalizeJASQuoteGroup(quoteGroup));
+      }
+      return responses;
     } else {
       quotes = [data];
     }
 
     return quotes.map((quote) => this.normalizeQuote(quote));
+  }
+
+  private normalizeJASQuoteGroup(quoteGroup: any): QuoteResponse[] {
+    return quoteGroup.items.map((quote: any) => this.normalizeJASQuote(quote));
+  }
+
+  private normalizeJASQuote(quote: any): QuoteResponse {
+    // Normalize different provider response formats to our standard format
+    const normalized: QuoteResponse = {
+      quoteId:
+        quote.id ||
+        quote.quote_id ||
+        quote.quoteId ||
+        `${this.config.id}_${Date.now()}_${Math.random()}`,
+      providerId: this.config.id,
+      providerName: this.config.displayName,
+      monthlyPremium: this.extractJASMonthlyPremium(quote),
+      annualPremium: this.extractJASAnnualPremium(quote),
+      coverageAmount:
+        quote.coverage_amount ||
+        quote.coverageAmount ||
+        quote.benefit_amount ||
+        0,
+      deductible: quote.deductible || quote.deductible_amount || 0,
+      termLength:
+        quote.term_length || quote.termLength || quote.term || undefined,
+      features: this.extractJASFeatures(quote),
+      rating: quote.rating || quote.provider_rating || quote.score || undefined,
+      medicalExamRequired:
+        quote.medical_exam_required ||
+        quote.medicalExam ||
+        quote.exam_required ||
+        false,
+      conversionOption: quote.conversion_option || quote.convertible || false,
+      metadata: {
+        providerId: this.config.id,
+        originalResponse: quote,
+        responseTimestamp: new Date().toISOString(),
+      },
+      expiresAt:
+        quote.expires_at ||
+        quote.expirationDate ||
+        new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      applicationUrl: quote.application_url || quote.applyUrl || undefined,
+    };
+
+    return normalized;
   }
 
   private normalizeQuote(quote: any): QuoteResponse {
@@ -356,6 +411,18 @@ export class ProviderApiClient {
     );
   }
 
+  private extractJASMonthlyPremium(quote: any): number {
+    return (
+      quote.monthly_premium ||
+      quote.monthlyPremium ||
+      quote.premium_monthly ||
+      quote.monthly_cost ||
+      (quote.annual_premium || quote.annualPremium || quote.yearly_cost || 0) /
+        12 ||
+      0
+    );
+  }
+
   private extractAnnualPremium(quote: any): number {
     return (
       quote.annual_premium ||
@@ -369,7 +436,41 @@ export class ProviderApiClient {
     );
   }
 
+  private extractJASAnnualPremium(quote: any): number {
+    return (
+      quote.annual_premium ||
+      quote.annualPremium ||
+      quote.yearly_cost ||
+      (quote.monthly_premium ||
+        quote.monthlyPremium ||
+        quote.monthly_cost ||
+        0) * 12 ||
+      0
+    );
+  }
+
   private extractFeatures(quote: any): string[] {
+    const features =
+      quote.features || quote.benefits || quote.coverage_details || [];
+
+    if (Array.isArray(features)) {
+      return features.map((f) =>
+        typeof f === "string" ? f : f.name || f.description || String(f),
+      );
+    }
+
+    if (typeof features === "object") {
+      return Object.entries(features)
+        .filter(([, value]) => value)
+        .map(([key]) =>
+          key.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
+        );
+    }
+
+    return [];
+  }
+
+  private extractJASFeatures(quote: any): string[] {
     const features =
       quote.features || quote.benefits || quote.coverage_details || [];
 
