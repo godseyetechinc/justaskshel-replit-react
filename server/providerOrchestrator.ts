@@ -250,9 +250,9 @@ export class ProviderOrchestrator {
     // Sort quotes by organization priority and price
     const sortedQuotes = this.sortQuotesByOrganizationPreferences(allQuotes, organizationId);
 
-    // Cache results with organization-specific TTL
-    const ttl = this.getOrganizationCacheTTL(organizationId);
-    this.cacheResults(cacheKey, sortedQuotes, ttl);
+    // Cache results with organization-specific TTL (disabled for now)
+    // const ttl = this.getOrganizationCacheTTL(organizationId);
+    // this.cacheResults(cacheKey, sortedQuotes, ttl);
 
     return {
       quotes: sortedQuotes,
