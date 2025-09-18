@@ -60,6 +60,111 @@ SESSION_SECRET=your_secure_session_secret
 
 **Note**: If API keys are not provided, providers will run in mock mode with simulated quotes.
 
+## How To: Switch Providers from Mock to Live Mode
+
+### Understanding Provider Modes
+
+Each insurance provider can operate in two modes:
+
+**Mock Mode (Default):**
+- Returns simulated quote data
+- No external HTTP requests made
+- Safe for development and testing
+- Activated when API keys are missing
+
+**Live Mode:**
+- Makes actual HTTP requests to provider APIs
+- Returns real insurance quotes
+- Requires valid API keys
+- Used in production environments
+
+### Check Current Provider Status
+
+**Method 1: Examine Configuration**
+```bash
+# Look for provider configs in server/insuranceProviderConfig.ts
+grep -A 10 "jas_assure" server/insuranceProviderConfig.ts
+```
+
+**Method 2: Check Environment Variables**
+```bash
+# Verify if required API keys exist
+echo $LIFESECURE_API_KEY  # Should show API key value or be empty
+```
+
+**Method 3: Server Logs**
+```bash
+# Look for provider initialization messages
+# Mock providers won't show external HTTP activity
+```
+
+### Enable Live API Calls
+
+**For `jas_assure` Provider:**
+
+1. **Set Required Environment Variable**
+   ```bash
+   export LIFESECURE_API_KEY=your_actual_api_key_here
+   ```
+
+2. **Optional: Set Custom API URL**
+   ```bash
+   export LIFESECURE_API_URL=http://api1.justaskshel.com:8700/web-api/v1
+   ```
+
+3. **Restart the Application**
+   ```bash
+   npm run dev
+   ```
+
+4. **Verify Live Mode**
+   - Check server logs for external HTTP requests
+   - Monitor network tab in browser developer tools
+   - Test quote search functionality
+
+**For Other Providers:**
+
+Each provider follows the same pattern:
+```bash
+# General format
+export PROVIDER_NAME_API_KEY=your_key
+export PROVIDER_NAME_API_URL=provider_url  # If custom URL needed
+```
+
+**Example Provider Environment Variables:**
+```bash
+# Health Plus provider
+HEALTHPLUS_API_KEY=your_health_plus_key
+HEALTHPLUS_API_URL=https://api.healthplus.com/quotes
+
+# Dental Care provider  
+DENTALCARE_API_KEY=your_dental_care_key
+DENTALCARE_API_URL=https://api.dentalcare.com/v2
+
+# Vision First provider
+VISIONFIRST_API_KEY=your_vision_first_key
+VISIONFIRST_API_URL=https://api.visionfirst.com/v1
+```
+
+### Troubleshooting
+
+**Problem: Provider still using mock data**
+- ✅ Verify API key environment variable is set correctly
+- ✅ Restart the application after setting variables
+- ✅ Check for typos in environment variable names
+- ✅ Ensure API key is valid and has proper permissions
+
+**Problem: External API calls failing**
+- ✅ Verify API endpoint URL is correct
+- ✅ Check API key permissions with provider
+- ✅ Review server logs for detailed error messages
+- ✅ Test API endpoint manually with curl or Postman
+
+**Problem: Provider not appearing in results**
+- ✅ Ensure `isActive: true` in provider configuration
+- ✅ Check if provider supports the requested coverage type
+- ✅ Verify provider priority settings
+
 ### 2. Provider Configuration
 
 Providers are configured in `server/insuranceProviderConfig.ts`. Each provider includes:
@@ -280,5 +385,21 @@ To verify Phase 1 setup:
 5. ✅ Providers show mock mode when API keys not configured
 6. ✅ WebSocket connection established (check browser dev tools)
 7. ✅ Organization context properly maintained in authenticated requests
+8. ✅ Test specific provider live mode (e.g., `jas_assure`) by setting required API keys
+
+### How To: Test Specific Provider Integration
+
+**Testing `jas_assure` Provider:**
+1. Set environment variable: `LIFESECURE_API_KEY=test_key_value`
+2. Restart application
+3. Call `/api/quotes/search?includeExternal=true&typeId=1`
+4. Check server logs for HTTP requests to `http://api1.justaskshel.com:8700/web-api/v1`
+5. Verify response includes quotes from JAS Assurance provider
+
+**Generic Provider Testing:**
+1. Set provider-specific API key environment variable
+2. Restart application to disable mock mode
+3. Monitor external HTTP requests in logs
+4. Verify quote responses include provider data
 
 For questions or support, contact the development team or refer to the main project documentation.

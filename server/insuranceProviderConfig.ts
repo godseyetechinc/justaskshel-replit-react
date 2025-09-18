@@ -103,9 +103,9 @@ export const INSURANCE_PROVIDERS: ProviderConfig[] = [
     name: "jas_assure",
     displayName: "JAS Assurance",
     baseUrl:
-      process.env.LIFESECURE_API_URL ||
+      process.env.JASASSURE_API_URL ||
       "http://api1.justaskshel.com:8700/web-api/v1",
-    apiKey: process.env.LIFESECURE_API_KEY,
+    apiKey: process.env.JASASSURE_API_KEY,
     authHeader: "X-API-Key",
     rateLimit: {
       requestsPerSecond: 10,
@@ -120,7 +120,7 @@ export const INSURANCE_PROVIDERS: ProviderConfig[] = [
     supportedCoverageTypes: ["life"],
     isActive: true,
     priority: 1,
-    mockMode: !process.env.LIFESECURE_API_KEY,
+    mockMode: !process.env.JASASSURE_API_KEY,
   },
 
   // ------------------

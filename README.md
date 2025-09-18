@@ -194,6 +194,55 @@ The `/api/quotes/search` endpoint is **publicly accessible** and does not requir
 - **Multi-tenant aware**: Organization context automatically applied when user is logged in
 - **Graceful fallback**: Functions normally for unauthenticated requests without organization-specific features
 
+## How To: Enable External Provider APIs
+
+### Check if a Provider is Using Mock Data vs Live API
+
+To determine if a specific provider (like `jas_assure`) will make external API calls:
+
+1. **Check Provider Configuration** in `server/insuranceProviderConfig.ts`:
+   ```typescript
+   {
+     id: "jas_assure",
+     isActive: true,  // Must be true
+     mockMode: !process.env.LIFESECURE_API_KEY,  // If no API key, uses mock data
+   }
+   ```
+
+2. **Check Environment Variables**:
+   - If `LIFESECURE_API_KEY` exists → Live API calls enabled
+   - If `LIFESECURE_API_KEY` missing → Mock mode active
+
+3. **Verify in Server Logs**:
+   - Look for provider initialization messages
+   - Mock mode providers won't make HTTP requests
+
+### Enable External API Calls for Providers
+
+**For `jas_assure` provider:**
+1. Set the `LIFESECURE_API_KEY` environment variable
+2. Restart the application
+3. Provider will automatically switch from mock mode to live API calls
+
+**General process for any provider:**
+1. Find the provider's required environment variables in the config
+2. Set the API key environment variable (e.g., `PROVIDER_API_KEY`)
+3. Optionally set custom API URL (e.g., `PROVIDER_API_URL`)
+4. Restart the server to apply changes
+
+### Troubleshooting Provider APIs
+
+**Provider not making external calls:**
+- ✅ Check `isActive: true` in provider config
+- ✅ Verify required environment variables are set
+- ✅ Check server logs for connection errors
+- ✅ Test provider endpoint manually if needed
+
+**Provider returning mock data:**
+- ✅ Environment variable missing or incorrect
+- ✅ Provider automatically falls back to mock mode
+- ✅ Set proper API key to enable live mode
+
 ### Provider Management (SuperAdmin Only)
 - `GET /api/admin/provider-configs` - List all provider configurations with statistics
 - `PUT /api/admin/provider-configs/:id` - Update provider configuration settings

@@ -18,6 +18,76 @@ The `/api/quotes/search` endpoint is designed as a **public API** that does not 
   - Multi-tenant aware quote processing
 - **Graceful Degradation**: Unauthenticated requests receive standard provider results without organization-specific customizations
 
+## How To: Configure and Enable External Provider APIs
+
+### Determine if a Provider Uses Mock vs Live Data
+
+Each provider can operate in two modes:
+- **Mock Mode**: Returns simulated data for development/testing
+- **Live Mode**: Makes actual HTTP requests to external provider APIs
+
+**Check Provider Status:**
+1. **Examine Provider Configuration** in `server/insuranceProviderConfig.ts`
+2. **Look for the `mockMode` property**:
+   ```typescript
+   {
+     id: "jas_assure",
+     mockMode: !process.env.LIFESECURE_API_KEY  // Uses mock if no API key
+   }
+   ```
+3. **Verify Environment Variables**:
+   - API key present = Live mode enabled
+   - API key missing = Mock mode active
+
+### Enable Live Provider APIs
+
+**Step-by-step process:**
+
+1. **Identify Required Environment Variables**
+   - Check the provider config for dependencies (e.g., `LIFESECURE_API_KEY`)
+   - Note any URL overrides (e.g., `LIFESECURE_API_URL`)
+
+2. **Set Environment Variables**
+   ```bash
+   # For jas_assure provider
+   LIFESECURE_API_KEY=your_actual_api_key
+   LIFESECURE_API_URL=http://api1.justaskshel.com:8700/web-api/v1  # Optional override
+   ```
+
+3. **Restart Application**
+   - Provider will automatically switch from mock to live mode
+   - Check logs for successful provider initialization
+
+4. **Verify Live Mode**
+   - Monitor network requests in development tools
+   - Check server logs for external HTTP calls
+   - Test quote search to confirm external provider responses
+
+### Provider Configuration Examples
+
+**Example 1: `jas_assure` Provider**
+```typescript
+// Current configuration
+{
+  id: "jas_assure",
+  baseUrl: process.env.LIFESECURE_API_URL || "http://api1.justaskshel.com:8700/web-api/v1",
+  apiKey: process.env.LIFESECURE_API_KEY,
+  isActive: true,
+  mockMode: !process.env.LIFESECURE_API_KEY  // Mock if no key
+}
+
+// To enable: Set LIFESECURE_API_KEY environment variable
+```
+
+**Example 2: Generic Provider Pattern**
+```typescript
+{
+  id: "provider_name",
+  apiKey: process.env.PROVIDER_API_KEY,
+  mockMode: !process.env.PROVIDER_API_KEY
+}
+```
+
 ### Integration Steps
 
 #### 1.1 Multi-Tenant Provider Configuration Management
