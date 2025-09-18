@@ -184,7 +184,7 @@ export class ProviderOrchestrator {
     requestId: string;
     cached: boolean;
   }> {
-    const requestId = this.generateRequestId();
+    const requestId = this.generateRequestId();/*
     const cacheKey = this.generateCacheKey(request, organizationId);
     
     // Check cache first
@@ -197,6 +197,7 @@ export class ProviderOrchestrator {
         cached: true
       };
     }
+    */
 
     // Get organization-specific provider configurations
     const organizationProviders = this.getOrganizationProviders(organizationId, request.coverageType);
