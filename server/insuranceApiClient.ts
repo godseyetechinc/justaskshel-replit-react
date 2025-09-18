@@ -419,6 +419,7 @@ export class ProviderApiClient {
       quote.monthly_cost ||
       (quote.annual_premium || quote.annualPremium || quote.yearly_cost || 0) /
         12 ||
+      quote.plan_details.Premium || // JAS Assure
       0
     );
   }
@@ -444,6 +445,7 @@ export class ProviderApiClient {
       (quote.monthly_premium ||
         quote.monthlyPremium ||
         quote.monthly_cost ||
+        quote.plan_details.Premium || // JAS Assure
         0) * 12 ||
       0
     );

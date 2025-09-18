@@ -8,7 +8,10 @@ import bcrypt from "bcryptjs";
 // Removed unused imports after provider orchestrator integration
 import { QuoteRequest } from "./insuranceProviderConfig";
 import { providerOrchestrator } from "./providerOrchestrator";
-import { initializeQuoteWebSocket, quoteWebSocketServer } from "./websocketServer";
+import {
+  initializeQuoteWebSocket,
+  quoteWebSocketServer,
+} from "./websocketServer";
 import {
   insertInsuranceQuoteSchema,
   insertSelectedQuoteSchema,
@@ -47,7 +50,7 @@ function getPrivilegeLevelForRole(role: string): number {
     Agent: 2,
     Member: 3,
     Guest: 4,
-    Visitor: 5
+    Visitor: 5,
   };
   return privilegeLevels[role] || 5;
 }
@@ -56,12 +59,12 @@ function getPrivilegeLevelForRole(role: string): number {
 function obfuscateOrgId(id: number): string {
   // Simple obfuscation using base64 encoding with salt
   const salted = `org_${id}_salt`;
-  return Buffer.from(salted).toString('base64');
+  return Buffer.from(salted).toString("base64");
 }
 
 function deobfuscateOrgId(obfuscated: string): number | null {
   try {
-    const decoded = Buffer.from(obfuscated, 'base64').toString('utf8');
+    const decoded = Buffer.from(obfuscated, "base64").toString("utf8");
     const match = decoded.match(/^org_(\d+)_salt$/);
     return match ? parseInt(match[1]) : null;
   } catch (error) {
@@ -80,21 +83,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       req.user = { claims: { sub: req.session.userId } };
       return next();
     }
-    
+
     return res.status(401).json({ message: "Unauthorized" });
   };
 
   // Auth routes
-  app.get('/api/auth/user', auth, async (req: any, res) => {
+  app.get("/api/auth/user", auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      console.log('Fetching user for ID:', userId);
+      console.log("Fetching user for ID:", userId);
       const user = await storage.getUser(userId);
       if (!user) {
-        console.log('User not found for ID:', userId);
+        console.log("User not found for ID:", userId);
         return res.status(404).json({ message: "User not found" });
       }
-      console.log('Returning user:', { id: user.id, email: user.email, role: user.role, privilegeLevel: user.privilegeLevel });
+      console.log("Returning user:", {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        privilegeLevel: user.privilegeLevel,
+      });
       res.json(user);
     } catch (error) {
       console.error("Error fetching user:", error);
@@ -103,16 +111,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Public endpoint to get organizations for login
-  app.get('/api/public/organizations', async (req, res) => {
+  app.get("/api/public/organizations", async (req, res) => {
     try {
       const organizations = await storage.getOrganizations();
-      const publicOrgs = organizations.map(org => ({
+      const publicOrgs = organizations.map((org) => ({
         id: obfuscateOrgId(org.id),
         displayName: org.displayName,
         description: org.description,
         logoUrl: org.logoUrl,
         primaryColor: org.primaryColor,
-        secondaryColor: org.secondaryColor
+        secondaryColor: org.secondaryColor,
       }));
       res.json(publicOrgs);
     } catch (error) {
@@ -122,7 +130,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Traditional login endpoint
-  app.post('/api/auth/login', async (req, res) => {
+  app.post("/api/auth/login", async (req, res) => {
     try {
       const validatedData = loginSchema.parse(req.body);
       const { email, password, organizationId } = validatedData;
@@ -135,7 +143,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check password
       if (!user.password) {
-        return res.status(401).json({ message: "This account uses OAuth login. Please use the OAuth login option." });
+        return res
+          .status(401)
+          .json({
+            message:
+              "This account uses OAuth login. Please use the OAuth login option.",
+          });
       }
 
       const isValidPassword = await bcrypt.compare(password, user.password);
@@ -145,19 +158,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if user is active
       if (!user.isActive) {
-        return res.status(401).json({ message: "Account is inactive. Please contact support." });
+        return res
+          .status(401)
+          .json({ message: "Account is inactive. Please contact support." });
       }
 
       // Validate organization selection if provided
       if (organizationId) {
         const realOrgId = deobfuscateOrgId(organizationId);
         if (!realOrgId) {
-          return res.status(400).json({ message: "Invalid organization selection" });
+          return res
+            .status(400)
+            .json({ message: "Invalid organization selection" });
         }
 
         // Check if user belongs to this organization (except SuperAdmin)
         if (user.privilegeLevel > 0 && user.organizationId !== realOrgId) {
-          return res.status(403).json({ message: "You are not authorized to access this organization" });
+          return res
+            .status(403)
+            .json({
+              message: "You are not authorized to access this organization",
+            });
         }
 
         // Store selected organization in session for SuperAdmin
@@ -168,8 +189,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Set session
       (req.session as any).userId = user.id;
-      
-      res.json({ 
+
+      res.json({
         message: "Login successful",
         user: {
           id: user.id,
@@ -179,14 +200,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           role: user.role,
           privilegeLevel: user.privilegeLevel,
           organizationId: user.organizationId,
-        }
+        },
       });
-
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ 
-          message: "Validation error", 
-          errors: error.errors 
+        return res.status(400).json({
+          message: "Validation error",
+          errors: error.errors,
         });
       }
       console.error("Login error:", error);
@@ -195,15 +215,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Traditional signup endpoint
-  app.post('/api/auth/signup', async (req, res) => {
+  app.post("/api/auth/signup", async (req, res) => {
     try {
       const validatedData = signupSchema.parse(req.body);
-      const { email, password, firstName, lastName, phone, role } = validatedData;
+      const { email, password, firstName, lastName, phone, role } =
+        validatedData;
 
       // Check if user already exists
       const existingUser = await storage.getUserByEmail(email);
       if (existingUser) {
-        return res.status(409).json({ message: "User with this email already exists" });
+        return res
+          .status(409)
+          .json({ message: "User with this email already exists" });
       }
 
       // Hash password
@@ -224,7 +247,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Set session
       (req.session as any).userId = newUser.id;
 
-      res.status(201).json({ 
+      res.status(201).json({
         message: "Signup successful",
         user: {
           id: newUser.id,
@@ -233,14 +256,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           lastName: newUser.lastName,
           role: newUser.role,
           privilegeLevel: newUser.privilegeLevel,
-        }
+        },
       });
-
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ 
-          message: "Validation error", 
-          errors: error.errors 
+        return res.status(400).json({
+          message: "Validation error",
+          errors: error.errors,
         });
       }
       console.error("Signup error:", error);
@@ -248,53 +270,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-
-
   // Logout endpoint (POST - proper API call)
-  app.post('/api/logout', (req: any, res) => {
-    console.log('Logout request received');
+  app.post("/api/logout", (req: any, res) => {
+    console.log("Logout request received");
     if (req.session) {
       req.session.destroy((err: any) => {
         if (err) {
           console.error("Session destruction error:", err);
           return res.status(500).json({ message: "Failed to logout" });
         }
-        res.clearCookie('connect.sid'); // Clear the session cookie
-        console.log('Logout successful - session destroyed');
+        res.clearCookie("connect.sid"); // Clear the session cookie
+        console.log("Logout successful - session destroyed");
         res.json({ message: "Logout successful" });
       });
     } else {
-      console.log('No active session to destroy');
+      console.log("No active session to destroy");
       res.json({ message: "No active session" });
     }
   });
 
   // Logout endpoint (GET - for backwards compatibility, redirects to landing page)
-  app.get('/api/logout', (req: any, res) => {
-    console.log('Logout GET request received (redirecting)');
+  app.get("/api/logout", (req: any, res) => {
+    console.log("Logout GET request received (redirecting)");
     if (req.session) {
       req.session.destroy((err: any) => {
         if (err) {
           console.error("Session destruction error:", err);
         }
-        res.clearCookie('connect.sid');
-        console.log('Logout successful - session destroyed, redirecting to landing page');
-        res.redirect('/');
+        res.clearCookie("connect.sid");
+        console.log(
+          "Logout successful - session destroyed, redirecting to landing page",
+        );
+        res.redirect("/");
       });
     } else {
-      console.log('No active session to destroy, redirecting to landing page');
-      res.redirect('/');
+      console.log("No active session to destroy, redirecting to landing page");
+      res.redirect("/");
     }
   });
 
   // Change password route
-  app.post('/api/auth/change-password', auth, async (req: any, res) => {
+  app.post("/api/auth/change-password", auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { currentPassword, newPassword } = req.body;
 
       if (!currentPassword || !newPassword) {
-        return res.status(400).json({ message: "Current password and new password are required" });
+        return res
+          .status(400)
+          .json({ message: "Current password and new password are required" });
       }
 
       // Get user from database
@@ -305,9 +329,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // For users without existing passwords (OAuth users), skip current password check
       if (user.password) {
-        const isValidPassword = await bcrypt.compare(currentPassword, user.password);
+        const isValidPassword = await bcrypt.compare(
+          currentPassword,
+          user.password,
+        );
         if (!isValidPassword) {
-          return res.status(400).json({ message: "Current password is incorrect" });
+          return res
+            .status(400)
+            .json({ message: "Current password is incorrect" });
         }
       }
 
@@ -325,14 +354,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Initialize default admin user
-  app.post('/api/initialize-admin', async (req, res) => {
+  app.post("/api/initialize-admin", async (req, res) => {
     try {
       const adminUser = await storage.createDefaultAdminUser();
       if (adminUser) {
-        res.json({ 
+        res.json({
           message: "Default admin user created successfully",
           email: "admin@insurescope.com",
-          password: "Admin#pass1" 
+          password: "Admin#pass1",
         });
       } else {
         res.json({ message: "Admin user already exists" });
@@ -343,7 +372,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/auth/profile', auth, async (req: any, res) => {
+  app.put("/api/auth/profile", auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.updateUserProfile(userId, req.body);
@@ -355,7 +384,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Initialize default admin user on startup
-  app.post('/api/admin/init', async (req, res) => {
+  app.post("/api/admin/init", async (req, res) => {
     try {
       const adminUser = await storage.createDefaultAdminUser();
       if (adminUser) {
@@ -370,7 +399,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Insurance types
-  app.get('/api/insurance-types', async (req, res) => {
+  app.get("/api/insurance-types", async (req, res) => {
     try {
       const types = await storage.getInsuranceTypes();
       res.json(types);
@@ -381,7 +410,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Insurance providers
-  app.get('/api/insurance-providers', async (req, res) => {
+  app.get("/api/insurance-providers", async (req, res) => {
     try {
       const providers = await storage.getInsuranceProviders();
       res.json(providers);
@@ -392,10 +421,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Enhanced quote search with multi-tenant provider integration
-  app.get('/api/quotes/search', async (req: any, res) => {
+  app.get("/api/quotes/search", async (req: any, res) => {
     try {
-      const { typeId, ageRange, zipCode, coverageAmount, includeExternal = "true", userId } = req.query;
-      
+      const {
+        typeId,
+        ageRange,
+        zipCode,
+        coverageAmount,
+        includeExternal = "true",
+        userId,
+      } = req.query;
+
       // Get user information and organization context
       const user = req.user?.claims?.sub ? req.user.claims.sub : userId;
       let organizationId: number | undefined = undefined;
@@ -426,13 +462,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           providers: { total: 0, successful: 0, failed: 0, errors: [] },
           requestId: null,
           source: "internal_only",
-          organizationId
+          organizationId,
         });
       }
 
       // Prepare external API request
-      const coverageTypeName = typeId ? await storage.getInsuranceTypeName(parseInt(typeId as string)) : "Life Insurance";
-      
+      const coverageTypeName = typeId
+        ? await storage.getInsuranceTypeName(parseInt(typeId as string))
+        : "Life Insurance";
+
       // Parse age from ageRange (e.g., "25-35" -> 30, "35+" -> 35)
       let applicantAge = 30; // default
       if (ageRange) {
@@ -447,8 +485,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validZipCode = /^\d{5}$/.test(zipCodeStr) ? zipCodeStr : "10001";
 
       // Parse coverage amount
-      const coverageAmountNum = coverageAmount ? 
-        parseFloat(coverageAmount.toString().replace(/[,$]/g, "")) : 100000;
+      const coverageAmountNum = coverageAmount
+        ? parseFloat(coverageAmount.toString().replace(/[,$]/g, ""))
+        : 100000;
 
       const externalRequest: QuoteRequest = {
         coverageType: coverageTypeName.toLowerCase(),
@@ -463,15 +502,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const result = await providerOrchestrator.getQuotesForOrganization(
         externalRequest,
         organizationId,
-        userRole
+        userRole,
       );
 
       // Combine internal and external quotes
-      const allQuotes = [...internalQuotes, ...result.quotes];
+      //const allQuotes = [...internalQuotes, ...result.quotes];
+      const allQuotes = [...result.quotes];
 
       // Send WebSocket updates if available
       if (quoteWebSocketServer && result.requestId) {
-        quoteWebSocketServer.sendQuoteCompletion(result.requestId, organizationId, allQuotes.length);
+        quoteWebSocketServer.sendQuoteCompletion(
+          result.requestId,
+          organizationId,
+          allQuotes.length,
+        );
       }
 
       // Log request for tracking
@@ -503,9 +547,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         providers: result.providers,
         requestId: result.requestId,
         source: result.cached ? "cached" : "live",
-        organizationId
+        organizationId,
       });
-
     } catch (error) {
       console.error("Error searching quotes:", error);
       res.status(500).json({ message: "Failed to search quotes" });
@@ -513,7 +556,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get quote by ID
-  app.get('/api/quotes/:id', async (req, res) => {
+  app.get("/api/quotes/:id", async (req, res) => {
     try {
       const { id } = req.params;
       const quote = await storage.getQuoteById(parseInt(id));
@@ -528,7 +571,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Selected quotes - protected routes
-  app.get('/api/selected-quotes', auth, async (req: any, res) => {
+  app.get("/api/selected-quotes", auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const selectedQuotes = await storage.getUserSelectedQuotes(userId);
@@ -539,7 +582,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/selected-quotes', auth, async (req: any, res) => {
+  app.post("/api/selected-quotes", auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const validatedData = insertSelectedQuoteSchema.parse({
@@ -550,14 +593,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(selectedQuote);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+        return res
+          .status(400)
+          .json({ message: "Invalid data", errors: error.errors });
       }
       console.error("Error adding to selected quotes:", error);
       res.status(500).json({ message: "Failed to add to selected quotes" });
     }
   });
 
-  app.delete('/api/selected-quotes/:quoteId', auth, async (req: any, res) => {
+  app.delete("/api/selected-quotes/:quoteId", auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { quoteId } = req.params;
@@ -565,12 +610,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       console.error("Error removing from selected quotes:", error);
-      res.status(500).json({ message: "Failed to remove from selected quotes" });
+      res
+        .status(500)
+        .json({ message: "Failed to remove from selected quotes" });
     }
   });
 
   // Wishlist - protected routes
-  app.get('/api/wishlist', auth, async (req: any, res) => {
+  app.get("/api/wishlist", auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const wishlist = await storage.getUserWishlist(userId);
@@ -581,7 +628,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/wishlist', auth, async (req: any, res) => {
+  app.post("/api/wishlist", auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const validatedData = insertWishlistSchema.parse({
@@ -592,14 +639,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(wishlistItem);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+        return res
+          .status(400)
+          .json({ message: "Invalid data", errors: error.errors });
       }
       console.error("Error adding to wishlist:", error);
       res.status(500).json({ message: "Failed to add to wishlist" });
     }
   });
 
-  app.delete('/api/wishlist/:quoteId', auth, async (req: any, res) => {
+  app.delete("/api/wishlist/:quoteId", auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { quoteId } = req.params;
@@ -612,11 +661,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Policies - protected routes
-  app.get('/api/policies', auth, async (req: any, res) => {
+  app.get("/api/policies", auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
-      
+
       // If user is Agent or higher privilege, show all policies for testing
       if (user && user.privilegeLevel <= 2) {
         const policies = await storage.getAllPolicies();
@@ -631,7 +680,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/policies', auth, async (req: any, res) => {
+  app.post("/api/policies", auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const validatedData = insertPolicySchema.parse({
@@ -642,7 +691,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(policy);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+        return res
+          .status(400)
+          .json({ message: "Invalid data", errors: error.errors });
       }
       console.error("Error creating policy:", error);
       res.status(500).json({ message: "Failed to create policy" });
@@ -650,7 +701,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Enhanced Policy Management Routes
-  app.get('/api/policies/all', auth, async (req: any, res) => {
+  app.get("/api/policies/all", auth, async (req: any, res) => {
     try {
       const user = await storage.getUser(req.user.claims.sub);
       if (!user || (user.privilegeLevel ?? 5) > 2) {
@@ -664,21 +715,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/policies/:id', auth, async (req: any, res) => {
+  app.get("/api/policies/:id", auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       const policy = await storage.getPolicy(parseInt(id));
       if (!policy) {
         return res.status(404).json({ message: "Policy not found" });
       }
-      
+
       // Check access - users can only see their own policies unless admin/agent
       const user = await storage.getUser(req.user.claims.sub);
       const userId = req.user.claims.sub;
       if (policy.userId !== userId && (user?.privilegeLevel ?? 5) > 2) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       res.json(policy);
     } catch (error) {
       console.error("Error fetching policy:", error);
@@ -686,27 +737,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/policies/:id', auth, async (req: any, res) => {
+  app.put("/api/policies/:id", auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       const policy = await storage.getPolicy(parseInt(id));
       if (!policy) {
         return res.status(404).json({ message: "Policy not found" });
       }
-      
+
       // Check access - users can only edit their own policies unless admin/agent
       const user = await storage.getUser(req.user.claims.sub);
       const userId = req.user.claims.sub;
       if (policy.userId !== userId && (user?.privilegeLevel ?? 5) > 2) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       const validatedData = insertPolicySchema.partial().parse(req.body);
-      const updatedPolicy = await storage.updatePolicy(parseInt(id), validatedData);
+      const updatedPolicy = await storage.updatePolicy(
+        parseInt(id),
+        validatedData,
+      );
       res.json(updatedPolicy);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+        return res
+          .status(400)
+          .json({ message: "Invalid data", errors: error.errors });
       }
       console.error("Error updating policy:", error);
       res.status(500).json({ message: "Failed to update policy" });
@@ -714,21 +770,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Policy Documents Routes
-  app.get('/api/policies/:id/documents', auth, async (req: any, res) => {
+  app.get("/api/policies/:id/documents", auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       const policy = await storage.getPolicy(parseInt(id));
       if (!policy) {
         return res.status(404).json({ message: "Policy not found" });
       }
-      
+
       // Check access
       const user = await storage.getUser(req.user.claims.sub);
       const userId = req.user.claims.sub;
       if (policy.userId !== userId && (user?.privilegeLevel ?? 5) > 2) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       const documents = await storage.getPolicyDocuments(parseInt(id));
       res.json(documents);
     } catch (error) {
@@ -737,21 +793,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/policies/:id/documents', auth, async (req: any, res) => {
+  app.post("/api/policies/:id/documents", auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       const policy = await storage.getPolicy(parseInt(id));
       if (!policy) {
         return res.status(404).json({ message: "Policy not found" });
       }
-      
+
       // Check access
       const user = await storage.getUser(req.user.claims.sub);
       const userId = req.user.claims.sub;
       if (policy.userId !== userId && (user?.privilegeLevel ?? 5) > 2) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       const validatedData = insertPolicyDocumentSchema.parse({
         ...req.body,
         policyId: parseInt(id),
@@ -761,21 +817,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(document);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+        return res
+          .status(400)
+          .json({ message: "Invalid data", errors: error.errors });
       }
       console.error("Error creating policy document:", error);
       res.status(500).json({ message: "Failed to create policy document" });
     }
   });
 
-  app.delete('/api/policies/documents/:docId', auth, async (req: any, res) => {
+  app.delete("/api/policies/documents/:docId", auth, async (req: any, res) => {
     try {
       const { docId } = req.params;
       const user = await storage.getUser(req.user.claims.sub);
       if (!user || (user.privilegeLevel ?? 5) > 2) {
         return res.status(403).json({ message: "Insufficient privileges" });
       }
-      
+
       await storage.deletePolicyDocument(parseInt(docId));
       res.status(204).send();
     } catch (error) {
@@ -785,21 +843,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Premium Payments Routes
-  app.get('/api/policies/:id/payments', auth, async (req: any, res) => {
+  app.get("/api/policies/:id/payments", auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       const policy = await storage.getPolicy(parseInt(id));
       if (!policy) {
         return res.status(404).json({ message: "Policy not found" });
       }
-      
+
       // Check access
       const user = await storage.getUser(req.user.claims.sub);
       const userId = req.user.claims.sub;
       if (policy.userId !== userId && (user?.privilegeLevel ?? 5) > 2) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       const payments = await storage.getPolicyPayments(parseInt(id));
       res.json(payments);
     } catch (error) {
@@ -808,14 +866,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/policies/:id/payments', auth, async (req: any, res) => {
+  app.post("/api/policies/:id/payments", auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       const user = await storage.getUser(req.user.claims.sub);
       if (!user || (user.privilegeLevel ?? 5) > 2) {
         return res.status(403).json({ message: "Insufficient privileges" });
       }
-      
+
       const validatedData = insertPremiumPaymentSchema.parse({
         ...req.body,
         policyId: parseInt(id),
@@ -825,27 +883,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(payment);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+        return res
+          .status(400)
+          .json({ message: "Invalid data", errors: error.errors });
       }
       console.error("Error creating premium payment:", error);
       res.status(500).json({ message: "Failed to create premium payment" });
     }
   });
 
-  app.put('/api/payments/:paymentId', auth, async (req: any, res) => {
+  app.put("/api/payments/:paymentId", auth, async (req: any, res) => {
     try {
       const { paymentId } = req.params;
       const user = await storage.getUser(req.user.claims.sub);
       if (!user || (user.privilegeLevel ?? 5) > 2) {
         return res.status(403).json({ message: "Insufficient privileges" });
       }
-      
-      const validatedData = insertPremiumPaymentSchema.partial().parse(req.body);
-      const updatedPayment = await storage.updatePremiumPayment(parseInt(paymentId), validatedData);
+
+      const validatedData = insertPremiumPaymentSchema
+        .partial()
+        .parse(req.body);
+      const updatedPayment = await storage.updatePremiumPayment(
+        parseInt(paymentId),
+        validatedData,
+      );
       res.json(updatedPayment);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+        return res
+          .status(400)
+          .json({ message: "Invalid data", errors: error.errors });
       }
       console.error("Error updating premium payment:", error);
       res.status(500).json({ message: "Failed to update premium payment" });
@@ -853,21 +920,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Policy Amendments Routes
-  app.get('/api/policies/:id/amendments', auth, async (req: any, res) => {
+  app.get("/api/policies/:id/amendments", auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       const policy = await storage.getPolicy(parseInt(id));
       if (!policy) {
         return res.status(404).json({ message: "Policy not found" });
       }
-      
+
       // Check access
       const user = await storage.getUser(req.user.claims.sub);
       const userId = req.user.claims.sub;
       if (policy.userId !== userId && (user?.privilegeLevel ?? 5) > 2) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       const amendments = await storage.getPolicyAmendments(parseInt(id));
       res.json(amendments);
     } catch (error) {
@@ -876,21 +943,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/policies/:id/amendments', auth, async (req: any, res) => {
+  app.post("/api/policies/:id/amendments", auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       const policy = await storage.getPolicy(parseInt(id));
       if (!policy) {
         return res.status(404).json({ message: "Policy not found" });
       }
-      
+
       // Check access
       const user = await storage.getUser(req.user.claims.sub);
       const userId = req.user.claims.sub;
       if (policy.userId !== userId && (user?.privilegeLevel ?? 5) > 2) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       const validatedData = insertPolicyAmendmentSchema.parse({
         ...req.body,
         policyId: parseInt(id),
@@ -900,27 +967,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(amendment);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+        return res
+          .status(400)
+          .json({ message: "Invalid data", errors: error.errors });
       }
       console.error("Error creating policy amendment:", error);
       res.status(500).json({ message: "Failed to create policy amendment" });
     }
   });
 
-  app.put('/api/amendments/:amendmentId', auth, async (req: any, res) => {
+  app.put("/api/amendments/:amendmentId", auth, async (req: any, res) => {
     try {
       const { amendmentId } = req.params;
       const user = await storage.getUser(req.user.claims.sub);
       if (!user || (user.privilegeLevel ?? 5) > 2) {
         return res.status(403).json({ message: "Insufficient privileges" });
       }
-      
-      const validatedData = insertPolicyAmendmentSchema.partial().parse(req.body);
-      const updatedAmendment = await storage.updatePolicyAmendment(parseInt(amendmentId), validatedData);
+
+      const validatedData = insertPolicyAmendmentSchema
+        .partial()
+        .parse(req.body);
+      const updatedAmendment = await storage.updatePolicyAmendment(
+        parseInt(amendmentId),
+        validatedData,
+      );
       res.json(updatedAmendment);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+        return res
+          .status(400)
+          .json({ message: "Invalid data", errors: error.errors });
       }
       console.error("Error updating policy amendment:", error);
       res.status(500).json({ message: "Failed to update policy amendment" });
@@ -928,11 +1004,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Claims - protected routes
-  app.get('/api/claims', auth, async (req: any, res) => {
+  app.get("/api/claims", auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const userRole = req.user.role || "Member";
-      
+
       let claims;
       if (userRole === "Admin" || userRole === "Agent") {
         claims = await storage.getAllClaims();
@@ -946,7 +1022,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/claims', auth, async (req: any, res) => {
+  app.post("/api/claims", auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const validatedData = insertClaimSchema.parse({
@@ -954,25 +1030,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId,
         claimNumber: `CLM-${Date.now()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`,
       });
-      
+
       const claim = await storage.createClaim(validatedData);
-      
+
       // Initialize workflow steps for the claim
       if (claim.claimType) {
         await storage.initializeClaimWorkflow(claim.id, claim.claimType);
       }
-      
+
       res.status(201).json(claim);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+        return res
+          .status(400)
+          .json({ message: "Invalid data", errors: error.errors });
       }
       console.error("Error creating claim:", error);
       res.status(500).json({ message: "Failed to create claim" });
     }
   });
 
-  app.put('/api/claims/:id', auth, async (req: any, res) => {
+  app.put("/api/claims/:id", auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       const validatedData = insertClaimSchema.partial().parse(req.body);
@@ -980,7 +1058,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(claim);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+        return res
+          .status(400)
+          .json({ message: "Invalid data", errors: error.errors });
       }
       console.error("Error updating claim:", error);
       res.status(500).json({ message: "Failed to update claim" });
@@ -988,7 +1068,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Claim Documents
-  app.get('/api/claims/:id/documents', auth, async (req: any, res) => {
+  app.get("/api/claims/:id/documents", auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       const documents = await storage.getClaimDocuments(parseInt(id));
@@ -999,7 +1079,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/claims/:id/documents', auth, async (req: any, res) => {
+  app.post("/api/claims/:id/documents", auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       const userId = req.user.claims.sub;
@@ -1012,14 +1092,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(document);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+        return res
+          .status(400)
+          .json({ message: "Invalid data", errors: error.errors });
       }
       console.error("Error uploading document:", error);
       res.status(500).json({ message: "Failed to upload document" });
     }
   });
 
-  app.delete('/api/claim-documents/:id', auth, async (req: any, res) => {
+  app.delete("/api/claim-documents/:id", auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       await storage.deleteClaimDocument(parseInt(id));
@@ -1031,7 +1113,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Claim Communications
-  app.get('/api/claims/:id/communications', auth, async (req: any, res) => {
+  app.get("/api/claims/:id/communications", auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       const communications = await storage.getClaimCommunications(parseInt(id));
@@ -1042,7 +1124,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/claims/:id/communications', auth, async (req: any, res) => {
+  app.post("/api/claims/:id/communications", auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       const userId = req.user.claims.sub;
@@ -1055,7 +1137,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(communication);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+        return res
+          .status(400)
+          .json({ message: "Invalid data", errors: error.errors });
       }
       console.error("Error adding communication:", error);
       res.status(500).json({ message: "Failed to add communication" });
@@ -1063,7 +1147,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Claim Workflow Steps
-  app.get('/api/claims/:id/workflow', auth, async (req: any, res) => {
+  app.get("/api/claims/:id/workflow", auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       const steps = await storage.getClaimWorkflowSteps(parseInt(id));
@@ -1074,15 +1158,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/workflow-steps/:id', auth, async (req: any, res) => {
+  app.put("/api/workflow-steps/:id", auth, async (req: any, res) => {
     try {
       const { id } = req.params;
-      const validatedData = insertClaimWorkflowStepSchema.partial().parse(req.body);
-      const step = await storage.updateWorkflowStep(parseInt(id), validatedData);
+      const validatedData = insertClaimWorkflowStepSchema
+        .partial()
+        .parse(req.body);
+      const step = await storage.updateWorkflowStep(
+        parseInt(id),
+        validatedData,
+      );
       res.json(step);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+        return res
+          .status(400)
+          .json({ message: "Invalid data", errors: error.errors });
       }
       console.error("Error updating workflow step:", error);
       res.status(500).json({ message: "Failed to update workflow step" });
@@ -1090,7 +1181,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Dependents - protected routes
-  app.get('/api/dependents', auth, async (req: any, res) => {
+  app.get("/api/dependents", auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const dependents = await storage.getUserDependents(userId);
@@ -1101,7 +1192,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/dependents', auth, async (req: any, res) => {
+  app.post("/api/dependents", auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const validatedData = insertDependentSchema.parse({
@@ -1112,14 +1203,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(dependent);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+        return res
+          .status(400)
+          .json({ message: "Invalid data", errors: error.errors });
       }
       console.error("Error creating dependent:", error);
       res.status(500).json({ message: "Failed to create dependent" });
     }
   });
 
-  app.delete('/api/dependents/:id', auth, async (req, res) => {
+  app.delete("/api/dependents/:id", auth, async (req, res) => {
     try {
       const { id } = req.params;
       await storage.removeDependent(parseInt(id));
@@ -1131,7 +1224,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Members routes
-  app.get('/api/members', auth, async (req: any, res) => {
+  app.get("/api/members", auth, async (req: any, res) => {
     try {
       const members = await storage.getMembers();
       res.json(members);
@@ -1141,7 +1234,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/members', auth, async (req: any, res) => {
+  app.post("/api/members", auth, async (req: any, res) => {
     try {
       const memberData = insertMemberSchema.parse(req.body);
       const member = await storage.createMember(memberData);
@@ -1152,7 +1245,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/members/:id', auth, async (req: any, res) => {
+  app.put("/api/members/:id", auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       const memberData = insertMemberSchema.partial().parse(req.body);
@@ -1164,7 +1257,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/members/:id', auth, async (req: any, res) => {
+  app.delete("/api/members/:id", auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       await storage.deleteMember(parseInt(id));
@@ -1176,11 +1269,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Member profile routes (for individual members to manage their own profiles)
-  app.get('/api/member-profile', auth, async (req: any, res) => {
+  app.get("/api/member-profile", auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const member = await storage.getMemberByUserId(userId);
-      
+
       if (!member) {
         // Return basic profile structure for members without profiles yet
         return res.json({
@@ -1189,8 +1282,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           lastName: null,
           email: null,
           memberNumber: null,
-          avatarType: 'initials',
-          avatarColor: '#0EA5E9',
+          avatarType: "initials",
+          avatarColor: "#0EA5E9",
           profileImageUrl: null,
           bio: null,
           phone: null,
@@ -1201,10 +1294,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           dateOfBirth: null,
           emergencyContact: null,
           preferences: {},
-          membershipStatus: 'Active',
+          membershipStatus: "Active",
         });
       }
-      
+
       res.json(member);
     } catch (error) {
       console.error("Error fetching member profile:", error);
@@ -1212,19 +1305,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/member-profile', auth, async (req: any, res) => {
+  app.put("/api/member-profile", auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const profileData = memberProfileSchema.parse(req.body);
-      
+
       const member = await storage.upsertMemberProfile(userId, profileData);
       res.json(member);
     } catch (error) {
       console.error("Error updating member profile:", error);
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ 
-          message: "Validation error", 
-          errors: error.errors 
+        return res.status(400).json({
+          message: "Validation error",
+          errors: error.errors,
         });
       }
       res.status(500).json({ message: "Failed to update member profile" });
@@ -1232,7 +1325,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Contacts routes
-  app.get('/api/contacts', auth, async (req: any, res) => {
+  app.get("/api/contacts", auth, async (req: any, res) => {
     try {
       const contacts = await storage.getContacts();
       res.json(contacts);
@@ -1242,7 +1335,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/contacts', auth, async (req: any, res) => {
+  app.post("/api/contacts", auth, async (req: any, res) => {
     try {
       const contactData = insertContactSchema.parse(req.body);
       const contact = await storage.createContact(contactData);
@@ -1253,7 +1346,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/contacts/:id', auth, async (req: any, res) => {
+  app.put("/api/contacts/:id", auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       const contactData = insertContactSchema.partial().parse(req.body);
@@ -1265,7 +1358,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/contacts/:id', auth, async (req: any, res) => {
+  app.delete("/api/contacts/:id", auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       await storage.deleteContact(parseInt(id));
@@ -1277,11 +1370,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Applications routes
-  app.get('/api/applications', auth, async (req: any, res) => {
+  app.get("/api/applications", auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const userRole = req.user.role || "Member";
-      
+
       let applications;
       if (userRole === "Admin" || userRole === "Agent") {
         applications = await storage.getApplications();
@@ -1295,7 +1388,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/applications', auth, async (req: any, res) => {
+  app.post("/api/applications", auth, async (req: any, res) => {
     try {
       const applicationData = insertApplicationSchema.parse(req.body);
       const application = await storage.createApplication(applicationData);
@@ -1306,11 +1399,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/applications/:id', auth, async (req: any, res) => {
+  app.put("/api/applications/:id", auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       const applicationData = insertApplicationSchema.partial().parse(req.body);
-      const application = await storage.updateApplication(parseInt(id), applicationData);
+      const application = await storage.updateApplication(
+        parseInt(id),
+        applicationData,
+      );
       res.json(application);
     } catch (error) {
       console.error("Error updating application:", error);
@@ -1318,7 +1414,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/applications/:id', auth, async (req: any, res) => {
+  app.delete("/api/applications/:id", auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       await storage.deleteApplication(parseInt(id));
@@ -1330,9 +1426,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Points System Routes
-  
+
   // Points Transactions
-  app.get('/api/points/transactions', auth, async (req: any, res) => {
+  app.get("/api/points/transactions", auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const transactions = await storage.getUserPointsTransactions(userId);
@@ -1343,10 +1439,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/points/transactions', auth, async (req: any, res) => {
+  app.post("/api/points/transactions", auth, async (req: any, res) => {
     try {
       const transactionData = insertPointsTransactionSchema.parse(req.body);
-      const transaction = await storage.createPointsTransaction(transactionData);
+      const transaction =
+        await storage.createPointsTransaction(transactionData);
       res.status(201).json(transaction);
     } catch (error) {
       console.error("Error creating points transaction:", error);
@@ -1355,7 +1452,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Points Summary
-  app.get('/api/points/summary', auth, async (req: any, res) => {
+  app.get("/api/points/summary", auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       let summary = await storage.getUserPointsSummary(userId);
@@ -1370,10 +1467,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Award points (for admin use)
-  app.post('/api/points/award', auth, async (req: any, res) => {
+  app.post("/api/points/award", auth, async (req: any, res) => {
     try {
-      const { userId, points, category, description, referenceId, referenceType } = req.body;
-      const transaction = await storage.awardPoints(userId, points, category, description, referenceId, referenceType);
+      const {
+        userId,
+        points,
+        category,
+        description,
+        referenceId,
+        referenceType,
+      } = req.body;
+      const transaction = await storage.awardPoints(
+        userId,
+        points,
+        category,
+        description,
+        referenceId,
+        referenceType,
+      );
       res.status(201).json(transaction);
     } catch (error) {
       console.error("Error awarding points:", error);
@@ -1382,7 +1493,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Rewards
-  app.get('/api/rewards', auth, async (req: any, res) => {
+  app.get("/api/rewards", auth, async (req: any, res) => {
     try {
       const rewards = await storage.getActiveRewards();
       res.json(rewards);
@@ -1392,7 +1503,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/rewards/all', auth, async (req: any, res) => {
+  app.get("/api/rewards/all", auth, async (req: any, res) => {
     try {
       const rewards = await storage.getRewards();
       res.json(rewards);
@@ -1402,7 +1513,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/rewards', auth, async (req: any, res) => {
+  app.post("/api/rewards", auth, async (req: any, res) => {
     try {
       const rewardData = insertRewardSchema.parse(req.body);
       const reward = await storage.createReward(rewardData);
@@ -1413,7 +1524,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/rewards/:id', auth, async (req: any, res) => {
+  app.put("/api/rewards/:id", auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       const rewardData = insertRewardSchema.partial().parse(req.body);
@@ -1425,7 +1536,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/rewards/:id', auth, async (req: any, res) => {
+  app.delete("/api/rewards/:id", auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       await storage.deleteReward(parseInt(id));
@@ -1437,7 +1548,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Reward Redemptions
-  app.get('/api/redemptions', auth, async (req: any, res) => {
+  app.get("/api/redemptions", auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const redemptions = await storage.getUserRedemptions(userId);
@@ -1448,11 +1559,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/redemptions', auth, async (req: any, res) => {
+  app.post("/api/redemptions", auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { rewardId, pointsUsed } = req.body;
-      
+
       // Validate reward exists and user has enough points
       const reward = await storage.getRewardById(rewardId);
       if (!reward) {
@@ -1466,10 +1577,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create redemption transaction
       const pointsTransaction = await storage.redeemPoints(
-        userId, 
-        reward.pointsCost, 
-        `Redeemed: ${reward.name}`, 
-        reward.id
+        userId,
+        reward.pointsCost,
+        `Redeemed: ${reward.name}`,
+        reward.id,
       );
 
       // Create redemption record
@@ -1479,7 +1590,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         pointsTransactionId: pointsTransaction.id,
         pointsUsed: reward.pointsCost,
         status: "Pending",
-        redemptionCode: `RDM-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`
+        redemptionCode: `RDM-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
       });
 
       res.status(201).json(redemption);
@@ -1490,7 +1601,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Points Rules (Admin only)
-  app.get('/api/points/rules', auth, async (req: any, res) => {
+  app.get("/api/points/rules", auth, async (req: any, res) => {
     try {
       const rules = await storage.getActivePointsRules();
       res.json(rules);
@@ -1500,7 +1611,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/points/rules', auth, async (req: any, res) => {
+  app.post("/api/points/rules", auth, async (req: any, res) => {
     try {
       const ruleData = insertPointsRuleSchema.parse(req.body);
       const rule = await storage.createPointsRule(ruleData);
@@ -1512,7 +1623,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Applicants routes
-  app.get('/api/applicants', auth, async (req: any, res) => {
+  app.get("/api/applicants", auth, async (req: any, res) => {
     try {
       const applicants = await storage.getApplicants();
       res.json(applicants);
@@ -1522,7 +1633,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/applicants', auth, async (req: any, res) => {
+  app.post("/api/applicants", auth, async (req: any, res) => {
     try {
       const applicantData = insertApplicantSchema.parse(req.body);
       const applicant = await storage.createApplicant(applicantData);
@@ -1533,11 +1644,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/applicants/:id', auth, async (req: any, res) => {
+  app.put("/api/applicants/:id", auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       const applicantData = insertApplicantSchema.partial().parse(req.body);
-      const applicant = await storage.updateApplicant(parseInt(id), applicantData);
+      const applicant = await storage.updateApplicant(
+        parseInt(id),
+        applicantData,
+      );
       res.json(applicant);
     } catch (error) {
       console.error("Error updating applicant:", error);
@@ -1545,7 +1659,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/applicants/:id', auth, async (req: any, res) => {
+  app.delete("/api/applicants/:id", auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       await storage.deleteApplicant(parseInt(id));
@@ -1557,7 +1671,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Applicant Dependents routes
-  app.get('/api/applicant-dependents', auth, async (req: any, res) => {
+  app.get("/api/applicant-dependents", auth, async (req: any, res) => {
     try {
       const dependents = await storage.getApplicantDependents();
       res.json(dependents);
@@ -1567,7 +1681,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/applicant-dependents', auth, async (req: any, res) => {
+  app.post("/api/applicant-dependents", auth, async (req: any, res) => {
     try {
       const dependentData = insertApplicantDependentSchema.parse(req.body);
       const dependent = await storage.createApplicantDependent(dependentData);
@@ -1578,11 +1692,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/applicant-dependents/:id', auth, async (req: any, res) => {
+  app.put("/api/applicant-dependents/:id", auth, async (req: any, res) => {
     try {
       const { id } = req.params;
-      const dependentData = insertApplicantDependentSchema.partial().parse(req.body);
-      const dependent = await storage.updateApplicantDependent(parseInt(id), dependentData);
+      const dependentData = insertApplicantDependentSchema
+        .partial()
+        .parse(req.body);
+      const dependent = await storage.updateApplicantDependent(
+        parseInt(id),
+        dependentData,
+      );
       res.json(dependent);
     } catch (error) {
       console.error("Error updating applicant dependent:", error);
@@ -1590,7 +1709,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/applicant-dependents/:id', auth, async (req: any, res) => {
+  app.delete("/api/applicant-dependents/:id", auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       await storage.deleteApplicantDependent(parseInt(id));
@@ -1603,23 +1722,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Agent Organization endpoints
   // User Management routes (Admin only)
-  app.get('/api/users', auth, async (req: any, res) => {
+  app.get("/api/users", auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const currentUser = await storage.getUser(userId);
-      
-      if (!currentUser || (currentUser.privilegeLevel > 1)) {
+
+      if (!currentUser || currentUser.privilegeLevel > 1) {
         return res.status(403).json({ message: "Access denied" });
       }
 
       const users = await storage.getAllUsers();
-      
+
       // If LandlordAdmin, filter to only their organization users
       if (currentUser.privilegeLevel === 1 && currentUser.organizationId) {
-        const filteredUsers = users.filter(user => user.organizationId === currentUser.organizationId);
+        const filteredUsers = users.filter(
+          (user) => user.organizationId === currentUser.organizationId,
+        );
         return res.json(filteredUsers);
       }
-      
+
       // SuperAdmin sees all users
       res.json(users);
     } catch (error) {
@@ -1628,34 +1749,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/users/stats', auth, async (req: any, res) => {
+  app.get("/api/users/stats", auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const currentUser = await storage.getUser(userId);
-      
-      if (!currentUser || (currentUser.privilegeLevel > 1)) {
+
+      if (!currentUser || currentUser.privilegeLevel > 1) {
         return res.status(403).json({ message: "Access denied" });
       }
 
       const users = await storage.getAllUsers();
-      
+
       // Filter users if LandlordAdmin
       let filteredUsers = users;
       if (currentUser.privilegeLevel === 1 && currentUser.organizationId) {
-        filteredUsers = users.filter(user => user.organizationId === currentUser.organizationId);
+        filteredUsers = users.filter(
+          (user) => user.organizationId === currentUser.organizationId,
+        );
       }
-      
+
       const stats = {
         total: filteredUsers.length,
-        active: filteredUsers.filter(u => u.isActive).length,
-        admins: filteredUsers.filter(u => ["SuperAdmin", "LandlordAdmin"].includes(u.role)).length,
-        recentLogins: filteredUsers.filter(u => {
+        active: filteredUsers.filter((u) => u.isActive).length,
+        admins: filteredUsers.filter((u) =>
+          ["SuperAdmin", "LandlordAdmin"].includes(u.role),
+        ).length,
+        recentLogins: filteredUsers.filter((u) => {
           if (!u.lastLoginAt) return false;
-          const daysSinceLogin = (Date.now() - new Date(u.lastLoginAt).getTime()) / (1000 * 60 * 60 * 24);
+          const daysSinceLogin =
+            (Date.now() - new Date(u.lastLoginAt).getTime()) /
+            (1000 * 60 * 60 * 24);
           return daysSinceLogin <= 7;
-        }).length
+        }).length,
       };
-      
+
       res.json(stats);
     } catch (error) {
       console.error("Error fetching user stats:", error);
@@ -1663,28 +1790,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/users', auth, async (req: any, res) => {
+  app.post("/api/users", auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const currentUser = await storage.getUser(userId);
-      
-      if (!currentUser || (currentUser.privilegeLevel > 1)) {
+
+      if (!currentUser || currentUser.privilegeLevel > 1) {
         return res.status(403).json({ message: "Access denied" });
       }
 
       // Validate input
       const userData = {
         ...req.body,
-        privilegeLevel: getPrivilegeLevelForRole(req.body.role)
+        privilegeLevel: getPrivilegeLevelForRole(req.body.role),
       };
 
       // LandlordAdmin can only create users in their organization
       if (currentUser.privilegeLevel === 1) {
         userData.organizationId = currentUser.organizationId;
-        
+
         // LandlordAdmin cannot create SuperAdmin or other LandlordAdmin users
         if (["SuperAdmin", "LandlordAdmin"].includes(req.body.role)) {
-          return res.status(403).json({ message: "Insufficient privileges to create this role" });
+          return res
+            .status(403)
+            .json({ message: "Insufficient privileges to create this role" });
         }
       }
 
@@ -1696,13 +1825,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/users/:id', auth, async (req: any, res) => {
+  app.patch("/api/users/:id", auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const currentUser = await storage.getUser(userId);
       const targetUserId = req.params.id;
-      
-      if (!currentUser || (currentUser.privilegeLevel > 1)) {
+
+      if (!currentUser || currentUser.privilegeLevel > 1) {
         return res.status(403).json({ message: "Access denied" });
       }
 
@@ -1716,10 +1845,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (targetUser.organizationId !== currentUser.organizationId) {
           return res.status(403).json({ message: "Access denied" });
         }
-        
+
         // LandlordAdmin cannot edit SuperAdmin or other LandlordAdmin users
-        if (["SuperAdmin", "LandlordAdmin"].includes(targetUser.role) && targetUser.id !== currentUser.id) {
-          return res.status(403).json({ message: "Insufficient privileges to edit this user" });
+        if (
+          ["SuperAdmin", "LandlordAdmin"].includes(targetUser.role) &&
+          targetUser.id !== currentUser.id
+        ) {
+          return res
+            .status(403)
+            .json({ message: "Insufficient privileges to edit this user" });
         }
       }
 
@@ -1736,13 +1870,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/users/:id/status', auth, async (req: any, res) => {
+  app.patch("/api/users/:id/status", auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const currentUser = await storage.getUser(userId);
       const targetUserId = req.params.id;
-      
-      if (!currentUser || (currentUser.privilegeLevel > 1)) {
+
+      if (!currentUser || currentUser.privilegeLevel > 1) {
         return res.status(403).json({ message: "Access denied" });
       }
 
@@ -1758,7 +1892,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      const updatedUser = await storage.updateUser(targetUserId, { isActive: req.body.isActive });
+      const updatedUser = await storage.updateUser(targetUserId, {
+        isActive: req.body.isActive,
+      });
       res.json(updatedUser);
     } catch (error) {
       console.error("Error updating user status:", error);
@@ -1766,13 +1902,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/users/:id', auth, async (req: any, res) => {
+  app.delete("/api/users/:id", auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const currentUser = await storage.getUser(userId);
       const targetUserId = req.params.id;
-      
-      if (!currentUser || (currentUser.privilegeLevel > 1)) {
+
+      if (!currentUser || currentUser.privilegeLevel > 1) {
         return res.status(403).json({ message: "Access denied" });
       }
 
@@ -1783,7 +1919,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Prevent deleting self
       if (targetUserId === userId) {
-        return res.status(400).json({ message: "Cannot delete your own account" });
+        return res
+          .status(400)
+          .json({ message: "Cannot delete your own account" });
       }
 
       // LandlordAdmin can only delete users in their organization
@@ -1791,10 +1929,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (targetUser.organizationId !== currentUser.organizationId) {
           return res.status(403).json({ message: "Access denied" });
         }
-        
+
         // LandlordAdmin cannot delete SuperAdmin or other LandlordAdmin users
         if (["SuperAdmin", "LandlordAdmin"].includes(targetUser.role)) {
-          return res.status(403).json({ message: "Insufficient privileges to delete this user" });
+          return res
+            .status(403)
+            .json({ message: "Insufficient privileges to delete this user" });
         }
       }
 
@@ -1864,32 +2004,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get organization profile for LandlordAdmin
-  app.get('/api/organization-profile', auth, async (req: any, res) => {
+  app.get("/api/organization-profile", auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
-      
+
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
 
-      console.log('Organization profile access check:', {
+      console.log("Organization profile access check:", {
         userId: user.id,
         role: user.role,
         privilegeLevel: user.privilegeLevel,
-        organizationId: user.organizationId
+        organizationId: user.organizationId,
       });
 
       // Only LandlordAdmin can access their organization profile
       if (user.privilegeLevel !== 1) {
-        return res.status(403).json({ message: "Access denied. LandlordAdmin role required." });
+        return res
+          .status(403)
+          .json({ message: "Access denied. LandlordAdmin role required." });
       }
 
       if (!user.organizationId) {
-        return res.status(404).json({ message: "No organization assigned to this user." });
+        return res
+          .status(404)
+          .json({ message: "No organization assigned to this user." });
       }
 
-      const organization = await storage.getOrganizationById(user.organizationId);
+      const organization = await storage.getOrganizationById(
+        user.organizationId,
+      );
       if (!organization) {
         return res.status(404).json({ message: "Organization not found" });
       }
@@ -1902,22 +2048,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update organization profile for LandlordAdmin
-  app.put('/api/organization-profile', auth, async (req: any, res) => {
+  app.put("/api/organization-profile", auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
-      
+
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
 
       // Only LandlordAdmin can update their organization profile
       if (user.privilegeLevel !== 1) {
-        return res.status(403).json({ message: "Access denied. LandlordAdmin role required." });
+        return res
+          .status(403)
+          .json({ message: "Access denied. LandlordAdmin role required." });
       }
 
       if (!user.organizationId) {
-        return res.status(404).json({ message: "No organization assigned to this user." });
+        return res
+          .status(404)
+          .json({ message: "No organization assigned to this user." });
       }
 
       const {
@@ -1932,24 +2082,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         zipCode,
         logoUrl,
         primaryColor,
-        secondaryColor
+        secondaryColor,
       } = req.body;
 
-      const updatedOrganization = await storage.updateOrganization(user.organizationId, {
-        displayName,
-        description,
-        website,
-        phone,
-        email,
-        address,
-        city,
-        state,
-        zipCode,
-        logoUrl,
-        primaryColor,
-        secondaryColor,
-        updatedAt: new Date()
-      });
+      const updatedOrganization = await storage.updateOrganization(
+        user.organizationId,
+        {
+          displayName,
+          description,
+          website,
+          phone,
+          email,
+          address,
+          city,
+          state,
+          zipCode,
+          logoUrl,
+          primaryColor,
+          secondaryColor,
+          updatedAt: new Date(),
+        },
+      );
 
       if (!updatedOrganization) {
         return res.status(404).json({ message: "Organization not found" });
@@ -1958,7 +2111,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updatedOrganization);
     } catch (error) {
       console.error("Error updating organization profile:", error);
-      res.status(500).json({ message: "Failed to update organization profile" });
+      res
+        .status(500)
+        .json({ message: "Failed to update organization profile" });
     }
   });
 
@@ -1989,9 +2144,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const currentUser = await storage.getUser(userId);
-      
+
       if (!currentUser || !currentUser.organizationId) {
-        return res.status(404).json({ message: "No organization found for user" });
+        return res
+          .status(404)
+          .json({ message: "No organization found for user" });
       }
 
       // Allow agents and admins to see organization members
@@ -1999,7 +2156,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
 
-      const members = await storage.getOrganizationMembers(currentUser.organizationId);
+      const members = await storage.getOrganizationMembers(
+        currentUser.organizationId,
+      );
       res.json(members);
     } catch (error) {
       console.error("Error fetching organization members:", error);
@@ -2012,31 +2171,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const currentUser = await storage.getUser(userId);
-      
+
       if (!currentUser || !currentUser.organizationId) {
-        return res.status(404).json({ message: "No organization found for user" });
+        return res
+          .status(404)
+          .json({ message: "No organization found for user" });
       }
 
       // Only members can access this endpoint
       if ((currentUser.privilegeLevel || 5) !== 3) {
-        return res.status(403).json({ message: "This endpoint is only available for members" });
+        return res
+          .status(403)
+          .json({ message: "This endpoint is only available for members" });
       }
 
       // Get all users in the organization with Agent role
-      const orgUsers = await storage.getOrganizationUsers(currentUser.organizationId);
-      const agents = orgUsers.filter(user => user.role === 'Agent');
-      
+      const orgUsers = await storage.getOrganizationUsers(
+        currentUser.organizationId,
+      );
+      const agents = orgUsers.filter((user) => user.role === "Agent");
+
       if (agents.length === 0) {
-        return res.status(404).json({ message: "No agents found in your organization" });
+        return res
+          .status(404)
+          .json({ message: "No agents found in your organization" });
       }
 
       // Get organization info
       const organizations = await storage.getOrganizations();
-      const organization = organizations.find(org => org.id === currentUser.organizationId);
-      
+      const organization = organizations.find(
+        (org) => org.id === currentUser.organizationId,
+      );
+
       res.json({
         agents,
-        organization
+        organization,
       });
     } catch (error) {
       console.error("Error fetching agent information:", error);
@@ -2057,7 +2226,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/claims/:id', auth, async (req: any, res) => {
+  app.get("/api/claims/:id", auth, async (req: any, res) => {
     try {
       const { id } = req.params;
       const claim = await storage.getClaim(parseInt(id));
@@ -2076,22 +2245,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const claimId = parseInt(req.params.claimId);
       const userId = req.user.claims.sub;
-      const { fileName, fileType, fileSize, documentType, uploadedFileURL } = req.body;
+      const { fileName, fileType, fileSize, documentType, uploadedFileURL } =
+        req.body;
 
       if (!uploadedFileURL) {
         return res.status(400).json({ error: "uploadedFileURL is required" });
       }
 
       // Validate file type and size
-      const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+      const allowedTypes = [
+        "application/pdf",
+        "image/jpeg",
+        "image/png",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      ];
       if (!allowedTypes.includes(fileType)) {
         return res.status(400).json({ error: "Invalid file type" });
       }
 
-      const isImage = fileType.startsWith('image/');
+      const isImage = fileType.startsWith("image/");
       const maxSize = isImage ? 204800 : 512000; // 200KB for images, 500KB for documents
       if (fileSize > maxSize) {
-        return res.status(400).json({ error: `File too large. ${isImage ? 'Images' : 'Documents'} must be under ${Math.round(maxSize / 1024)}KB.` });
+        return res
+          .status(400)
+          .json({
+            error: `File too large. ${isImage ? "Images" : "Documents"} must be under ${Math.round(maxSize / 1024)}KB.`,
+          });
       }
 
       // Verify the claim exists and user has access
@@ -2118,7 +2298,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         {
           owner: userId,
           visibility: "private", // Claims documents are always private
-        }
+        },
       );
 
       // Create document record
@@ -2127,9 +2307,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fileName,
         fileType,
         fileSize,
-        documentType: documentType || 'other',
+        documentType: documentType || "other",
         uploadedBy: userId,
-        status: 'pending'
+        status: "pending",
       };
 
       const document = await storage.uploadClaimDocument(documentData);
@@ -2179,18 +2359,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const objectStorageService = new ObjectStorageService();
-      
-      const objectFile = await objectStorageService.getObjectEntityFile(req.path);
+
+      const objectFile = await objectStorageService.getObjectEntityFile(
+        req.path,
+      );
       const canAccess = await objectStorageService.canAccessObjectEntity({
         objectFile,
         userId,
         requestedPermission: ObjectPermission.READ,
       });
-      
+
       if (!canAccess) {
         return res.sendStatus(403);
       }
-      
+
       objectStorageService.downloadObject(objectFile, res);
     } catch (error) {
       console.error("Error downloading object:", error);
@@ -2201,12 +2383,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // SuperAdmin: External quote requests management  
-  app.get('/api/admin/external-quote-requests', auth, async (req: any, res) => {
+  // SuperAdmin: External quote requests management
+  app.get("/api/admin/external-quote-requests", auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
-      
+
       if (!user || user.privilegeLevel !== 0) {
         return res.status(403).json({ message: "SuperAdmin access required" });
       }
@@ -2215,136 +2397,159 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const limit = parseInt(req.query.limit as string) || 50;
       const offset = (page - 1) * limit;
 
-      const requests = await storage.getExternalQuoteRequests({ limit, offset });
+      const requests = await storage.getExternalQuoteRequests({
+        limit,
+        offset,
+      });
       const totalCount = await storage.getExternalQuoteRequestsCount();
-      
+
       res.json({
         requests,
         pagination: {
           page,
           limit,
           total: totalCount,
-          totalPages: Math.ceil(totalCount / limit)
-        }
+          totalPages: Math.ceil(totalCount / limit),
+        },
       });
     } catch (error) {
-      console.error('Error fetching external quote requests:', error);
-      res.status(500).json({ message: 'Failed to fetch external quote requests' });
+      console.error("Error fetching external quote requests:", error);
+      res
+        .status(500)
+        .json({ message: "Failed to fetch external quote requests" });
     }
   });
 
   // SuperAdmin: Provider configuration management
-  app.get('/api/admin/provider-configs', auth, async (req: any, res) => {
+  app.get("/api/admin/provider-configs", auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
-      
+
       if (!user || user.privilegeLevel !== 0) {
         return res.status(403).json({ message: "SuperAdmin access required" });
       }
 
-      const { getActiveProviders, getAllProviders } = await import('./insuranceProviderConfig');
+      const { getActiveProviders, getAllProviders } = await import(
+        "./insuranceProviderConfig"
+      );
       const activeProviders = getActiveProviders();
       const allProviders = getAllProviders();
-      
+
       res.json({
         active: activeProviders,
         all: allProviders,
         summary: {
           totalProviders: allProviders.length,
           activeProviders: activeProviders.length,
-          inactiveProviders: allProviders.length - activeProviders.length
-        }
+          inactiveProviders: allProviders.length - activeProviders.length,
+        },
       });
     } catch (error) {
-      console.error('Error fetching provider configs:', error);
-      res.status(500).json({ message: 'Failed to fetch provider configurations' });
+      console.error("Error fetching provider configs:", error);
+      res
+        .status(500)
+        .json({ message: "Failed to fetch provider configurations" });
     }
   });
 
   // SuperAdmin: Update provider configuration
-  app.put('/api/admin/provider-configs/:id', auth, async (req: any, res) => {
+  app.put("/api/admin/provider-configs/:id", auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
-      
+
       if (!user || user.privilegeLevel !== 0) {
         return res.status(403).json({ message: "SuperAdmin access required" });
       }
 
       const { id } = req.params;
-      const { UpdateProviderConfigSchema, updateProvider } = await import('./insuranceProviderConfig');
-      
+      const { UpdateProviderConfigSchema, updateProvider } = await import(
+        "./insuranceProviderConfig"
+      );
+
       const validatedData = UpdateProviderConfigSchema.parse(req.body);
       const updatedProvider = updateProvider(id, validatedData);
-      
+
       if (!updatedProvider) {
         return res.status(404).json({ message: "Provider not found" });
       }
-      
+
       res.json(updatedProvider);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+        return res
+          .status(400)
+          .json({ message: "Invalid data", errors: error.errors });
       }
-      console.error('Error updating provider config:', error);
-      res.status(500).json({ message: 'Failed to update provider configuration' });
+      console.error("Error updating provider config:", error);
+      res
+        .status(500)
+        .json({ message: "Failed to update provider configuration" });
     }
   });
 
   // SuperAdmin: Test provider connection
-  app.post('/api/admin/provider-configs/:id/test', auth, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      
-      if (!user || user.privilegeLevel !== 0) {
-        return res.status(403).json({ message: "SuperAdmin access required" });
-      }
+  app.post(
+    "/api/admin/provider-configs/:id/test",
+    auth,
+    async (req: any, res) => {
+      try {
+        const userId = req.user.claims.sub;
+        const user = await storage.getUser(userId);
 
-      const { id } = req.params;
-      const { getProviderById, testProviderConnection } = await import('./insuranceProviderConfig');
-      
-      const provider = getProviderById(id);
-      if (!provider) {
-        return res.status(404).json({ message: "Provider not found" });
+        if (!user || user.privilegeLevel !== 0) {
+          return res
+            .status(403)
+            .json({ message: "SuperAdmin access required" });
+        }
+
+        const { id } = req.params;
+        const { getProviderById, testProviderConnection } = await import(
+          "./insuranceProviderConfig"
+        );
+
+        const provider = getProviderById(id);
+        if (!provider) {
+          return res.status(404).json({ message: "Provider not found" });
+        }
+
+        const testResult = await testProviderConnection(provider);
+        res.json(testResult);
+      } catch (error) {
+        console.error("Error testing provider connection:", error);
+        res.status(500).json({ message: "Failed to test provider connection" });
       }
-      
-      const testResult = await testProviderConnection(provider);
-      res.json(testResult);
-    } catch (error) {
-      console.error('Error testing provider connection:', error);
-      res.status(500).json({ message: 'Failed to test provider connection' });
-    }
-  });
+    },
+  );
 
   // SuperAdmin: Get provider statistics
-  app.get('/api/admin/provider-stats', auth, async (req: any, res) => {
+  app.get("/api/admin/provider-stats", auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
-      
+
       if (!user || user.privilegeLevel !== 0) {
         return res.status(403).json({ message: "SuperAdmin access required" });
       }
 
-      const { getAllProviders } = await import('./insuranceProviderConfig');
+      const { getAllProviders } = await import("./insuranceProviderConfig");
       const allProviders = getAllProviders();
-      
+
       // Get provider statistics from database
       const statsPromises = allProviders.map(async (provider) => {
         const successfulRequests = await storage.getExternalQuoteRequestsCount({
           providerId: provider.id,
-          status: 'success'
+          status: "success",
         });
         const failedRequests = await storage.getExternalQuoteRequestsCount({
           providerId: provider.id,
-          status: 'error'
+          status: "error",
         });
         const totalRequests = await storage.getExternalQuoteRequestsCount({
-          providerId: provider.id
+          providerId: provider.id,
         });
-        
+
         return {
           providerId: provider.id,
           providerName: provider.displayName,
@@ -2354,39 +2559,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
           successfulRequests,
           failedRequests,
           totalRequests,
-          successRate: totalRequests > 0 ? (successfulRequests / totalRequests) * 100 : 0,
+          successRate:
+            totalRequests > 0 ? (successfulRequests / totalRequests) * 100 : 0,
           supportedCoverageTypes: provider.supportedCoverageTypes,
         };
       });
-      
+
       const stats = await Promise.all(statsPromises);
       res.json(stats);
     } catch (error) {
-      console.error('Error fetching provider stats:', error);
-      res.status(500).json({ message: 'Failed to fetch provider statistics' });
+      console.error("Error fetching provider stats:", error);
+      res.status(500).json({ message: "Failed to fetch provider statistics" });
     }
   });
 
   // Seeding endpoint (for development only)
-  app.post('/api/seed-users', async (req: any, res) => {
+  app.post("/api/seed-users", async (req: any, res) => {
     try {
-      console.log('Starting user seeding...');
-      
+      console.log("Starting user seeding...");
+
       // Import seeding function dynamically
-      const { seedUsers } = await import('./seed-users');
+      const { seedUsers } = await import("./seed-users");
       await seedUsers();
-      
-      res.json({ message: 'Users seeded successfully!' });
+
+      res.json({ message: "Users seeded successfully!" });
     } catch (error) {
-      console.error('Error seeding users:', error);
-      res.status(500).json({ message: 'Failed to seed users', error: error.message });
+      console.error("Error seeding users:", error);
+      res
+        .status(500)
+        .json({ message: "Failed to seed users", error: error.message });
     }
   });
 
   const httpServer = createServer(app);
-  
+
   // Initialize WebSocket server for real-time quote updates
   initializeQuoteWebSocket(httpServer);
-  
+
   return httpServer;
 }
