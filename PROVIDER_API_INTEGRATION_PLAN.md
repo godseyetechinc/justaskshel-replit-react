@@ -32,7 +32,7 @@ Each provider can operate in two modes:
    ```typescript
    {
      id: "jas_assure",
-     mockMode: !process.env.LIFESECURE_API_KEY  // Uses mock if no API key
+     mockMode: !process.env.JASASSURE_API_KEY  // Uses mock if no API key
    }
    ```
 3. **Verify Environment Variables**:
@@ -44,14 +44,23 @@ Each provider can operate in two modes:
 **Step-by-step process:**
 
 1. **Identify Required Environment Variables**
-   - Check the provider config for dependencies (e.g., `LIFESECURE_API_KEY`)
-   - Note any URL overrides (e.g., `LIFESECURE_API_URL`)
+   - Check the provider config for dependencies (e.g., `JASASSURE_API_KEY`)
+   - Note any URL overrides (e.g., `JASASSURE_API_URL`)
 
 2. **Set Environment Variables**
+   
+   **Using Replit Secrets (Recommended):**
+   1. Open the **Secrets** pane in your Replit workspace
+   2. Click **"Add a new secret"**
+   3. Add key: `JASASSURE_API_KEY`, value: `your_actual_api_key`
+   4. Optionally add: `JASASSURE_API_URL` with custom endpoint
+   5. Click **"Add secret"** for each variable
+   
+   **Using Local Environment:**
    ```bash
    # For jas_assure provider
-   LIFESECURE_API_KEY=your_actual_api_key
-   LIFESECURE_API_URL=http://api1.justaskshel.com:8700/web-api/v1  # Optional override
+   JASASSURE_API_KEY=your_actual_api_key
+   JASASSURE_API_URL=http://api1.justaskshel.com:8700/web-api/v1  # Optional override
    ```
 
 3. **Restart Application**
@@ -70,13 +79,13 @@ Each provider can operate in two modes:
 // Current configuration
 {
   id: "jas_assure",
-  baseUrl: process.env.LIFESECURE_API_URL || "http://api1.justaskshel.com:8700/web-api/v1",
-  apiKey: process.env.LIFESECURE_API_KEY,
+  baseUrl: process.env.JASASSURE_API_URL || "http://api1.justaskshel.com:8700/web-api/v1",
+  apiKey: process.env.JASASSURE_API_KEY,
   isActive: true,
-  mockMode: !process.env.LIFESECURE_API_KEY  // Mock if no key
+  mockMode: !process.env.JASASSURE_API_KEY  // Mock if no key
 }
 
-// To enable: Set LIFESECURE_API_KEY environment variable
+// To enable: Set JASASSURE_API_KEY in Replit Secrets or environment variable
 ```
 
 **Example 2: Generic Provider Pattern**

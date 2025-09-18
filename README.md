@@ -205,13 +205,13 @@ To determine if a specific provider (like `jas_assure`) will make external API c
    {
      id: "jas_assure",
      isActive: true,  // Must be true
-     mockMode: !process.env.LIFESECURE_API_KEY,  // If no API key, uses mock data
+     mockMode: !process.env.JASASSURE_API_KEY,  // If no API key, uses mock data
    }
    ```
 
 2. **Check Environment Variables**:
-   - If `LIFESECURE_API_KEY` exists → Live API calls enabled
-   - If `LIFESECURE_API_KEY` missing → Mock mode active
+   - If `JASASSURE_API_KEY` exists → Live API calls enabled
+   - If `JASASSURE_API_KEY` missing → Mock mode active
 
 3. **Verify in Server Logs**:
    - Look for provider initialization messages
@@ -220,13 +220,23 @@ To determine if a specific provider (like `jas_assure`) will make external API c
 ### Enable External API Calls for Providers
 
 **For `jas_assure` provider:**
-1. Set the `LIFESECURE_API_KEY` environment variable
+
+**In Replit (Recommended):**
+1. Go to the **Secrets** pane in your Replit workspace
+2. Click **"Add a new secret"**
+3. Set **Key**: `JASASSURE_API_KEY`
+4. Set **Value**: Your actual API key
+5. Click **"Add secret"**
+6. Restart the application (automatic in Replit)
+
+**In Local Development:**
+1. Set the `JASASSURE_API_KEY` environment variable
 2. Restart the application
 3. Provider will automatically switch from mock mode to live API calls
 
 **General process for any provider:**
 1. Find the provider's required environment variables in the config
-2. Set the API key environment variable (e.g., `PROVIDER_API_KEY`)
+2. Set the API key using Replit Secrets tool or environment variable
 3. Optionally set custom API URL (e.g., `PROVIDER_API_URL`)
 4. Restart the server to apply changes
 

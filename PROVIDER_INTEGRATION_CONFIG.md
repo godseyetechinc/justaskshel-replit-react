@@ -43,8 +43,8 @@ Configure these environment variables for provider integration:
 DATABASE_URL=postgresql://username:password@host:port/database
 
 # Provider API Keys (optional - enables live providers)
-LIFESECURE_API_KEY=your_lifesecure_api_key
-LIFESECURE_API_URL=https://api.lifesecure.com/v1
+JASASSURE_API_KEY=your_jasassure_api_key
+JASASSURE_API_URL=http://api1.justaskshel.com:8700/web-api/v1
 HEALTHPLUS_API_KEY=your_healthplus_api_key
 HEALTHPLUS_API_URL=https://api.healthplus.com/quotes
 DENTALCARE_API_KEY=your_dentalcare_api_key
@@ -87,9 +87,15 @@ grep -A 10 "jas_assure" server/insuranceProviderConfig.ts
 ```
 
 **Method 2: Check Environment Variables**
+
+**In Replit:**
+1. Go to **Secrets** pane in workspace
+2. Look for `JASASSURE_API_KEY` in the secrets list
+
+**In Local Development:**
 ```bash
 # Verify if required API keys exist
-echo $LIFESECURE_API_KEY  # Should show API key value or be empty
+echo $JASASSURE_API_KEY  # Should show API key value or be empty
 ```
 
 **Method 3: Server Logs**
@@ -102,14 +108,35 @@ echo $LIFESECURE_API_KEY  # Should show API key value or be empty
 
 **For `jas_assure` Provider:**
 
+**Using Replit Secrets (Recommended):**
+1. **Open Secrets Pane**
+   - Click on the **Secrets** tool in your Replit workspace
+
+2. **Add API Key**
+   - Click **"Add a new secret"**
+   - Key: `JASASSURE_API_KEY`
+   - Value: `your_actual_api_key_here`
+   - Click **"Add secret"**
+
+3. **Optional: Set Custom API URL**
+   - Click **"Add a new secret"** again
+   - Key: `JASASSURE_API_URL`
+   - Value: `http://api1.justaskshel.com:8700/web-api/v1`
+   - Click **"Add secret"**
+
+4. **Restart the Application**
+   - Application will automatically restart in Replit
+   - Or manually restart with **Run** button
+
+**Using Local Environment:**
 1. **Set Required Environment Variable**
    ```bash
-   export LIFESECURE_API_KEY=your_actual_api_key_here
+   export JASASSURE_API_KEY=your_actual_api_key_here
    ```
 
 2. **Optional: Set Custom API URL**
    ```bash
-   export LIFESECURE_API_URL=http://api1.justaskshel.com:8700/web-api/v1
+   export JASASSURE_API_URL=http://api1.justaskshel.com:8700/web-api/v1
    ```
 
 3. **Restart the Application**
@@ -132,7 +159,17 @@ export PROVIDER_NAME_API_URL=provider_url  # If custom URL needed
 ```
 
 **Example Provider Environment Variables:**
+
+**In Replit Secrets:**
+- Add secrets with keys: `HEALTHPLUS_API_KEY`, `DENTALCARE_API_KEY`, `VISIONFIRST_API_KEY`, etc.
+- Each secret value should be the actual API key from the provider
+
+**In Local Environment:**
 ```bash
+# JAS Assure provider (primary example)
+JASASSURE_API_KEY=your_jas_assure_key
+JASASSURE_API_URL=http://api1.justaskshel.com:8700/web-api/v1
+
 # Health Plus provider
 HEALTHPLUS_API_KEY=your_health_plus_key
 HEALTHPLUS_API_URL=https://api.healthplus.com/quotes
@@ -390,8 +427,10 @@ To verify Phase 1 setup:
 ### How To: Test Specific Provider Integration
 
 **Testing `jas_assure` Provider:**
-1. Set environment variable: `LIFESECURE_API_KEY=test_key_value`
-2. Restart application
+1. **Set environment variable in Replit:**
+   - Go to Secrets pane
+   - Add secret: Key=`JASASSURE_API_KEY`, Value=`test_key_value`
+2. Restart application (automatic in Replit)
 3. Call `/api/quotes/search?includeExternal=true&typeId=1`
 4. Check server logs for HTTP requests to `http://api1.justaskshel.com:8700/web-api/v1`
 5. Verify response includes quotes from JAS Assurance provider
