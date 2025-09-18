@@ -9,6 +9,15 @@ This document outlines the comprehensive plan for integrating the existing Provi
 ### Current State
 The ProviderApiClient exists but isn't fully integrated into the `/api/quotes/search` endpoint. The search endpoint has placeholder logic for external quotes.
 
+#### Authentication Model
+The `/api/quotes/search` endpoint is designed as a **public API** that does not require user authentication:
+- **Public Access**: Anyone can search for insurance quotes without authentication
+- **Enhanced Features for Authenticated Users**: When a user is logged in, the system provides:
+  - Organization-specific provider configurations and priorities
+  - Customized commission rates and provider selections
+  - Multi-tenant aware quote processing
+- **Graceful Degradation**: Unauthenticated requests receive standard provider results without organization-specific customizations
+
 ### Integration Steps
 
 #### 1.1 Multi-Tenant Provider Configuration Management

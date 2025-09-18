@@ -102,7 +102,15 @@ SuperAdmin users can configure organization-specific provider settings:
 
 ### 1. Quote Search API
 
-The enhanced quote search endpoint supports multi-tenant provider aggregation:
+The enhanced quote search endpoint supports multi-tenant provider aggregation and is **publicly accessible without authentication**:
+
+#### Authentication Requirements
+- **No Authentication Required**: The `/api/quotes/search` endpoint can be accessed by anyone without logging in
+- **Enhanced Experience for Authenticated Users**: Logged-in users receive:
+  - Organization-specific provider configurations
+  - Customized provider priorities and commission rates  
+  - Multi-tenant aware quote processing
+- **Anonymous Access**: Unauthenticated users get standard quote results from all active providers
 
 ```javascript
 // Frontend usage
@@ -266,9 +274,11 @@ NODE_ENV=development # Detailed error messages
 ### Verification Checklist
 To verify Phase 1 setup:
 1. ✅ Server starts with "Quote WebSocket server initialized on /ws/quotes"
-2. ✅ `/api/quotes/search?includeExternal=true` returns combined results
-3. ✅ Providers show mock mode when API keys not configured
-4. ✅ WebSocket connection established (check browser dev tools)
-5. ✅ Organization context properly maintained in requests
+2. ✅ `/api/quotes/search?includeExternal=true` returns combined results **without authentication**
+3. ✅ Anonymous users can access quote search functionality
+4. ✅ Authenticated users receive organization-specific enhanced results
+5. ✅ Providers show mock mode when API keys not configured
+6. ✅ WebSocket connection established (check browser dev tools)
+7. ✅ Organization context properly maintained in authenticated requests
 
 For questions or support, contact the development team or refer to the main project documentation.

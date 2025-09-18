@@ -182,9 +182,17 @@ REPLIT_DOMAINS=your-domain.replit.dev
 ### Insurance Data & Quote Aggregation
 - `GET /api/insurance-types` - List all coverage types
 - `GET /api/providers` - List insurance providers
-- `GET /api/quotes/search` - Multi-tenant quote search with real-time provider aggregation
+- `GET /api/quotes/search` - **Public endpoint** - Multi-tenant quote search with real-time provider aggregation (no authentication required)
 - `GET /api/quotes/:id` - Get specific quote details
 - `WS /ws/quotes` - WebSocket endpoint for real-time quote updates
+
+#### Quote Search Authentication Details
+The `/api/quotes/search` endpoint is **publicly accessible** and does not require user authentication. However, it provides enhanced functionality for authenticated users:
+
+- **Anonymous users**: Can access basic quote search and provider aggregation
+- **Authenticated users**: Receive enhanced results with organization-specific provider configurations, priorities, and commission rates
+- **Multi-tenant aware**: Organization context automatically applied when user is logged in
+- **Graceful fallback**: Functions normally for unauthenticated requests without organization-specific features
 
 ### Provider Management (SuperAdmin Only)
 - `GET /api/admin/provider-configs` - List all provider configurations with statistics
