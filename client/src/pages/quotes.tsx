@@ -227,9 +227,9 @@ export default function Quotes() {
         case "deductible_desc":
           return (b.deductible || 0) - (a.deductible || 0);
         case "provider_asc":
-          return (a.provider || "").localeCompare(b.provider || "");
+          return (a.providerName || a.provider?.name || "").localeCompare(b.providerName || b.provider?.name || "");
         case "provider_desc":
-          return (b.provider || "").localeCompare(a.provider || "");
+          return (b.providerName || b.provider?.name || "").localeCompare(a.providerName || a.provider?.name || "");
         case "rating_desc":
           return (b.rating || 0) - (a.rating || 0);
         case "rating_asc":
@@ -252,14 +252,14 @@ export default function Quotes() {
   // Get current selected quotes for comparison
   const getCurrentSelectedQuotes = () => {
     if (isAuthenticated) {
-      return selectedQuotes?.map((sq: any) => sq.quoteId) || [];
+      return Array.isArray(selectedQuotes) ? selectedQuotes.map((sq: any) => sq.quoteId) : [];
     }
     return visitorSelectedQuotes;
   };
 
   const getCurrentWishlist = () => {
     if (isAuthenticated) {
-      return wishlist?.map((w: any) => w.quoteId) || [];
+      return Array.isArray(wishlist) ? wishlist.map((w: any) => w.quoteId) : [];
     }
     return visitorWishlist;
   };
@@ -460,12 +460,12 @@ export default function Quotes() {
                 <CardHeader className="pb-4">
                   <div className="flex items-center justify-between pr-8">
                     <div>
-                      <h3 className="font-semibold">{quote.provider.name}</h3>
-                      <p className="text-sm text-muted-foreground">{quote.type.name}</p>
+                      <h3 className="font-semibold">{quote.providerName || quote.provider?.name || 'Unknown Provider'}</h3>
+                      <p className="text-sm text-muted-foreground">{quote.type?.name || quote.coverageType || 'Coverage'}</p>
                     </div>
                     <div className="flex items-center">
                       <Star className="h-4 w-4 text-yellow-400 mr-1" />
-                      <span className="text-sm">{quote.provider.rating || '4.5'}</span>
+                      <span className="text-sm">{quote.rating || quote.provider?.rating || '4.5'}</span>
                     </div>
                   </div>
                 </CardHeader>
@@ -616,7 +616,7 @@ export default function Quotes() {
                     <SelectValue placeholder="Select Type" />
                   </SelectTrigger>
                   <SelectContent>
-                    {insuranceTypes?.map((type: any) => (
+                    {Array.isArray(insuranceTypes) && insuranceTypes.map((type: any) => (
                       <SelectItem key={type.id} value={type.id.toString()}>
                         {type.name}
                       </SelectItem>
@@ -929,12 +929,12 @@ export default function Quotes() {
                       <CardHeader className="pb-4">
                         <div className="flex items-center justify-between">
                           <div>
-                            <h3 className="font-semibold">{quote.provider.name}</h3>
-                            <p className="text-sm text-muted-foreground">{quote.type.name}</p>
+                            <h3 className="font-semibold">{quote.providerName || quote.provider?.name || 'Unknown Provider'}</h3>
+                            <p className="text-sm text-muted-foreground">{quote.type?.name || quote.coverageType || 'Coverage'}</p>
                           </div>
                           <div className="flex items-center">
                             <Star className="h-4 w-4 text-yellow-400 mr-1" />
-                            <span className="text-sm">{quote.provider.rating || '4.5'}</span>
+                            <span className="text-sm">{quote.rating || quote.provider?.rating || '4.5'}</span>
                           </div>
                         </div>
                       </CardHeader>
@@ -1097,8 +1097,8 @@ export default function Quotes() {
                     {getComparisonQuotes().map((quote: any) => (
                       <div key={quote.id} className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
                         <div>
-                          <div className="font-medium">{quote.provider.name}</div>
-                          <div className="text-sm text-muted-foreground">{quote.type.name}</div>
+                          <div className="font-medium">{quote.providerName || quote.provider?.name || 'Unknown Provider'}</div>
+                          <div className="text-sm text-muted-foreground">{quote.type?.name || quote.coverageType || 'Coverage'}</div>
                         </div>
                         <div className="flex items-center space-x-2">
                           <div className="text-right">
@@ -1133,8 +1133,8 @@ export default function Quotes() {
                     {(allQuotes?.quotes || allQuotes || [])?.filter((quote: any) => currentWishlistIds.includes(quote.id)).map((quote: any) => (
                       <div key={quote.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                         <div>
-                          <div className="font-medium">{quote.provider.name}</div>
-                          <div className="text-sm text-muted-foreground">{quote.type.name}</div>
+                          <div className="font-medium">{quote.providerName || quote.provider?.name || 'Unknown Provider'}</div>
+                          <div className="text-sm text-muted-foreground">{quote.type?.name || quote.coverageType || 'Coverage'}</div>
                         </div>
                         <div className="text-right">
                           <div className="font-semibold">${quote.monthlyPremium}/mo</div>
