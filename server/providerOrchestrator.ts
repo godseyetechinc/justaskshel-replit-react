@@ -268,11 +268,14 @@ export class ProviderOrchestrator {
   }
 
   private getOrganizationProviders(organizationId?: number, coverageType?: string): OrganizationProviderConfig[] {
-    // Get base provider configurations
-    let providers = INSURANCE_PROVIDERS.filter(p => 
-      p.isActive && 
-      (!coverageType || p.supportedCoverageTypes.includes(coverageType.toLowerCase()))
-    );
+    // Normalize coverage type to canonical format
+    const normalizedCoverageType = this.normalizeCoverageType(coverageType);
+    
+    let providers = INSURANCE_PROVIDERS.filter(p => {
+      const isActive = p.isActive;
+      const supportsType = !normalizedCoverageType || p.supportedCoverageTypes.includes(normalizedCoverageType);
+      return isActive && supportsType;
+    });
 
     // Apply organization-specific overrides if available
     if (organizationId) {
@@ -318,6 +321,26 @@ export class ProviderOrchestrator {
 
   private generateRequestId(): string {
     return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  private normalizeCoverageType(coverageType?: string): string | undefined {
+    if (!coverageType) return undefined;
+    
+    // Coverage type mapping from display names to canonical keys
+    const coverageTypeMapping: Record<string, string> = {
+      'life insurance': 'life',
+      'health insurance': 'health',
+      'dental insurance': 'dental', 
+      'vision insurance': 'vision',
+      'hospital indemnity insurance': 'hospital_indemnity',
+      'disability insurance': 'disability',
+      'term life': 'life',
+      'whole life': 'life',
+      'medical': 'health'
+    };
+    
+    const normalized = coverageTypeMapping[coverageType.toLowerCase()] || coverageType.toLowerCase();
+    return normalized;
   }
 
   private generateCacheKey(request: QuoteRequest, organizationId?: number): string {

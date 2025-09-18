@@ -157,12 +157,12 @@ export class ProviderApiClient {
     coverageType: string,
   ): any {
     // Transform the normalized request to provider-specific format
-    const baseRequest = {
+    const baseRequest: any = {
       coverage_type: coverageType,
       applicant: {
         age: request.applicantAge,
         zip_code: request.zipCode,
-      },
+      } as any,
       coverage: {
         amount: request.coverageAmount,
         term_length: request.termLength,
@@ -298,7 +298,7 @@ export class ProviderApiClient {
       let jasQuotes: any[] = data.Data;
       let responses: QuoteResponse[] = [];
 
-      for (let quoteGroup in jasQuotes) {
+      for (const quoteGroup of jasQuotes) {
         responses.push(...this.normalizeJASQuoteGroup(quoteGroup));
       }
       return responses;
@@ -310,6 +310,10 @@ export class ProviderApiClient {
   }
 
   private normalizeJASQuoteGroup(quoteGroup: any): QuoteResponse[] {
+    if (!quoteGroup?.items?.map) {
+      console.warn(`JAS quote group missing items array:`, quoteGroup);
+      return [];
+    }
     return quoteGroup.items.map((quote: any) => this.normalizeJASQuote(quote));
   }
 
@@ -419,7 +423,7 @@ export class ProviderApiClient {
       quote.monthly_cost ||
       (quote.annual_premium || quote.annualPremium || quote.yearly_cost || 0) /
         12 ||
-      quote.plan_details.Premium || // JAS Assure
+      quote.plan_details?.Premium || // JAS Assure
       0
     );
   }
@@ -445,7 +449,7 @@ export class ProviderApiClient {
       (quote.monthly_premium ||
         quote.monthlyPremium ||
         quote.monthly_cost ||
-        quote.plan_details.Premium || // JAS Assure
+        quote.plan_details?.Premium || // JAS Assure
         0) * 12 ||
       0
     );
