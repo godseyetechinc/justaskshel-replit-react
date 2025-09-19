@@ -101,7 +101,7 @@ export const INSURANCE_PROVIDERS: ProviderConfig[] = [
   {
     id: "jas_assure",
     name: "jas_assure",
-    displayName: "JAS Assurance",
+    displayName: "JAS",
     baseUrl:
       process.env.JASASSURE_API_URL ||
       "http://api1.justaskshel.com:8700/web-api/v1",

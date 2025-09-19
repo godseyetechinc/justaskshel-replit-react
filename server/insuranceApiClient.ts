@@ -326,7 +326,7 @@ export class ProviderApiClient {
         quote.quoteId ||
         `${this.config.id}_${Date.now()}_${Math.random()}`,
       providerId: this.config.id,
-      providerName: this.config.displayName,
+      providerName: `${this.config.displayName}/${quote.plan_details?.Carrier}`,
       monthlyPremium: this.extractJASMonthlyPremium(quote),
       annualPremium: this.extractJASAnnualPremium(quote),
       coverageAmount:
