@@ -231,7 +231,189 @@ Providers are configured in `server/insuranceProviderConfig.ts`. Each provider i
 }
 ```
 
-### 3. Organization-Specific Provider Settings
+### 3. Custom HTTP Headers Configuration
+
+**Implementation Date:** September 2025  
+**Status:** Production-Ready
+
+The platform supports a comprehensive three-tier custom HTTP headers system for enhanced provider API integration. This feature allows flexible header configuration at multiple levels to accommodate diverse provider authentication and communication requirements.
+
+#### **Header Management Hierarchy**
+
+Custom headers are applied with the following priority order:
+
+```
+Request-Level (Highest Priority) → Organization-Level → Provider-Level (Lowest Priority)
+```
+
+#### **Provider-Level Headers**
+
+Static headers configured directly in provider configurations:
+
+```typescript
+{
+  id: "provider_id",
+  name: "provider_name",
+  displayName: "Provider Display Name",
+  baseUrl: process.env.PROVIDER_API_URL || "fallback_url",
+  apiKey: process.env.PROVIDER_API_KEY,
+  authHeader: "X-API-Key",
+  // Custom headers for this provider
+  customHeaders: {
+    "X-Provider-ID": "provider123",
+    "X-API-Version": "v2",
+    "X-Client-Name": "JustAskShel"
+  },
+  // ... other configuration
+}
+```
+
+#### **Organization-Level Headers**
+
+Headers specific to tenant organizations (configured via organization provider overrides):
+
+```typescript
+// Organization-specific provider configuration
+{
+  organizationId: 1,
+  providerId: "provider_id",
+  customHeaders: {
+    "X-Tenant-ID": "org456",
+    "X-Environment": "production",
+    "X-Billing-Code": "tenant_billing_code"
+  },
+  // ... other overrides
+}
+```
+
+#### **Request-Level Headers**
+
+Dynamic headers passed with individual API requests using the `X-Custom-` prefix:
+
+```javascript
+// Frontend API call with custom headers
+const response = await fetch('/api/quotes/search', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'X-Custom-Priority': 'urgent',
+    'X-Custom-Source': 'mobile-app',
+    'X-Custom-Request-ID': 'req_12345'
+  },
+  body: JSON.stringify(quoteRequest)
+});
+```
+
+#### **Security Features**
+
+**Header Validation:**
+- Protected headers cannot be overridden (`authorization`, `content-type`, `user-agent`, `host`)
+- Case-insensitive protection prevents bypass attempts
+- Header names and values validated for safe characters
+- Blocks CR/LF/null bytes to prevent header injection
+
+**Authentication Protection:**
+- Provider authentication headers are protected from override
+- Automatic Bearer → Authorization token mapping protection
+- Existing base headers preserved during merge process
+
+**Header Canonicalization:**
+- Eliminates duplicate headers that differ only by case
+- Normalizes header names to prevent conflicts
+- Uses proper-case formatting for common headers
+
+#### **Configuration Examples**
+
+**Environment Variables for Custom Headers:**
+```bash
+# Provider-level headers (set in provider config)
+# No environment variables needed - configured in code
+
+# Organization-level headers (managed via database)
+# Configured through SuperAdmin interface
+
+# Request-level headers (passed by clients)
+# No configuration needed - validated at runtime
+```
+
+**Complete Provider Configuration with Custom Headers:**
+```typescript
+{
+  id: "jas_assure",
+  name: "jas_assure",
+  displayName: "JAS Assurance",
+  baseUrl: process.env.JASASSURE_API_URL || "http://api1.justaskshel.com:8700/web-api/v1",
+  apiKey: process.env.JASASSURE_API_KEY,
+  authHeader: "X-API-Key",
+  customHeaders: {
+    "X-Provider-ID": "jas-assure-v1",
+    "X-API-Version": "1.0",
+    "X-Client-Platform": "justaskshel-insurance"
+  },
+  rateLimit: {
+    requestsPerSecond: 10,
+    burstLimit: 50
+  },
+  timeout: 8000,
+  retryConfig: {
+    maxRetries: 3,
+    backoffMultiplier: 2,
+    initialDelay: 1000
+  },
+  supportedCoverageTypes: ["life", "health", "dental", "vision"],
+  isActive: true,
+  priority: 1,
+  mockMode: !process.env.JASASSURE_API_KEY
+}
+```
+
+#### **Usage in API Calls**
+
+**Backend Implementation:**
+```typescript
+// Headers are automatically merged during provider API calls
+// Priority: Request > Organization > Provider
+const result = await providerApiClient.executeRequest(request, {
+  providerHeaders: provider.customHeaders,
+  organizationHeaders: orgConfig.customHeaders,
+  requestHeaders: extractedFromRequest
+});
+```
+
+**Frontend Usage:**
+```javascript
+// Send request-level custom headers
+const quoteRequest = {
+  coverageType: 'life',
+  requestedCoverage: 100000,
+  personalInfo: { age: 30, state: 'CA' }
+};
+
+const response = await fetch('/api/quotes', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'X-Custom-Priority': 'high',
+    'X-Custom-Channel': 'web-portal',
+    'X-Custom-Agent-ID': 'agent_123'
+  },
+  body: JSON.stringify(quoteRequest)
+});
+```
+
+#### **Validation and Error Handling**
+
+**Server-Side Validation:**
+- Invalid header names/values return 400 Bad Request
+- Protected header override attempts are rejected
+- Validation errors are logged for monitoring
+
+**Monitoring and Debugging:**
+- Header validation logs track rejected headers
+- Provider request logs include final merged headers
+- WebSocket integration preserves custom header context
+
+### 4. Organization-Specific Provider Settings
 
 SuperAdmin users can configure organization-specific provider settings:
 
