@@ -184,6 +184,14 @@ export class ProviderApiClient {
 
     // Provider-specific transformations
     switch (this.config.id) {
+      case "hexure":
+        return {
+          ...baseRequest,
+          product_type: coverageType,
+          client_info: baseRequest.applicant,
+          coverage_details: baseRequest.coverage,
+        };
+
       case "jas_assure":
         // https://transform.tools/json-to-typescript
         /*
