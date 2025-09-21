@@ -172,7 +172,8 @@ export class ProviderOrchestrator {
   async getQuotesForOrganization(
     request: QuoteRequest, 
     organizationId?: number,
-    userRole?: string
+    userRole?: string,
+    requestHeaders?: Record<string, string>
   ): Promise<{
     quotes: QuoteResponse[];
     providers: {
@@ -212,7 +213,9 @@ export class ProviderOrchestrator {
         }
 
         return await circuitBreaker.execute(async () => {
-          const quotes = await provider.getQuotes(request);
+          // Pass organization-specific and request-level custom headers
+          const organizationHeaders = config.organizationOverrides?.customHeaders;
+          const quotes = await provider.getQuotes(request, organizationHeaders, requestHeaders);
           
           // Add organization-specific metadata
           return quotes.map(quote => ({

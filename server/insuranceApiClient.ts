@@ -7,7 +7,24 @@ import {
   getProvidersForCoverage,
   getActiveProviders,
   mapCoverageTypeForProvider,
+  mergeCustomHeaders,
 } from "./insuranceProviderConfig";
+
+// Helper function to get proper case for common headers
+function getProperHeaderCase(lowercaseKey: string): string {
+  const commonHeaders: Record<string, string> = {
+    'content-type': 'Content-Type',
+    'user-agent': 'User-Agent',
+    'authorization': 'Authorization',
+    'x-api-key': 'X-API-Key',
+    'x-auth-token': 'X-Auth-Token',
+    'accept': 'Accept',
+    'cache-control': 'Cache-Control',
+    'content-length': 'Content-Length'
+  };
+  
+  return commonHeaders[lowercaseKey] || lowercaseKey;
+}
 
 // Rate limiting utility
 class RateLimiter {
@@ -56,17 +73,23 @@ export class ProviderApiClient {
     );
   }
 
-  async getQuotes(request: QuoteRequest): Promise<QuoteResponse[]> {
+  async getQuotes(
+    request: QuoteRequest,
+    organizationHeaders?: Record<string, string>,
+    requestHeaders?: Record<string, string>
+  ): Promise<QuoteResponse[]> {
     if (this.config.mockMode) {
       return this.getMockQuotes(request);
     }
 
     await this.rateLimiter.acquire();
-    return this.makeApiRequest(request);
+    return this.makeApiRequest(request, organizationHeaders, requestHeaders);
   }
 
   private async makeApiRequest(
     request: QuoteRequest,
+    organizationHeaders?: Record<string, string>,
+    requestHeaders?: Record<string, string>
   ): Promise<QuoteResponse[]> {
     const { maxRetries, backoffMultiplier, initialDelay } =
       this.config.retryConfig;
@@ -74,7 +97,7 @@ export class ProviderApiClient {
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
-        const response = await this.executeRequest(request);
+        const response = await this.executeRequest(request, organizationHeaders, requestHeaders);
         return response;
       } catch (error) {
         lastError = error as Error;
@@ -93,12 +116,16 @@ export class ProviderApiClient {
 
   private async executeRequest(
     request: QuoteRequest,
+    organizationHeaders?: Record<string, string>,
+    requestHeaders?: Record<string, string>
   ): Promise<QuoteResponse[]> {
+    // Start with base headers
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
       "User-Agent": "JustAskShel/1.0",
     };
 
+    // Add authentication headers
     if (this.config.apiKey && this.config.authHeader) {
       if (this.config.authHeader === "Bearer") {
         headers["Authorization"] = `Bearer ${this.config.apiKey}`;
@@ -106,6 +133,42 @@ export class ProviderApiClient {
         headers[this.config.authHeader] = this.config.apiKey;
       }
     }
+
+    // Merge custom headers with priority: Provider-level → Organization-level → Request-level
+    // Pass existing headers and provider auth header for security protection
+    const customHeaders = mergeCustomHeaders(
+      this.config.customHeaders,
+      organizationHeaders,
+      requestHeaders,
+      headers, // existing headers to protect
+      this.config.authHeader // provider auth header to protect
+    );
+
+    // Canonicalize headers to prevent duplicate-by-case issues
+    // Build a single lowercase map and then convert back to proper case for fetch
+    const canonicalHeaders: Record<string, string> = {};
+    
+    // First add base headers (normalize keys to lowercase)
+    for (const [key, value] of Object.entries(headers)) {
+      canonicalHeaders[key.toLowerCase()] = value;
+    }
+    
+    // Then add custom headers (already lowercase from merge)
+    for (const [key, value] of Object.entries(customHeaders)) {
+      canonicalHeaders[key.toLowerCase()] = value;
+    }
+    
+    // Rebuild headers object with canonical case to prevent duplicates
+    const finalHeaders: Record<string, string> = {};
+    for (const [lowercaseKey, value] of Object.entries(canonicalHeaders)) {
+      // Use proper case for common headers, lowercase for custom ones
+      const properCaseKey = getProperHeaderCase(lowercaseKey);
+      finalHeaders[properCaseKey] = value;
+    }
+    
+    // Replace headers with canonicalized version
+    Object.keys(headers).forEach(key => delete headers[key]);
+    Object.assign(headers, finalHeaders);
 
     const mappedCoverageType = mapCoverageTypeForProvider(
       this.config.id,
@@ -184,14 +247,6 @@ export class ProviderApiClient {
 
     // Provider-specific transformations
     switch (this.config.id) {
-      case "hexure":
-        return {
-          ...baseRequest,
-          product_type: coverageType,
-          client_info: baseRequest.applicant,
-          coverage_details: baseRequest.coverage,
-        };
-
       case "jas_assure":
         // https://transform.tools/json-to-typescript
         /*

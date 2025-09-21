@@ -498,11 +498,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         paymentFrequency: "monthly",
       };
 
+      // Extract custom headers from request headers (X-Custom-* prefix) for request-level headers
+      const requestHeaders: Record<string, string> = {};
+      for (const [key, value] of Object.entries(req.headers)) {
+        if (key.toLowerCase().startsWith('x-custom-') && typeof value === 'string') {
+          // Remove the x-custom- prefix and use the rest as the header name
+          const headerName = key.substring(9); // Remove 'x-custom-' (9 characters)
+          // Skip if header name is empty after removing prefix
+          if (headerName.length > 0) {
+            requestHeaders[headerName] = value;
+          }
+        }
+      }
+
+      // Validate request-level headers and return errors if invalid
+      if (Object.keys(requestHeaders).length > 0) {
+        const { validateCustomHeaders } = await import('./insuranceProviderConfig');
+        const validation = validateCustomHeaders(requestHeaders, ['content-type', 'user-agent', 'authorization', 'x-api-key', 'x-auth-token']);
+        if (!validation.valid) {
+          return res.status(400).json({
+            message: 'Invalid custom headers provided',
+            errors: validation.errors
+          });
+        }
+      }
+
       // Use the new provider orchestrator for multi-tenant quote aggregation
       const result = await providerOrchestrator.getQuotesForOrganization(
         externalRequest,
         organizationId,
         userRole,
+        Object.keys(requestHeaders).length > 0 ? requestHeaders : undefined
       );
 
       // Combine internal and external quotes
