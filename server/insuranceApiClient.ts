@@ -13,16 +13,16 @@ import {
 // Helper function to get proper case for common headers
 function getProperHeaderCase(lowercaseKey: string): string {
   const commonHeaders: Record<string, string> = {
-    'content-type': 'Content-Type',
-    'user-agent': 'User-Agent',
-    'authorization': 'Authorization',
-    'x-api-key': 'X-API-Key',
-    'x-auth-token': 'X-Auth-Token',
-    'accept': 'Accept',
-    'cache-control': 'Cache-Control',
-    'content-length': 'Content-Length'
+    "content-type": "Content-Type",
+    "user-agent": "User-Agent",
+    authorization: "Authorization",
+    "x-api-key": "X-API-Key",
+    "x-auth-token": "X-Auth-Token",
+    accept: "Accept",
+    "cache-control": "Cache-Control",
+    "content-length": "Content-Length",
   };
-  
+
   return commonHeaders[lowercaseKey] || lowercaseKey;
 }
 
@@ -76,7 +76,7 @@ export class ProviderApiClient {
   async getQuotes(
     request: QuoteRequest,
     organizationHeaders?: Record<string, string>,
-    requestHeaders?: Record<string, string>
+    requestHeaders?: Record<string, string>,
   ): Promise<QuoteResponse[]> {
     if (this.config.mockMode) {
       return this.getMockQuotes(request);
@@ -89,7 +89,7 @@ export class ProviderApiClient {
   private async makeApiRequest(
     request: QuoteRequest,
     organizationHeaders?: Record<string, string>,
-    requestHeaders?: Record<string, string>
+    requestHeaders?: Record<string, string>,
   ): Promise<QuoteResponse[]> {
     const { maxRetries, backoffMultiplier, initialDelay } =
       this.config.retryConfig;
@@ -97,7 +97,11 @@ export class ProviderApiClient {
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
-        const response = await this.executeRequest(request, organizationHeaders, requestHeaders);
+        const response = await this.executeRequest(
+          request,
+          organizationHeaders,
+          requestHeaders,
+        );
         return response;
       } catch (error) {
         lastError = error as Error;
@@ -117,7 +121,7 @@ export class ProviderApiClient {
   private async executeRequest(
     request: QuoteRequest,
     organizationHeaders?: Record<string, string>,
-    requestHeaders?: Record<string, string>
+    requestHeaders?: Record<string, string>,
   ): Promise<QuoteResponse[]> {
     // Start with base headers
     const headers: Record<string, string> = {
@@ -141,23 +145,23 @@ export class ProviderApiClient {
       organizationHeaders,
       requestHeaders,
       headers, // existing headers to protect
-      this.config.authHeader // provider auth header to protect
+      this.config.authHeader, // provider auth header to protect
     );
 
     // Canonicalize headers to prevent duplicate-by-case issues
     // Build a single lowercase map and then convert back to proper case for fetch
     const canonicalHeaders: Record<string, string> = {};
-    
+
     // First add base headers (normalize keys to lowercase)
     for (const [key, value] of Object.entries(headers)) {
       canonicalHeaders[key.toLowerCase()] = value;
     }
-    
+
     // Then add custom headers (already lowercase from merge)
     for (const [key, value] of Object.entries(customHeaders)) {
       canonicalHeaders[key.toLowerCase()] = value;
     }
-    
+
     // Rebuild headers object with canonical case to prevent duplicates
     const finalHeaders: Record<string, string> = {};
     for (const [lowercaseKey, value] of Object.entries(canonicalHeaders)) {
@@ -165,9 +169,9 @@ export class ProviderApiClient {
       const properCaseKey = getProperHeaderCase(lowercaseKey);
       finalHeaders[properCaseKey] = value;
     }
-    
+
     // Replace headers with canonicalized version
-    Object.keys(headers).forEach(key => delete headers[key]);
+    Object.keys(headers).forEach((key) => delete headers[key]);
     Object.assign(headers, finalHeaders);
 
     const mappedCoverageType = mapCoverageTypeForProvider(
@@ -203,7 +207,7 @@ export class ProviderApiClient {
       //if (this.config.id == "jas_assure")
       //  throw new Error(await response.json());
 
-      return this.transformResponseFromProvider(data);
+      return this.transformResponseFromProvider(this.config.id, data);
     } catch (error) {
       clearTimeout(timeoutId);
       if (error instanceof Error && error.name === "AbortError") {
@@ -247,6 +251,55 @@ export class ProviderApiClient {
 
     // Provider-specific transformations
     switch (this.config.id) {
+      /*
+content.Add(new StringContent("UT"), "state");
+content.Add(new StringContent("Male"), "gender");
+content.Add(new StringContent("30"), "current_age");
+content.Add(new StringContent("31"), "nearest_age");
+content.Add(new StringContent("false"), "tobacco");
+content.Add(new StringContent("250000"), "face_amount");
+content.Add(new StringContent("20 Year Term"), "product_types[]");
+content.Add(new StringContent("Standard"), "health_categories[]");
+content.Add(new StringContent("true"), "adb_rider");
+content.Add(new StringContent("true"), "wop_rider");
+content.Add(new StringContent("1"), "child_rider_units");
+content.Add(new StringContent("0"), "flat_extra");
+content.Add(new StringContent("140"), "carrier_ids[]");
+content.Add(new StringContent("Joe Agent"), "agent[name]");
+content.Add(new StringContent("joeagent@ixn.tech"), "agent[email]");
+content.Add(new StringContent("801-555-5555"), "agent[phone_number]");
+*/
+      case "ixn_hexure":
+        return {
+          state: "FL",
+          gender: "Male",
+          current_age: 30,
+          nearest_age: 31,
+          tobacco: false,
+          face_amount: 250000,
+          product_types: [
+            "1 Year Term",
+            "5 Year Term",
+            "10 Year Term",
+            "15 Year Term",
+            "20 Year Term",
+          ],
+          health_categories: ["Standard"],
+          adb_rider: true,
+          wop_rider: true,
+          child_rider_units: 1,
+          flat_extra: 0,
+          carrier_ids: [
+            140, 1621, 1806, 36, 163, 1474, 186, 1500, 1505, 185, 1675, 1815,
+            49, 111, 32, 106, 138, 1594, 176, 139,
+          ],
+          agent: {
+            name: "Sheldon Wright",
+            email: "ppsfinancing@gmail.com",
+            phone_number: "954-646-6602",
+          },
+        };
+
       case "jas_assure":
         // https://transform.tools/json-to-typescript
         /*
@@ -345,9 +398,17 @@ export class ProviderApiClient {
     }
   }
 
-  private transformResponseFromProvider(data: any): QuoteResponse[] {
+  private transformResponseFromProvider(
+    providerId: string,
+    data: any,
+  ): QuoteResponse[] {
     // Handle different provider response formats
     let quotes: any[] = [];
+
+    if (providerId == "ixn_hexure" && data && Array.isArray(data)) {
+      quotes = data;
+      return quotes.map((quote) => this.normalizeIXNHexureQuote(quote));
+    }
 
     if (Array.isArray(data)) {
       quotes = data;
@@ -370,6 +431,50 @@ export class ProviderApiClient {
     }
 
     return quotes.map((quote) => this.normalizeQuote(quote));
+  }
+
+  private normalizeIXNHexureQuote(quote: any): QuoteResponse {
+    // Normalize different provider response formats to our standard format
+    const normalized: QuoteResponse = {
+      quoteId:
+        quote.id ||
+        quote.quote_id ||
+        quote.quoteId ||
+        `${this.config.id}_${Date.now()}_${Math.random()}`,
+      providerId: this.config.id,
+      providerName: `${this.config.displayName}/${quote.carrier_name}`,
+      monthlyPremium: quote.premium_monthly,
+      annualPremium: quote.premium_annual,
+      coverageAmount: quote.face_amount || 0,
+      deductible: quote.deductible || quote.deductible_amount || 0,
+      termLength:
+        quote.product_type ||
+        quote.term_length ||
+        quote.termLength ||
+        quote.term ||
+        undefined,
+      features: this.extractFeatures(quote),
+      rating: quote.rating || quote.provider_rating || quote.score || undefined,
+      medicalExamRequired:
+        quote.medical_exam_required ||
+        quote.medicalExam ||
+        quote.exam_required ||
+        false,
+      conversionOption: quote.conversion_option || quote.convertible || false,
+      metadata: {
+        providerId: this.config.id,
+        originalResponse: quote,
+        responseTimestamp: new Date().toISOString(),
+      },
+      expiresAt:
+        quote.am_best_date ||
+        quote.expires_at ||
+        quote.expirationDate ||
+        new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      applicationUrl: quote.application_url || quote.applyUrl || undefined,
+    };
+
+    return normalized;
   }
 
   private normalizeJASQuoteGroup(quoteGroup: any): QuoteResponse[] {

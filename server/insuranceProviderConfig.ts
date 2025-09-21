@@ -101,6 +101,36 @@ export type QuoteResponse = z.infer<typeof QuoteResponseSchema>;
 // Provider-specific configurations
 export const INSURANCE_PROVIDERS: ProviderConfig[] = [
   {
+    id: "ixn_hexure",
+    name: "ixn_hexure",
+    displayName: "Hexure",
+    baseUrl: process.env.IXNHEXURE_API_URL || "https://api.ixn.tech/v1",
+    apiKey: process.env.IXNHEXURE_API_KEY,
+    authHeader: "X-API-Key",
+    customHeaders: {
+      "X-Provider-ID": "ixn_hexure",
+      "X-Source": "Hexure",
+      "X-Version": "1.0",
+      "APP-ID": process.env.IXNHEXURE_APP_ID,
+      "APP-TOKEN": process.env.IXNHEXURE_APP_TOKEN,
+    },
+    rateLimit: {
+      requestsPerSecond: 10,
+      burstLimit: 50,
+    },
+    timeout: 8000,
+    retryConfig: {
+      maxRetries: 3,
+      backoffMultiplier: 2,
+      initialDelay: 1000,
+    },
+    supportedCoverageTypes: ["life"],
+    isActive: true,
+    priority: 1,
+    mockMode: !process.env.IXNHEXURE_API_KEY,
+  },
+
+  {
     id: "jas_assure",
     name: "jas_assure",
     displayName: "JAS",
@@ -112,7 +142,7 @@ export const INSURANCE_PROVIDERS: ProviderConfig[] = [
     customHeaders: {
       "X-Provider-ID": "jas_assure",
       "X-Source": "JustAskShel",
-      "X-Version": "1.0"
+      "X-Version": "1.0",
     },
     rateLimit: {
       requestsPerSecond: 10,
@@ -164,7 +194,7 @@ export const INSURANCE_PROVIDERS: ProviderConfig[] = [
     customHeaders: {
       "X-Partner-Code": "JUSTASKSHEL",
       "X-Client-Version": "2.1",
-      "X-Request-Source": "portal"
+      "X-Request-Source": "portal",
     },
     rateLimit: {
       requestsPerSecond: 5,
@@ -339,79 +369,87 @@ export function updateProvider(
 // Header validation and security functions
 export function validateCustomHeaders(
   headers: Record<string, string>,
-  additionalProtectedHeaders: string[] = []
-): { 
-  valid: boolean; 
-  errors: string[]; 
+  additionalProtectedHeaders: string[] = [],
+): {
+  valid: boolean;
+  errors: string[];
   sanitizedHeaders: Record<string, string>;
   rejectedHeaders: string[];
 } {
   const errors: string[] = [];
   const sanitizedHeaders: Record<string, string> = {};
   const rejectedHeaders: string[] = [];
-  
+
   // List of critical headers that cannot be overridden (all normalized to lowercase)
   const protectedHeaders = new Set([
-    'content-type',
-    'user-agent',
-    'authorization',
-    'host',
-    'content-length',
-    'transfer-encoding',
-    ...additionalProtectedHeaders.map(h => h.toLowerCase())
+    "content-type",
+    "user-agent",
+    "authorization",
+    "host",
+    "content-length",
+    "transfer-encoding",
+    ...additionalProtectedHeaders.map((h) => h.toLowerCase()),
   ]);
-  
+
   // List of headers that require special validation
   const sensitiveHeaders = [
-    'x-api-key',
-    'x-auth-token', 
-    'x-secret',
-    'authorization'
+    "x-api-key",
+    "x-auth-token",
+    "x-secret",
+    "authorization",
   ];
-  
+
   for (const [key, value] of Object.entries(headers)) {
     const normalizedKey = key.toLowerCase().trim();
     const normalizedValue = value?.toString().trim();
-    
+
     // Validate header name
     if (!normalizedKey || !/^[a-zA-Z0-9\-_]+$/.test(normalizedKey)) {
-      errors.push(`Invalid header name: "${key}". Only alphanumeric characters, hyphens, and underscores are allowed.`);
+      errors.push(
+        `Invalid header name: "${key}". Only alphanumeric characters, hyphens, and underscores are allowed.`,
+      );
       continue;
     }
-    
+
     // Check for protected headers (case-insensitive)
     if (protectedHeaders.has(normalizedKey)) {
       errors.push(`Protected header "${key}" cannot be overridden.`);
       rejectedHeaders.push(key);
       continue;
     }
-    
+
     // Validate header value
     if (!normalizedValue) {
       errors.push(`Header "${key}" has empty or invalid value.`);
       continue;
     }
-    
+
     // Check for potential injection attacks
     if (/[\r\n\0]/.test(normalizedValue)) {
-      errors.push(`Header "${key}" contains invalid characters (newlines or null bytes).`);
+      errors.push(
+        `Header "${key}" contains invalid characters (newlines or null bytes).`,
+      );
       continue;
     }
-    
+
     // Warn about sensitive headers (don't block, but log)
-    if (sensitiveHeaders.some(sensitive => normalizedKey.includes(sensitive))) {
-      console.warn(`Warning: Sensitive header "${key}" detected. Ensure proper security measures are in place.`);
+    if (
+      sensitiveHeaders.some((sensitive) => normalizedKey.includes(sensitive))
+    ) {
+      console.warn(
+        `Warning: Sensitive header "${key}" detected. Ensure proper security measures are in place.`,
+      );
     }
-    
+
     // Store with normalized key to prevent case duplicates
     sanitizedHeaders[normalizedKey] = normalizedValue;
   }
-  
+
   return {
     valid: errors.length === 0,
     errors,
     sanitizedHeaders: errors.length === 0 ? sanitizedHeaders : {},
-    rejectedHeaders
+    rejectedHeaders,
   };
 }
 
@@ -420,59 +458,79 @@ export function mergeCustomHeaders(
   organizationHeaders?: Record<string, string>,
   requestHeaders?: Record<string, string>,
   existingHeaders?: Record<string, string>,
-  providerAuthHeader?: string
+  providerAuthHeader?: string,
 ): Record<string, string> {
   const merged: Record<string, string> = {};
-  
+
   // Build list of additional protected headers (existing headers + provider auth header)
   const additionalProtected: string[] = [];
-  
+
   // Add existing headers to protected list (normalize to lowercase)
   if (existingHeaders) {
-    additionalProtected.push(...Object.keys(existingHeaders).map(h => h.toLowerCase()));
+    additionalProtected.push(
+      ...Object.keys(existingHeaders).map((h) => h.toLowerCase()),
+    );
   }
-  
+
   // Add provider auth header to protected list with special Bearer → Authorization mapping
   if (providerAuthHeader) {
-    if (providerAuthHeader.toLowerCase() === 'bearer') {
-      additionalProtected.push('authorization');
+    if (providerAuthHeader.toLowerCase() === "bearer") {
+      additionalProtected.push("authorization");
     } else {
       additionalProtected.push(providerAuthHeader.toLowerCase());
     }
   }
-  
+
   // Priority order: Provider-level (lowest) → Organization-level → Request-level (highest)
-  
-  // 1. Add provider-level headers first (least restricted)
+
+  // 1. Add provider-level headers first
   if (providerHeaders) {
-    const validation = validateCustomHeaders(providerHeaders, []);
+    const validation = validateCustomHeaders(
+      providerHeaders,
+      additionalProtected,
+    );
     if (validation.valid) {
       Object.assign(merged, validation.sanitizedHeaders);
     } else {
-      console.warn('Provider-level custom headers validation failed:', validation.errors);
+      console.warn(
+        "Provider-level custom headers validation failed:",
+        validation.errors,
+      );
     }
   }
-  
-  // 2. Override with organization-level headers (moderate restrictions)
+
+  // 2. Override with organization-level headers
   if (organizationHeaders) {
-    const validation = validateCustomHeaders(organizationHeaders, additionalProtected);
+    const validation = validateCustomHeaders(
+      organizationHeaders,
+      additionalProtected,
+    );
     if (validation.valid) {
       Object.assign(merged, validation.sanitizedHeaders);
     } else {
-      console.warn('Organization-level custom headers validation failed:', validation.errors);
+      console.warn(
+        "Organization-level custom headers validation failed:",
+        validation.errors,
+      );
     }
   }
-  
-  // 3. Override with request-level headers (highest priority, most restricted)
+
+  // 3. Override with request-level headers (highest priority, but most restricted)
   if (requestHeaders) {
-    const validation = validateCustomHeaders(requestHeaders, additionalProtected);
+    const validation = validateCustomHeaders(
+      requestHeaders,
+      additionalProtected,
+    );
     if (validation.valid) {
       Object.assign(merged, validation.sanitizedHeaders);
     } else {
-      console.warn('Request-level custom headers validation failed:', validation.errors);
+      console.warn(
+        "Request-level custom headers validation failed:",
+        validation.errors,
+      );
     }
   }
-  
+
   return merged;
 }
 
