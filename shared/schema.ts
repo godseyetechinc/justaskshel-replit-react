@@ -29,6 +29,7 @@ export const sessions = pgTable(
 // User storage table with role-based authorization - mandatory for Replit Auth
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  personId: integer("person_id").references(() => persons.id),
   email: varchar("email").unique(),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
@@ -336,6 +337,7 @@ export const dependents = pgTable("dependents", {
 // Members - extends users with additional member-specific information
 export const members = pgTable("members", {
   id: serial("id").primaryKey(),
+  personId: integer("person_id").references(() => persons.id),
   userId: varchar("user_id").unique().references(() => users.id),
   organizationId: integer("organization_id").references(() => agentOrganizations.id),
   memberNumber: varchar("member_number", { length: 20 }).unique().notNull(),
@@ -390,6 +392,7 @@ export const agentOrganizations = pgTable("agent_organizations", {
 // Contacts - general contact information
 export const contacts = pgTable("contacts", {
   id: serial("id").primaryKey(),
+  personId: integer("person_id").references(() => persons.id),
   organizationId: integer("organization_id").references(() => agentOrganizations.id),
   type: varchar("type", { enum: ["Lead", "Customer", "Provider", "Agent"] }).notNull(),
   firstName: varchar("first_name", { length: 50 }).notNull(),
