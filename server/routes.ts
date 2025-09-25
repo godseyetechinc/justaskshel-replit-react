@@ -27,8 +27,6 @@ import {
   insertRewardSchema,
   insertRewardRedemptionSchema,
   insertPointsRuleSchema,
-  insertApplicantSchema,
-  insertApplicantDependentSchema,
   insertClaimDocumentSchema,
   insertClaimCommunicationSchema,
   insertClaimWorkflowStepSchema,
@@ -1648,103 +1646,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Applicants routes
-  app.get("/api/applicants", auth, async (req: any, res) => {
-    try {
-      const applicants = await storage.getApplicants();
-      res.json(applicants);
-    } catch (error) {
-      console.error("Error fetching applicants:", error);
-      res.status(500).json({ message: "Failed to fetch applicants" });
-    }
-  });
-
-  app.post("/api/applicants", auth, async (req: any, res) => {
-    try {
-      const applicantData = insertApplicantSchema.parse(req.body);
-      const applicant = await storage.createApplicant(applicantData);
-      res.status(201).json(applicant);
-    } catch (error) {
-      console.error("Error creating applicant:", error);
-      res.status(400).json({ message: "Failed to create applicant" });
-    }
-  });
-
-  app.put("/api/applicants/:id", auth, async (req: any, res) => {
-    try {
-      const { id } = req.params;
-      const applicantData = insertApplicantSchema.partial().parse(req.body);
-      const applicant = await storage.updateApplicant(
-        parseInt(id),
-        applicantData,
-      );
-      res.json(applicant);
-    } catch (error) {
-      console.error("Error updating applicant:", error);
-      res.status(400).json({ message: "Failed to update applicant" });
-    }
-  });
-
-  app.delete("/api/applicants/:id", auth, async (req: any, res) => {
-    try {
-      const { id } = req.params;
-      await storage.deleteApplicant(parseInt(id));
-      res.status(204).send();
-    } catch (error) {
-      console.error("Error deleting applicant:", error);
-      res.status(500).json({ message: "Failed to delete applicant" });
-    }
-  });
-
-  // Applicant Dependents routes
-  app.get("/api/applicant-dependents", auth, async (req: any, res) => {
-    try {
-      const dependents = await storage.getApplicantDependents();
-      res.json(dependents);
-    } catch (error) {
-      console.error("Error fetching applicant dependents:", error);
-      res.status(500).json({ message: "Failed to fetch applicant dependents" });
-    }
-  });
-
-  app.post("/api/applicant-dependents", auth, async (req: any, res) => {
-    try {
-      const dependentData = insertApplicantDependentSchema.parse(req.body);
-      const dependent = await storage.createApplicantDependent(dependentData);
-      res.status(201).json(dependent);
-    } catch (error) {
-      console.error("Error creating applicant dependent:", error);
-      res.status(400).json({ message: "Failed to create applicant dependent" });
-    }
-  });
-
-  app.put("/api/applicant-dependents/:id", auth, async (req: any, res) => {
-    try {
-      const { id } = req.params;
-      const dependentData = insertApplicantDependentSchema
-        .partial()
-        .parse(req.body);
-      const dependent = await storage.updateApplicantDependent(
-        parseInt(id),
-        dependentData,
-      );
-      res.json(dependent);
-    } catch (error) {
-      console.error("Error updating applicant dependent:", error);
-      res.status(400).json({ message: "Failed to update applicant dependent" });
-    }
-  });
-
-  app.delete("/api/applicant-dependents/:id", auth, async (req: any, res) => {
-    try {
-      const { id } = req.params;
-      await storage.deleteApplicantDependent(parseInt(id));
-      res.status(204).send();
-    } catch (error) {
-      console.error("Error deleting applicant dependent:", error);
-      res.status(500).json({ message: "Failed to delete applicant dependent" });
-    }
-  });
 
   // Agent Organization endpoints
   // User Management routes (Admin only)

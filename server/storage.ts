@@ -8,8 +8,6 @@ import {
   rewards,
   rewardRedemptions,
   pointsRules,
-  applicants,
-  applicantDependents,
   insuranceTypes,
   insuranceProviders,
   insuranceQuotes,
@@ -44,10 +42,6 @@ import {
   type InsertRewardRedemption,
   type PointsRule,
   type InsertPointsRule,
-  type Applicant,
-  type InsertApplicant,
-  type ApplicantDependent,
-  type InsertApplicantDependent,
   type InsuranceType,
   type InsuranceProvider,
   type InsuranceQuote,
@@ -236,19 +230,6 @@ export interface IStorage {
   calculateTierLevel(totalPoints: number): Promise<{ tier: string; progress: number; nextThreshold: number }>;
   processPointsExpiration(): Promise<void>;
 
-  // Applicants
-  createApplicant(applicant: InsertApplicant): Promise<Applicant>;
-  getApplicants(): Promise<Applicant[]>;
-  getApplicationApplicants(applicationId: number): Promise<Applicant[]>;
-  updateApplicant(id: number, applicant: Partial<InsertApplicant>): Promise<Applicant>;
-  deleteApplicant(id: number): Promise<void>;
-
-  // Applicant Dependents
-  createApplicantDependent(dependent: InsertApplicantDependent): Promise<ApplicantDependent>;
-  getApplicantDependents(): Promise<ApplicantDependent[]>;
-  getApplicationDependents(applicationId: number): Promise<ApplicantDependent[]>;
-  updateApplicantDependent(id: number, dependent: Partial<InsertApplicantDependent>): Promise<ApplicantDependent>;
-  deleteApplicantDependent(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1054,59 +1035,6 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(points).where(eq(points.memberId, memberId)).orderBy(desc(points.createdAt));
   }
 
-  // Applicants
-  async createApplicant(applicant: InsertApplicant): Promise<Applicant> {
-    const [newApplicant] = await db.insert(applicants).values(applicant).returning();
-    return newApplicant;
-  }
-
-  async getApplicants(): Promise<Applicant[]> {
-    return await db.select().from(applicants).orderBy(desc(applicants.createdAt));
-  }
-
-  async getApplicationApplicants(applicationId: number): Promise<Applicant[]> {
-    return await db.select().from(applicants).where(eq(applicants.applicationId, applicationId));
-  }
-
-  async updateApplicant(id: number, applicant: Partial<InsertApplicant>): Promise<Applicant> {
-    const [updatedApplicant] = await db
-      .update(applicants)
-      .set({ ...applicant, updatedAt: new Date() })
-      .where(eq(applicants.id, id))
-      .returning();
-    return updatedApplicant;
-  }
-
-  async deleteApplicant(id: number): Promise<void> {
-    await db.delete(applicants).where(eq(applicants.id, id));
-  }
-
-  // Applicant Dependents
-  async createApplicantDependent(dependent: InsertApplicantDependent): Promise<ApplicantDependent> {
-    const [newDependent] = await db.insert(applicantDependents).values(dependent).returning();
-    return newDependent;
-  }
-
-  async getApplicantDependents(): Promise<ApplicantDependent[]> {
-    return await db.select().from(applicantDependents).orderBy(desc(applicantDependents.createdAt));
-  }
-
-  async getApplicationDependents(applicationId: number): Promise<ApplicantDependent[]> {
-    return await db.select().from(applicantDependents).where(eq(applicantDependents.applicationId, applicationId));
-  }
-
-  async updateApplicantDependent(id: number, dependent: Partial<InsertApplicantDependent>): Promise<ApplicantDependent> {
-    const [updatedDependent] = await db
-      .update(applicantDependents)
-      .set({ ...dependent, updatedAt: new Date() })
-      .where(eq(applicantDependents.id, id))
-      .returning();
-    return updatedDependent;
-  }
-
-  async deleteApplicantDependent(id: number): Promise<void> {
-    await db.delete(applicantDependents).where(eq(applicantDependents.id, id));
-  }
 
   // Claim Documents
   async uploadClaimDocument(document: InsertClaimDocument): Promise<ClaimDocument> {
