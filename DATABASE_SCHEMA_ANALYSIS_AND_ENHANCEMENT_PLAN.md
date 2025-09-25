@@ -25,9 +25,16 @@ The schema demonstrates solid insurance domain modeling but has several structur
 2. **Insurance Core** (insuranceTypes, insuranceProviders, insuranceQuotes)
 3. **Policy Management** (policies, policyDocuments, premiumPayments, policyAmendments)
 4. **Claims Processing** (claims, claimDocuments, claimCommunications, claimWorkflowSteps)
-5. **Application Processing** (applications, applicants, applicantDependents)
-6. **Rewards System** (pointsTransactions, pointsSummary, rewards, rewardRedemptions, pointsRules)
-7. **Contact Management** (contacts, dependents)
+5. **Rewards System** (pointsTransactions, pointsSummary, rewards, rewardRedemptions, pointsRules)
+6. **Contact Management** (contacts, dependents)
+7. **Unified Person Management** (persons, person_users, person_members, person_contacts)
+
+### Recently Eliminated Tables (September 2025)
+- ❌ **applicants** - Removed during unified person entity implementation
+- ❌ **applicantDependents** - Removed during unified person entity implementation  
+- ❌ **applications** - Removed to simplify workflow (September 25, 2025)
+
+**Rationale for Applications Removal:** The applications workflow added unnecessary complexity to the insurance process. Users can now go directly from quotes to policies, streamlining the user experience and reducing administrative overhead.
 
 ## Critical Issues Identified
 
@@ -110,7 +117,7 @@ firstName, lastName, email, phone, address, city, state, zipCode, company
 - **Duplicates Detected**: 417 (merged successfully)
 - **Data Integrity**: 100% preserved with mathematical validation (1,003 + 417 = 1,420) ✅
 - **Schema Cleanup**: 26 redundant columns removed across users/members/contacts tables
-- **Applicant Elimination**: Completely removed applicants and applicantDependents tables
+- **Table Elimination**: Completely removed applicants, applicantDependents, and applications tables as part of consolidation effort
 
 **Concept:** Create a central `persons` table as the single source of truth for individual identity, with role-specific extensions.
 

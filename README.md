@@ -46,7 +46,7 @@ JustAskShel is a comprehensive insurance comparison and management platform that
 - **Contact Management System**: Created complete contact database with CRM-style functionality linked to user data
 - **Advanced Claims Workflow**: Implemented sophisticated claims assistance system with document management, messaging, and status tracking
 - **Dashboard Navigation**: Added seamless navigation between public site and dashboard with role-based menu filtering
-- **Complete Entity Management**: Added CRUD interfaces for applications, policies, wishlist, loyalty points, dependents, and applicants with proper permissions
+- **Complete Entity Management**: Added CRUD interfaces for policies, wishlist, loyalty points, and dependents with proper permissions (applications workflow removed for simplified user experience)
 
 ## Features
 
@@ -102,7 +102,7 @@ JustAskShel is a comprehensive insurance comparison and management platform that
 - **Multi-Tenant Architecture**: Organizations table with tenant-specific user and member assignment
 - **Role-Based Access Control**: 6-tier privilege system (0=SuperAdmin, 1=TenantAdmin, 2=Agent, 3=Member, 4=Guest, 5=Visitor)
 - **Data Consolidation**: Successfully consolidated 1,420 records into 1,003 unique persons with 417 duplicates merged using sophisticated matching algorithms
-- **Comprehensive Entities**: Users, insurance types, providers, quotes, policies, claims, applications (applicants table removed)
+- **Comprehensive Entities**: Users, insurance types, providers, quotes, policies, claims (applicants and applications tables removed for streamlined workflow)
 - **Provider Configuration System**: Complete provider settings with API configurations, rate limiting, and performance tracking
 - **External Quote Request Tracking**: Comprehensive logging of provider API calls with success/failure metrics
 - **Member Management**: Advanced member profiles with avatars, preferences, and organizational assignment
@@ -282,6 +282,8 @@ To determine if a specific provider (like `jas_assure`) will make external API c
 - `POST /api/claims` - Create claim
 - `GET /api/policies` - User policies
 - `POST /api/policies` - Create policy
+
+*Note: Application workflow removed September 2025 - users now proceed directly from quotes to policies for a streamlined experience.*
 
 ## Deployment
 
