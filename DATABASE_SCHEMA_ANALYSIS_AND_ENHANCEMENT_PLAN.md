@@ -57,7 +57,7 @@ privilegeLevel: integer("privilege_level").unique().notNull()
 ### 2. 📊 **Data Duplication Issues**
 
 **Problem:** User information duplicated across multiple tables
-- Personal data scattered between `users`, `members`, `contacts`, `applicants`
+- Personal data scattered between `users`, `members`, `contacts`
 - Inconsistent field naming and validation
 - Data inconsistency risks when updating information
 - Complex synchronization logic required across tables
@@ -74,15 +74,12 @@ firstName, lastName, email, phone, address, city, state, zipCode, dateOfBirth, s
 
 -- contacts table
 firstName, lastName, email, phone, address, city, state, zipCode, company
-
--- applicants table
-firstName, lastName, email, phone, address, city, state, zipCode, dateOfBirth, ssn
 ```
 
 **Specific Issues Identified:**
 
 1. **Identity Management Fragmentation:**
-   - Same person can exist as user, member, contact, and applicant
+   - Same person can exist as user, member, and contact
    - No canonical identity source
    - Risk of conflicting information for same individual
 
@@ -202,18 +199,6 @@ CREATE TABLE person_contacts (
   
   CONSTRAINT unique_person_contact UNIQUE(person_id, contact_id)
 );
-
--- Applicant association
-CREATE TABLE person_applicants (
-  id SERIAL PRIMARY KEY,
-  person_id INTEGER REFERENCES persons(id) ON DELETE CASCADE,
-  applicant_id INTEGER REFERENCES applicants(id) ON DELETE CASCADE,
-  application_id INTEGER REFERENCES applications(id),
-  is_primary_applicant BOOLEAN DEFAULT TRUE,
-  application_role VARCHAR(30), -- 'primary', 'spouse', 'dependent'
-  
-  CONSTRAINT unique_person_applicant UNIQUE(person_id, applicant_id)
-);
 ```
 
 **Step 3: Create Migration Strategy**
@@ -224,22 +209,21 @@ CREATE TABLE person_applicants (
 WITH consolidated_persons AS (
   -- Find potential duplicates across tables
   SELECT DISTINCT
-    COALESCE(u.first_name, m.first_name, c.first_name, a.first_name) as first_name,
-    COALESCE(u.last_name, m.last_name, c.last_name, a.last_name) as last_name,
-    COALESCE(u.email, m.email, c.email, a.email) as primary_email,
-    COALESCE(u.phone, m.phone, c.phone, a.phone) as primary_phone,
-    COALESCE(u.date_of_birth, m.date_of_birth, a.date_of_birth) as date_of_birth,
-    COALESCE(u.address, m.address, c.address, a.address) as street_address,
-    COALESCE(u.city, m.city, c.city, a.city) as city,
-    COALESCE(u.state, m.state, c.state, a.state) as state,
-    COALESCE(u.zip_code, m.zip_code, c.zip_code, a.zip_code) as zip_code,
-    COALESCE(m.ssn, a.ssn) as ssn_encrypted,
+    COALESCE(u.first_name, m.first_name, c.first_name) as first_name,
+    COALESCE(u.last_name, m.last_name, c.last_name) as last_name,
+    COALESCE(u.email, m.email, c.email) as primary_email,
+    COALESCE(u.phone, m.phone, c.phone) as primary_phone,
+    COALESCE(u.date_of_birth, m.date_of_birth) as date_of_birth,
+    COALESCE(u.address, m.address, c.address) as street_address,
+    COALESCE(u.city, m.city, c.city) as city,
+    COALESCE(u.state, m.state, c.state) as state,
+    COALESCE(u.zip_code, m.zip_code, c.zip_code) as zip_code,
+    m.ssn as ssn_encrypted,
     'migration' as data_source
   FROM users u
   FULL OUTER JOIN members m ON u.id = m.user_id
   FULL OUTER JOIN contacts c ON (c.email = u.email OR c.email = m.email)
-  FULL OUTER JOIN applicants a ON (a.email = u.email OR a.email = m.email OR a.email = c.email)
-  WHERE u.id IS NOT NULL OR m.id IS NOT NULL OR c.id IS NOT NULL OR a.id IS NOT NULL
+  WHERE u.id IS NOT NULL OR m.id IS NOT NULL OR c.id IS NOT NULL
 )
 INSERT INTO persons (
   first_name, last_name, primary_email, primary_phone, date_of_birth,
@@ -254,7 +238,6 @@ SELECT * FROM consolidated_persons;
 ALTER TABLE users ADD COLUMN person_id INTEGER REFERENCES persons(id);
 ALTER TABLE members ADD COLUMN person_id INTEGER REFERENCES persons(id);
 ALTER TABLE contacts ADD COLUMN person_id INTEGER REFERENCES persons(id);
-ALTER TABLE applicants ADD COLUMN person_id INTEGER REFERENCES persons(id);
 
 -- Populate person_id references
 UPDATE users SET person_id = (
@@ -265,7 +248,7 @@ UPDATE users SET person_id = (
   LIMIT 1
 );
 
--- Similar updates for members, contacts, applicants...
+-- Similar updates for members, contacts...
 ```
 
 **Phase 3: Gradual Field Removal**
@@ -320,7 +303,7 @@ CREATE TABLE base_contacts (
 CREATE TABLE specialized_contacts (
   id SERIAL PRIMARY KEY,
   base_contact_id INTEGER REFERENCES base_contacts(id) ON DELETE CASCADE,
-  specialization_type VARCHAR(20) NOT NULL, -- 'user', 'member', 'applicant'
+  specialization_type VARCHAR(20) NOT NULL, -- 'user', 'member'
   specialization_id VARCHAR NOT NULL, -- References the specific table
   organization_id INTEGER REFERENCES agent_organizations(id),
   metadata JSONB,
@@ -362,7 +345,7 @@ CREATE TABLE master_persons (
 CREATE TABLE person_source_records (
   id SERIAL PRIMARY KEY,
   master_person_id INTEGER REFERENCES master_persons(id) ON DELETE CASCADE,
-  source_system VARCHAR(20) NOT NULL, -- 'users', 'members', 'contacts', 'applicants'
+  source_system VARCHAR(20) NOT NULL, -- 'users', 'members', 'contacts'
   source_record_id VARCHAR NOT NULL,
   
   -- Source data (as-is from source system)
