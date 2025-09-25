@@ -2,7 +2,6 @@ import {
   users,
   members,
   contacts,
-  applications,
   pointsTransactions,
   pointsSummary,
   rewards,
@@ -34,8 +33,6 @@ import {
   type InsertMember,
   type Contact,
   type InsertContact,
-  type Application,
-  type InsertApplication,
   type PointsTransaction,
   type InsertPointsTransaction,
   type PointsSummary,
@@ -1038,37 +1035,6 @@ export class DatabaseStorage implements IStorage {
     await db.delete(contacts).where(eq(contacts.id, id));
   }
 
-  // Applications
-  async createApplication(application: InsertApplication): Promise<Application> {
-    const [newApplication] = await db.insert(applications).values(application).returning();
-    return newApplication;
-  }
-
-  async getApplications(): Promise<Application[]> {
-    return await db.select().from(applications).orderBy(desc(applications.createdAt));
-  }
-
-  async getUserApplications(userId: string): Promise<Application[]> {
-    return await db.select().from(applications).where(eq(applications.userId, userId)).orderBy(desc(applications.createdAt));
-  }
-
-  async getApplicationById(id: number): Promise<Application | undefined> {
-    const [application] = await db.select().from(applications).where(eq(applications.id, id));
-    return application;
-  }
-
-  async updateApplication(id: number, application: Partial<InsertApplication>): Promise<Application> {
-    const [updatedApplication] = await db
-      .update(applications)
-      .set({ ...application, updatedAt: new Date() })
-      .where(eq(applications.id, id))
-      .returning();
-    return updatedApplication;
-  }
-
-  async deleteApplication(id: number): Promise<void> {
-    await db.delete(applications).where(eq(applications.id, id));
-  }
 
   // Points
   async createPoints(pointsData: InsertPoints): Promise<Points> {

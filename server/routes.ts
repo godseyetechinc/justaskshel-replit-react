@@ -21,7 +21,6 @@ import {
   insertDependentSchema,
   insertMemberSchema,
   insertContactSchema,
-  insertApplicationSchema,
   insertPointsTransactionSchema,
   insertPointsSummarySchema,
   insertRewardSchema,
