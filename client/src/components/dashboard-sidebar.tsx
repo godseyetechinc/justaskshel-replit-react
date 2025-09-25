@@ -75,13 +75,6 @@ const menuItems: MenuItem[] = [
     roles: ["SuperAdmin", "TenantAdmin", "Agent"],
   },
   {
-    id: "insurance-applications",
-    label: "Applications",
-    icon: FileText,
-    href: "/dashboard/applications",
-    roles: ["SuperAdmin", "TenantAdmin", "Agent", "Member", "Guest"],
-  },
-  {
     id: "insurance-policies",
     label: "Policies",
     icon: Shield,
