@@ -528,48 +528,6 @@ export const pointsRules = pgTable("points_rules", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Applicants - individuals applying for insurance
-export const applicants = pgTable("applicants", {
-  id: serial("id").primaryKey(),
-  applicationId: integer("application_id").references(() => applications.id),
-  isPrimary: boolean("is_primary").default(true),
-  firstName: varchar("first_name", { length: 50 }).notNull(),
-  lastName: varchar("last_name", { length: 50 }).notNull(),
-  dateOfBirth: timestamp("date_of_birth").notNull(),
-  gender: varchar("gender", { enum: ["Male", "Female", "Other"] }),
-  ssn: varchar("ssn", { length: 11 }), // encrypted
-  phone: varchar("phone", { length: 20 }),
-  email: varchar("email", { length: 100 }),
-  address: text("address"),
-  city: varchar("city", { length: 50 }),
-  state: varchar("state", { length: 50 }),
-  zipCode: varchar("zip_code", { length: 10 }),
-  occupation: varchar("occupation", { length: 100 }),
-  annualIncome: decimal("annual_income", { precision: 12, scale: 2 }),
-  healthStatus: varchar("health_status", { enum: ["Excellent", "Good", "Fair", "Poor"] }),
-  smoker: boolean("smoker").default(false),
-  medicalHistory: jsonb("medical_history"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
-
-// Applicant Dependents - dependents on applications
-export const applicantDependents = pgTable("applicant_dependents", {
-  id: serial("id").primaryKey(),
-  applicationId: integer("application_id").references(() => applications.id),
-  applicantId: integer("applicant_id").references(() => applicants.id),
-  firstName: varchar("first_name", { length: 50 }).notNull(),
-  lastName: varchar("last_name", { length: 50 }).notNull(),
-  dateOfBirth: timestamp("date_of_birth").notNull(),
-  gender: varchar("gender", { enum: ["Male", "Female", "Other"] }),
-  relationship: varchar("relationship", { length: 30 }).notNull(),
-  ssn: varchar("ssn", { length: 11 }), // encrypted
-  healthStatus: varchar("health_status", { enum: ["Excellent", "Good", "Fair", "Poor"] }),
-  smoker: boolean("smoker").default(false),
-  medicalHistory: jsonb("medical_history"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
 
 // ===== UNIFIED PERSON ENTITY MODEL =====
 // Central person identity table - single source of truth for individual identity
@@ -710,28 +668,8 @@ export const applicationsRelations = relations(applications, ({ one, many }) => 
     fields: [applications.reviewedBy],
     references: [users.id],
   }),
-  applicants: many(applicants),
-  applicantDependents: many(applicantDependents),
 }));
 
-export const applicantsRelations = relations(applicants, ({ one, many }) => ({
-  application: one(applications, {
-    fields: [applicants.applicationId],
-    references: [applications.id],
-  }),
-  dependents: many(applicantDependents),
-}));
-
-export const applicantDependentsRelations = relations(applicantDependents, ({ one }) => ({
-  application: one(applications, {
-    fields: [applicantDependents.applicationId],
-    references: [applications.id],
-  }),
-  applicant: one(applicants, {
-    fields: [applicantDependents.applicantId],
-    references: [applicants.id],
-  }),
-}));
 
 export const pointsTransactionsRelations = relations(pointsTransactions, ({ one }) => ({
   user: one(users, {
@@ -958,11 +896,6 @@ export type InsertRewardRedemption = typeof rewardRedemptions.$inferInsert;
 export type PointsRule = typeof pointsRules.$inferSelect;
 export type InsertPointsRule = typeof pointsRules.$inferInsert;
 
-export type InsertApplicant = typeof applicants.$inferInsert;
-export type Applicant = typeof applicants.$inferSelect;
-
-export type InsertApplicantDependent = typeof applicantDependents.$inferInsert;
-export type ApplicantDependent = typeof applicantDependents.$inferSelect;
 
 export type InsertInsuranceType = typeof insuranceTypes.$inferInsert;
 export type InsuranceType = typeof insuranceTypes.$inferSelect;
@@ -1093,17 +1026,6 @@ export const insertPointsRuleSchema = createInsertSchema(pointsRules).omit({
   updatedAt: true,
 });
 
-export const insertApplicantSchema = createInsertSchema(applicants).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export const insertApplicantDependentSchema = createInsertSchema(applicantDependents).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
 
 export const insertInsuranceQuoteSchema = createInsertSchema(insuranceQuotes).omit({
   id: true,
