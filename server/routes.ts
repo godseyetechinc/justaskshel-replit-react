@@ -1420,61 +1420,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Applications routes
-  app.get("/api/applications", auth, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const userRole = req.user.role || "Member";
-
-      let applications;
-      if (userRole === "Admin" || userRole === "Agent") {
-        applications = await storage.getApplications();
-      } else {
-        applications = await storage.getUserApplications(userId);
-      }
-      res.json(applications);
-    } catch (error) {
-      console.error("Error fetching applications:", error);
-      res.status(500).json({ message: "Failed to fetch applications" });
-    }
-  });
-
-  app.post("/api/applications", auth, async (req: any, res) => {
-    try {
-      const applicationData = insertApplicationSchema.parse(req.body);
-      const application = await storage.createApplication(applicationData);
-      res.status(201).json(application);
-    } catch (error) {
-      console.error("Error creating application:", error);
-      res.status(400).json({ message: "Failed to create application" });
-    }
-  });
-
-  app.put("/api/applications/:id", auth, async (req: any, res) => {
-    try {
-      const { id } = req.params;
-      const applicationData = insertApplicationSchema.partial().parse(req.body);
-      const application = await storage.updateApplication(
-        parseInt(id),
-        applicationData,
-      );
-      res.json(application);
-    } catch (error) {
-      console.error("Error updating application:", error);
-      res.status(400).json({ message: "Failed to update application" });
-    }
-  });
-
-  app.delete("/api/applications/:id", auth, async (req: any, res) => {
-    try {
-      const { id } = req.params;
-      await storage.deleteApplication(parseInt(id));
-      res.status(204).send();
-    } catch (error) {
-      console.error("Error deleting application:", error);
-      res.status(500).json({ message: "Failed to delete application" });
-    }
-  });
 
   // Points System Routes
 
