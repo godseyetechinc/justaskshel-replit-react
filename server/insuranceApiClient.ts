@@ -435,12 +435,70 @@ content.Add(new StringContent("801-555-5555"), "agent[phone_number]");
 
   private normalizeIXNHexureQuote(quote: any): QuoteResponse {
     // Normalize different provider response formats to our standard format
+    /*
+{
+  "id": 14914821,
+  "adb_rider_annual": 270,
+  "adb_rider_max_coverage": null,
+  "adb_rider_monthly": 270,
+  "adb_rider_quarterly": 270,
+  "adb_rider_semi_annual": 270,
+  "agent_message": "",
+  "am_best_date": "2018-06-20",
+  "am_best_rating": "A",
+  "base_premium_annual": 207.5,
+  "base_premium_monthly": 207.5,
+  "base_premium_quarterly": 207.5,
+  "base_premium_semi_annual": 207.5,
+  "carrier_health_category": "Standard Non-Tobacco",
+  "carrier_id": 140,
+  "carrier_logo_url": "https://s3-us-west-2.amazonaws.com/ixn-data/logos/carrier_140_medium.png",
+  "carrier_name": "American General Life Companies, LLC",
+  "child_rider_annual": 5,
+  "child_rider_monthly": 5,
+  "child_rider_quarterly": 5,
+  "child_rider_semi_annual": 5,
+  "child_rider_unit_coverage": null,
+  "child_rider_units": 1,
+  "child_wop_rider_annual": null,
+  "child_wop_rider_monthly": null,
+  "child_wop_rider_quarterly": null,
+  "child_wop_rider_semi_annual": null,
+  "created_at": "2018-11-11T22:51:16.156Z",
+  "face_amount": 250000,
+  "flat_extra_annual": 0,
+  "flat_extra_monthly": 0,
+  "flat_extra_quarterly": 0,
+  "flat_extra_semi_annual": 0,
+  "gender": "Male",
+  "guid": "0e6740ea-3266-4ce9-b15d-5916ca468cce",
+  "ixn_health_category": "Standard",
+  "policy_fee_annual": 64,
+  "policy_fee_monthly": 64,
+  "policy_fee_quarterly": 64,
+  "policy_fee_semi_annual": 64,
+  "premium_annual": 633.94,
+  "premium_monthly": 54.2,
+  "premium_quarterly": 167.99,
+  "premium_semi_annual": 329.65,
+  "product_id": 119,
+  "product_name": "Select-A-Term-20 Year",
+  "product_type": "20 Year Term",
+  "table_rate_annual": null,
+  "table_rate_letter": null,
+  "table_rate_monthly": null,
+  "table_rate_percent": null,
+  "table_rate_quarterly": null,
+  "table_rate_semi_annual": null,
+  "wop_rider_annual": 87.44,
+  "wop_rider_monthly": 87.44,
+  "wop_rider_quarterly": 87.44,
+  "wop_rider_semi_annual": 87.44
+}
+
+*/
     const normalized: QuoteResponse = {
-      quoteId:
-        quote.id ||
-        quote.quote_id ||
-        quote.quoteId ||
-        `${this.config.id}_${Date.now()}_${Math.random()}`,
+      quoteId: quote.id || `${this.config.id}_${Date.now()}_${Math.random()}`,
       providerId: this.config.id,
       providerName: `${this.config.displayName}/${quote.carrier_name}`,
       monthlyPremium: quote.premium_monthly,
