@@ -59,12 +59,399 @@ privilegeLevel: integer("privilege_level").unique().notNull()
 **Problem:** User information duplicated across multiple tables
 - Personal data scattered between `users`, `members`, `contacts`, `applicants`
 - Inconsistent field naming and validation
+- Data inconsistency risks when updating information
+- Complex synchronization logic required across tables
 
-**Duplication Areas:**
+#### **Current Duplication Analysis:**
+
+**Duplicated Fields Across Tables:**
 ```sql
--- Repeated across users, members, contacts, applicants:
+-- users table
 firstName, lastName, email, phone, address, city, state, zipCode, dateOfBirth
+
+-- members table (extends users)
+firstName, lastName, email, phone, address, city, state, zipCode, dateOfBirth, ssn
+
+-- contacts table
+firstName, lastName, email, phone, address, city, state, zipCode, company
+
+-- applicants table
+firstName, lastName, email, phone, address, city, state, zipCode, dateOfBirth, ssn
 ```
+
+**Specific Issues Identified:**
+
+1. **Identity Management Fragmentation:**
+   - Same person can exist as user, member, contact, and applicant
+   - No canonical identity source
+   - Risk of conflicting information for same individual
+
+2. **Maintenance Overhead:**
+   - Updates require changes across multiple tables
+   - Complex validation logic needed to maintain consistency
+   - Higher risk of data drift and inconsistencies
+
+3. **Storage Inefficiency:**
+   - Redundant storage of identical information
+   - Increased database size and backup overhead
+   - Performance impact on queries joining multiple tables
+
+4. **Business Logic Complexity:**
+   - Application code must handle synchronization
+   - Complex queries to fetch complete user profiles
+   - Difficulty in implementing unified user management
+
+#### **Detailed Resolution Approaches:**
+
+#### **Approach 1: Unified Person Entity Model (Recommended)**
+
+**Concept:** Create a central `persons` table as the single source of truth for individual identity, with role-specific extensions.
+
+**Implementation Strategy:**
+
+**Step 1: Create Core Person Entity**
+```sql
+-- Central person identity table
+CREATE TABLE persons (
+  id SERIAL PRIMARY KEY,
+  
+  -- Core Identity
+  first_name VARCHAR(50) NOT NULL,
+  last_name VARCHAR(50) NOT NULL,
+  full_name VARCHAR(101) GENERATED ALWAYS AS (first_name || ' ' || last_name) STORED,
+  date_of_birth DATE,
+  gender VARCHAR(10) CHECK (gender IN ('Male', 'Female', 'Other', 'Prefer not to say')),
+  
+  -- Unique Identifiers
+  ssn_encrypted VARCHAR(255), -- Encrypted SSN
+  external_ids JSONB, -- For storing external system IDs
+  
+  -- Contact Information (normalized)
+  primary_email VARCHAR(100),
+  secondary_email VARCHAR(100),
+  primary_phone VARCHAR(20),
+  secondary_phone VARCHAR(20),
+  
+  -- Address Information
+  street_address TEXT,
+  address_line_2 VARCHAR(100),
+  city VARCHAR(50),
+  state VARCHAR(50),
+  zip_code VARCHAR(10),
+  country VARCHAR(50) DEFAULT 'USA',
+  
+  -- Metadata
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  created_by VARCHAR REFERENCES users(id),
+  updated_by VARCHAR REFERENCES users(id),
+  
+  -- Data Quality
+  is_verified BOOLEAN DEFAULT FALSE,
+  verification_date TIMESTAMP,
+  data_source VARCHAR(50), -- 'manual', 'import', 'api', etc.
+  
+  CONSTRAINT unique_ssn_per_person UNIQUE(ssn_encrypted) WHERE ssn_encrypted IS NOT NULL,
+  CONSTRAINT unique_primary_email UNIQUE(primary_email) WHERE primary_email IS NOT NULL
+);
+
+-- Indexes for performance
+CREATE INDEX idx_persons_name ON persons(last_name, first_name);
+CREATE INDEX idx_persons_email ON persons(primary_email);
+CREATE INDEX idx_persons_phone ON persons(primary_phone);
+CREATE INDEX idx_persons_full_name ON persons USING GIN(to_tsvector('english', full_name));
+```
+
+**Step 2: Create Role-Specific Association Tables**
+```sql
+-- User roles association
+CREATE TABLE person_users (
+  id SERIAL PRIMARY KEY,
+  person_id INTEGER REFERENCES persons(id) ON DELETE CASCADE,
+  user_id VARCHAR REFERENCES users(id) ON DELETE CASCADE,
+  role_context JSONB, -- Store role-specific metadata
+  created_at TIMESTAMP DEFAULT NOW(),
+  
+  CONSTRAINT unique_person_user UNIQUE(person_id, user_id)
+);
+
+-- Member association
+CREATE TABLE person_members (
+  id SERIAL PRIMARY KEY,
+  person_id INTEGER REFERENCES persons(id) ON DELETE CASCADE,
+  member_id INTEGER REFERENCES members(id) ON DELETE CASCADE,
+  organization_id INTEGER REFERENCES agent_organizations(id),
+  member_number VARCHAR(20),
+  membership_status VARCHAR(20) DEFAULT 'Active',
+  membership_date TIMESTAMP DEFAULT NOW(),
+  additional_info JSONB, -- Member-specific data
+  
+  CONSTRAINT unique_person_member UNIQUE(person_id, member_id),
+  CONSTRAINT unique_member_number_org UNIQUE(member_number, organization_id)
+);
+
+-- Contact association
+CREATE TABLE person_contacts (
+  id SERIAL PRIMARY KEY,
+  person_id INTEGER REFERENCES persons(id) ON DELETE CASCADE,
+  contact_id INTEGER REFERENCES contacts(id) ON DELETE CASCADE,
+  contact_context VARCHAR(50), -- 'lead', 'customer', 'provider', etc.
+  organization_id INTEGER REFERENCES agent_organizations(id),
+  assigned_agent VARCHAR REFERENCES users(id),
+  contact_metadata JSONB,
+  
+  CONSTRAINT unique_person_contact UNIQUE(person_id, contact_id)
+);
+
+-- Applicant association
+CREATE TABLE person_applicants (
+  id SERIAL PRIMARY KEY,
+  person_id INTEGER REFERENCES persons(id) ON DELETE CASCADE,
+  applicant_id INTEGER REFERENCES applicants(id) ON DELETE CASCADE,
+  application_id INTEGER REFERENCES applications(id),
+  is_primary_applicant BOOLEAN DEFAULT TRUE,
+  application_role VARCHAR(30), -- 'primary', 'spouse', 'dependent'
+  
+  CONSTRAINT unique_person_applicant UNIQUE(person_id, applicant_id)
+);
+```
+
+**Step 3: Create Migration Strategy**
+
+**Phase 1: Data Consolidation Script**
+```sql
+-- Migration script to consolidate duplicate persons
+WITH consolidated_persons AS (
+  -- Find potential duplicates across tables
+  SELECT DISTINCT
+    COALESCE(u.first_name, m.first_name, c.first_name, a.first_name) as first_name,
+    COALESCE(u.last_name, m.last_name, c.last_name, a.last_name) as last_name,
+    COALESCE(u.email, m.email, c.email, a.email) as primary_email,
+    COALESCE(u.phone, m.phone, c.phone, a.phone) as primary_phone,
+    COALESCE(u.date_of_birth, m.date_of_birth, a.date_of_birth) as date_of_birth,
+    COALESCE(u.address, m.address, c.address, a.address) as street_address,
+    COALESCE(u.city, m.city, c.city, a.city) as city,
+    COALESCE(u.state, m.state, c.state, a.state) as state,
+    COALESCE(u.zip_code, m.zip_code, c.zip_code, a.zip_code) as zip_code,
+    COALESCE(m.ssn, a.ssn) as ssn_encrypted,
+    'migration' as data_source
+  FROM users u
+  FULL OUTER JOIN members m ON u.id = m.user_id
+  FULL OUTER JOIN contacts c ON (c.email = u.email OR c.email = m.email)
+  FULL OUTER JOIN applicants a ON (a.email = u.email OR a.email = m.email OR a.email = c.email)
+  WHERE u.id IS NOT NULL OR m.id IS NOT NULL OR c.id IS NOT NULL OR a.id IS NOT NULL
+)
+INSERT INTO persons (
+  first_name, last_name, primary_email, primary_phone, date_of_birth,
+  street_address, city, state, zip_code, ssn_encrypted, data_source
+)
+SELECT * FROM consolidated_persons;
+```
+
+**Phase 2: Update Existing Tables**
+```sql
+-- Modify existing tables to reference persons
+ALTER TABLE users ADD COLUMN person_id INTEGER REFERENCES persons(id);
+ALTER TABLE members ADD COLUMN person_id INTEGER REFERENCES persons(id);
+ALTER TABLE contacts ADD COLUMN person_id INTEGER REFERENCES persons(id);
+ALTER TABLE applicants ADD COLUMN person_id INTEGER REFERENCES persons(id);
+
+-- Populate person_id references
+UPDATE users SET person_id = (
+  SELECT p.id FROM persons p 
+  WHERE p.primary_email = users.email 
+  AND p.first_name = users.first_name 
+  AND p.last_name = users.last_name
+  LIMIT 1
+);
+
+-- Similar updates for members, contacts, applicants...
+```
+
+**Phase 3: Gradual Field Removal**
+```sql
+-- After verification, remove duplicate fields
+-- (This would be done in subsequent phases)
+ALTER TABLE users DROP COLUMN first_name;
+ALTER TABLE users DROP COLUMN last_name;
+ALTER TABLE users DROP COLUMN phone;
+-- Continue for other duplicate fields...
+```
+
+#### **Approach 2: Hierarchical Contact Management**
+
+**Concept:** Create a hierarchical contact system where contacts can be individuals or organizations, with users/members/applicants as specialized contact types.
+
+**Implementation:**
+```sql
+-- Base contact entity
+CREATE TABLE base_contacts (
+  id SERIAL PRIMARY KEY,
+  contact_type VARCHAR(20) NOT NULL CHECK (contact_type IN ('individual', 'organization')),
+  
+  -- Individual fields
+  first_name VARCHAR(50),
+  last_name VARCHAR(50),
+  date_of_birth DATE,
+  
+  -- Organization fields  
+  organization_name VARCHAR(100),
+  
+  -- Common contact fields
+  primary_email VARCHAR(100),
+  primary_phone VARCHAR(20),
+  address JSONB, -- Structured address data
+  
+  -- Metadata
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  
+  CONSTRAINT individual_requires_name CHECK (
+    (contact_type = 'individual' AND first_name IS NOT NULL AND last_name IS NOT NULL) OR
+    contact_type != 'individual'
+  ),
+  CONSTRAINT organization_requires_name CHECK (
+    (contact_type = 'organization' AND organization_name IS NOT NULL) OR
+    contact_type != 'organization'
+  )
+);
+
+-- Specialized contact types
+CREATE TABLE specialized_contacts (
+  id SERIAL PRIMARY KEY,
+  base_contact_id INTEGER REFERENCES base_contacts(id) ON DELETE CASCADE,
+  specialization_type VARCHAR(20) NOT NULL, -- 'user', 'member', 'applicant'
+  specialization_id VARCHAR NOT NULL, -- References the specific table
+  organization_id INTEGER REFERENCES agent_organizations(id),
+  metadata JSONB,
+  
+  CONSTRAINT unique_specialization UNIQUE(specialization_type, specialization_id)
+);
+```
+
+#### **Approach 3: Master Data Management (MDM) Pattern**
+
+**Concept:** Implement a master data management pattern with golden records and source system tracking.
+
+**Implementation:**
+```sql
+-- Master person record
+CREATE TABLE master_persons (
+  id SERIAL PRIMARY KEY,
+  master_id VARCHAR(50) UNIQUE NOT NULL, -- Business key
+  
+  -- Golden record data (best quality from all sources)
+  golden_first_name VARCHAR(50),
+  golden_last_name VARCHAR(50),
+  golden_email VARCHAR(100),
+  golden_phone VARCHAR(20),
+  golden_address JSONB,
+  golden_date_of_birth DATE,
+  
+  -- Data quality scoring
+  data_quality_score INTEGER DEFAULT 0,
+  confidence_level DECIMAL(3,2) DEFAULT 0.0,
+  
+  -- Metadata
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  last_mdm_process_at TIMESTAMP
+);
+
+-- Source system records
+CREATE TABLE person_source_records (
+  id SERIAL PRIMARY KEY,
+  master_person_id INTEGER REFERENCES master_persons(id) ON DELETE CASCADE,
+  source_system VARCHAR(20) NOT NULL, -- 'users', 'members', 'contacts', 'applicants'
+  source_record_id VARCHAR NOT NULL,
+  
+  -- Source data (as-is from source system)
+  source_data JSONB NOT NULL,
+  
+  -- Data quality assessment
+  quality_score INTEGER DEFAULT 0,
+  is_primary_source BOOLEAN DEFAULT FALSE,
+  
+  -- Tracking
+  created_at TIMESTAMP DEFAULT NOW(),
+  last_synced_at TIMESTAMP DEFAULT NOW(),
+  
+  CONSTRAINT unique_source_record UNIQUE(source_system, source_record_id)
+);
+
+-- Data matching rules
+CREATE TABLE person_matching_rules (
+  id SERIAL PRIMARY KEY,
+  rule_name VARCHAR(100) NOT NULL,
+  rule_description TEXT,
+  matching_criteria JSONB NOT NULL, -- JSON rules for matching
+  confidence_weight DECIMAL(3,2) DEFAULT 1.0,
+  is_active BOOLEAN DEFAULT TRUE
+);
+```
+
+#### **Recommended Implementation Approach**
+
+**Approach 1 (Unified Person Entity)** is recommended because:
+
+1. **Simplicity:** Single source of truth for person data
+2. **Performance:** Fewer joins required for complete person information
+3. **Maintainability:** Easier to update and validate person information
+4. **Flexibility:** Supports multiple roles per person naturally
+5. **Data Quality:** Centralized validation and consistency checks
+
+#### **Migration Timeline and Phases**
+
+**Week 1-2: Preparation**
+- Analyze existing data for duplicates and conflicts
+- Create data quality assessment scripts  
+- Design person identity resolution algorithms
+
+**Week 3-4: Implementation**
+- Create `persons` table and association tables
+- Develop migration scripts with rollback capability
+- Implement data consolidation logic
+
+**Week 5-6: Migration Execution**
+- Run data consolidation in staging environment
+- Validate data integrity and completeness
+- Execute production migration with minimal downtime
+
+**Week 7-8: Optimization**
+- Remove duplicate fields from existing tables
+- Update application code to use new structure
+- Implement person management interfaces
+
+#### **Data Quality Considerations**
+
+**Duplicate Detection Strategy:**
+```sql
+-- Find potential duplicates for review
+SELECT 
+  p1.id, p1.first_name, p1.last_name, p1.primary_email,
+  p2.id, p2.first_name, p2.last_name, p2.primary_email,
+  CASE 
+    WHEN p1.primary_email = p2.primary_email THEN 'Email Match'
+    WHEN levenshtein(p1.first_name || ' ' || p1.last_name, 
+                     p2.first_name || ' ' || p2.last_name) <= 2 THEN 'Name Similar'
+    WHEN p1.primary_phone = p2.primary_phone AND p1.primary_phone IS NOT NULL THEN 'Phone Match'
+  END as match_reason
+FROM persons p1
+JOIN persons p2 ON p1.id < p2.id
+WHERE (
+  p1.primary_email = p2.primary_email OR
+  levenshtein(p1.first_name || ' ' || p1.last_name, 
+              p2.first_name || ' ' || p2.last_name) <= 2 OR
+  (p1.primary_phone = p2.primary_phone AND p1.primary_phone IS NOT NULL)
+);
+```
+
+**Data Validation Rules:**
+- Email format validation
+- Phone number normalization
+- Address standardization
+- Name consistency checks
+- SSN encryption and uniqueness validation
 
 ### 3. 🔗 **Missing Foreign Key Relationships**
 

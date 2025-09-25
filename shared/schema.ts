@@ -1103,7 +1103,6 @@ export const insertQuoteSchema = createInsertSchema(insuranceQuotes).omit({
 // Types
 export type User = typeof users.$inferSelect;
 export type Role = typeof roles.$inferSelect;
-export type InsuranceQuote = typeof insuranceQuotes.$inferSelect;
 export type ExternalQuoteRequest = typeof externalQuoteRequests.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertRole = z.infer<typeof insertRoleSchema>;
