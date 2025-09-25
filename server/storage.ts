@@ -84,7 +84,7 @@ import {
   type InsertPersonContact,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, count } from "drizzle-orm";
+import { eq, and, desc, count, sql } from "drizzle-orm";
 
 // Interface for storage operations
 export interface IStorage {
@@ -851,17 +851,8 @@ export class DatabaseStorage implements IStorage {
       .select({
         id: members.id,
         userId: members.userId,
+        organizationId: members.organizationId,
         memberNumber: members.memberNumber,
-        firstName: members.firstName,
-        lastName: members.lastName,
-        email: members.email,
-        dateOfBirth: members.dateOfBirth,
-        phone: members.phone,
-        address: members.address,
-        city: members.city,
-        state: members.state,
-        zipCode: members.zipCode,
-        ssn: members.ssn,
         profileImageUrl: members.profileImageUrl,
         avatarType: members.avatarType,
         avatarColor: members.avatarColor,
@@ -872,6 +863,7 @@ export class DatabaseStorage implements IStorage {
         membershipDate: members.membershipDate,
         createdAt: members.createdAt,
         updatedAt: members.updatedAt,
+        personId: members.personId,
       })
       .from(members)
       .orderBy(desc(members.createdAt));
@@ -1011,7 +1003,21 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getContacts(): Promise<Contact[]> {
-    return await db.select().from(contacts).orderBy(desc(contacts.createdAt));
+    return await db
+      .select({
+        id: contacts.id,
+        organizationId: contacts.organizationId,
+        type: contacts.type,
+        company: contacts.company,
+        notes: contacts.notes,
+        status: contacts.status,
+        assignedAgent: contacts.assignedAgent,
+        createdAt: contacts.createdAt,
+        updatedAt: contacts.updatedAt,
+        personId: contacts.personId,
+      })
+      .from(contacts)
+      .orderBy(desc(contacts.createdAt));
   }
 
   async getContactById(id: number): Promise<Contact | undefined> {
