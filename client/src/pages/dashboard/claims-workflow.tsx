@@ -333,11 +333,8 @@ export default function ClaimsWorkflow() {
     console.log("Form is valid:", newClaimForm.formState.isValid);
     console.log("Form dirty fields:", newClaimForm.formState.dirtyFields);
     
-    // Don't proceed if form has validation errors
-    if (!newClaimForm.formState.isValid) {
-      console.log("Form is invalid, not proceeding with submission");
-      return;
-    }
+    // Note: react-hook-form's handleSubmit already validates before calling this function
+    // No need for manual validation check here
     
     let claimCreated = false;
     let newClaimId: number | null = null;
@@ -428,7 +425,14 @@ export default function ClaimsWorkflow() {
             <h1 className="text-3xl font-bold text-gray-900">Claims Workflow</h1>
             <p className="text-gray-600">Manage insurance claims with advanced workflow tracking</p>
           </div>
-          <Dialog open={isNewClaimOpen} onOpenChange={setIsNewClaimOpen}>
+          <Dialog open={isNewClaimOpen} onOpenChange={(open) => {
+            setIsNewClaimOpen(open);
+            if (!open) {
+              // Reset form when modal is closed
+              newClaimForm.reset();
+              setUploadedFiles([]);
+            }
+          }}>
             <DialogTrigger asChild>
               <Button className="bg-primary text-white hover:bg-primary/90">
                 <Plus className="h-4 w-4 mr-2" />
