@@ -24,6 +24,10 @@ import {
   policyDocuments,
   premiumPayments,
   policyAmendments,
+  persons,
+  personUsers,
+  personMembers,
+  personContacts,
   type User,
   type UpsertUser,
   type Member,
@@ -70,6 +74,14 @@ import {
   type InsertPolicyAmendment,
   type ExternalQuoteRequest,
   type InsertExternalQuoteRequest,
+  type Person,
+  type InsertPerson,
+  type PersonUser,
+  type InsertPersonUser,
+  type PersonMember,
+  type InsertPersonMember,
+  type PersonContact,
+  type InsertPersonContact,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, count } from "drizzle-orm";
@@ -229,6 +241,37 @@ export interface IStorage {
   redeemPoints(userId: string, points: number, description: string, rewardId?: number): Promise<PointsTransaction>;
   calculateTierLevel(totalPoints: number): Promise<{ tier: string; progress: number; nextThreshold: number }>;
   processPointsExpiration(): Promise<void>;
+
+  // Person Management - Unified Person Entity Model
+  createPerson(person: InsertPerson): Promise<Person>;
+  getPersonById(id: number): Promise<Person | undefined>;
+  getPersonByEmail(email: string): Promise<Person | undefined>;
+  getPersonByPhone(phone: string): Promise<Person | undefined>;
+  updatePerson(id: number, person: Partial<InsertPerson>): Promise<Person>;
+  deletePerson(id: number): Promise<void>;
+  findPotentialDuplicates(person: Partial<InsertPerson>): Promise<Person[]>;
+  
+  // Person-User associations
+  createPersonUser(association: InsertPersonUser): Promise<PersonUser>;
+  getPersonUsers(personId: number): Promise<PersonUser[]>;
+  getUserPerson(userId: string): Promise<(PersonUser & { person: Person }) | undefined>;
+  deletePersonUser(id: number): Promise<void>;
+  
+  // Person-Member associations
+  createPersonMember(association: InsertPersonMember): Promise<PersonMember>;
+  getPersonMembers(personId: number): Promise<PersonMember[]>;
+  getMemberPerson(memberId: number): Promise<(PersonMember & { person: Person }) | undefined>;
+  deletePersonMember(id: number): Promise<void>;
+  
+  // Person-Contact associations
+  createPersonContact(association: InsertPersonContact): Promise<PersonContact>;
+  getPersonContacts(personId: number): Promise<PersonContact[]>;
+  getContactPerson(contactId: number): Promise<(PersonContact & { person: Person }) | undefined>;
+  deletePersonContact(id: number): Promise<void>;
+  
+  // Data Migration Methods
+  migrateDataToPersons(): Promise<{ personsCreated: number; associationsCreated: number; duplicatesFound: number }>;
+  identifyPersonDuplicates(): Promise<Array<{ email?: string; phone?: string; duplicates: Person[] }>>;
 
 }
 
@@ -1402,6 +1445,414 @@ export class DatabaseStorage implements IStorage {
 
     // Implementation for processing expired points
     // This would typically run as a scheduled job
+  }
+
+  // Person Management - Core CRUD Operations
+  async createPerson(personData: InsertPerson): Promise<Person> {
+    const [person] = await db.insert(persons).values({
+      ...personData,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }).returning();
+    return person;
+  }
+
+  async getPersonById(id: number): Promise<Person | undefined> {
+    const [person] = await db.select().from(persons).where(eq(persons.id, id));
+    return person;
+  }
+
+  async getPersonByEmail(email: string): Promise<Person | undefined> {
+    const [person] = await db.select().from(persons).where(eq(persons.primaryEmail, email));
+    return person;
+  }
+
+  async getPersonByPhone(phone: string): Promise<Person | undefined> {
+    const [person] = await db.select().from(persons).where(eq(persons.primaryPhone, phone));
+    return person;
+  }
+
+  async updatePerson(id: number, personData: Partial<InsertPerson>): Promise<Person> {
+    const [person] = await db.update(persons)
+      .set({ ...personData, updatedAt: new Date() })
+      .where(eq(persons.id, id))
+      .returning();
+    return person;
+  }
+
+  async deletePerson(id: number): Promise<void> {
+    await db.delete(persons).where(eq(persons.id, id));
+  }
+
+  async findPotentialDuplicates(personData: Partial<InsertPerson>): Promise<Person[]> {
+    const conditions = [];
+    
+    if (personData.primaryEmail) {
+      conditions.push(eq(persons.primaryEmail, personData.primaryEmail));
+    }
+    if (personData.secondaryEmail) {
+      conditions.push(eq(persons.secondaryEmail, personData.secondaryEmail));
+    }
+    if (personData.primaryPhone) {
+      conditions.push(eq(persons.primaryPhone, personData.primaryPhone));
+    }
+    if (personData.secondaryPhone) {
+      conditions.push(eq(persons.secondaryPhone, personData.secondaryPhone));
+    }
+
+    if (conditions.length === 0) return [];
+
+    // Use OR condition to find any matching email or phone
+    return await db.select().from(persons).where(or(...conditions));
+  }
+
+  // Person-User Associations
+  async createPersonUser(associationData: InsertPersonUser): Promise<PersonUser> {
+    const [association] = await db.insert(personUsers).values({
+      ...associationData,
+      createdAt: new Date(),
+    }).returning();
+    return association;
+  }
+
+  async getPersonUsers(personId: number): Promise<PersonUser[]> {
+    return await db.select().from(personUsers).where(eq(personUsers.personId, personId));
+  }
+
+  async getUserPerson(userId: string): Promise<(PersonUser & { person: Person }) | undefined> {
+    const [result] = await db.select({
+      ...personUsers,
+      person: persons
+    })
+    .from(personUsers)
+    .leftJoin(persons, eq(personUsers.personId, persons.id))
+    .where(eq(personUsers.userId, userId));
+
+    return result as (PersonUser & { person: Person }) | undefined;
+  }
+
+  async deletePersonUser(id: number): Promise<void> {
+    await db.delete(personUsers).where(eq(personUsers.id, id));
+  }
+
+  // Person-Member Associations
+  async createPersonMember(associationData: InsertPersonMember): Promise<PersonMember> {
+    const [association] = await db.insert(personMembers).values({
+      ...associationData,
+      createdAt: new Date(),
+    }).returning();
+    return association;
+  }
+
+  async getPersonMembers(personId: number): Promise<PersonMember[]> {
+    return await db.select().from(personMembers).where(eq(personMembers.personId, personId));
+  }
+
+  async getMemberPerson(memberId: number): Promise<(PersonMember & { person: Person }) | undefined> {
+    const [result] = await db.select({
+      ...personMembers,
+      person: persons
+    })
+    .from(personMembers)
+    .leftJoin(persons, eq(personMembers.personId, persons.id))
+    .where(eq(personMembers.memberId, memberId));
+
+    return result as (PersonMember & { person: Person }) | undefined;
+  }
+
+  async deletePersonMember(id: number): Promise<void> {
+    await db.delete(personMembers).where(eq(personMembers.id, id));
+  }
+
+  // Person-Contact Associations
+  async createPersonContact(associationData: InsertPersonContact): Promise<PersonContact> {
+    const [association] = await db.insert(personContacts).values({
+      ...associationData,
+      createdAt: new Date(),
+    }).returning();
+    return association;
+  }
+
+  async getPersonContacts(personId: number): Promise<PersonContact[]> {
+    return await db.select().from(personContacts).where(eq(personContacts.personId, personId));
+  }
+
+  async getContactPerson(contactId: number): Promise<(PersonContact & { person: Person }) | undefined> {
+    const [result] = await db.select({
+      ...personContacts,
+      person: persons
+    })
+    .from(personContacts)
+    .leftJoin(persons, eq(personContacts.personId, persons.id))
+    .where(eq(personContacts.contactId, contactId));
+
+    return result as (PersonContact & { person: Person }) | undefined;
+  }
+
+  async deletePersonContact(id: number): Promise<void> {
+    await db.delete(personContacts).where(eq(personContacts.id, id));
+  }
+
+  // Data Migration Methods
+  async migrateDataToPersons(): Promise<{ personsCreated: number; associationsCreated: number; duplicatesFound: number }> {
+    let personsCreated = 0;
+    let associationsCreated = 0;
+    let duplicatesFound = 0;
+
+    console.log("Starting migration of user/member/contact data to persons table...");
+
+    // Check if migration has already been run (idempotency check)
+    const existingPersonsCount = await db.select({ count: count() }).from(persons);
+    if (existingPersonsCount[0].count > 0) {
+      console.log("Migration appears to have already been run. Skipping to avoid duplicates.");
+      return { personsCreated: 0, associationsCreated: 0, duplicatesFound: 0 };
+    }
+
+    // Wrap entire migration in a transaction for atomicity
+    return await db.transaction(async (tx) => {
+      // Step 1: Collect all person data from users, members, contacts
+      const allUsers = await tx.select().from(users);
+      const allMembers = await tx.select().from(members);
+      const allContacts = await tx.select().from(contacts);
+
+      const personData: Map<string, {
+        person: InsertPerson;
+        sources: { type: 'user' | 'member' | 'contact'; id: string | number }[];
+      }> = new Map();
+
+    // Process users
+    for (const user of allUsers) {
+      const identityKey = this.generateIdentityKey(user.email, user.phone, user.firstName, user.lastName);
+      
+      if (personData.has(identityKey)) {
+        // Duplicate found - add this user as a source
+        personData.get(identityKey)!.sources.push({ type: 'user', id: user.id });
+        duplicatesFound++;
+      } else {
+        // Create new person entry
+        personData.set(identityKey, {
+          person: {
+            firstName: user.firstName || '',
+            lastName: user.lastName || '',
+            primaryEmail: user.email || '',
+            primaryPhone: user.phone || '',
+            dateOfBirth: user.dateOfBirth ? new Date(user.dateOfBirth) : undefined,
+            streetAddress: user.address || '',
+            city: user.city || '',
+            state: user.state || '',
+            zipCode: user.zipCode || '',
+            country: 'USA',
+            dataSource: 'migration',
+            identityHash: identityKey,
+            isVerified: true,
+            createdBy: user.id,
+            updatedBy: user.id
+          },
+          sources: [{ type: 'user', id: user.id }]
+        });
+      }
+    }
+
+    // Process members
+    for (const member of allMembers) {
+      const identityKey = this.generateIdentityKey(member.email, member.phone, member.firstName, member.lastName);
+      
+      if (personData.has(identityKey)) {
+        // Duplicate found - add this member as a source
+        personData.get(identityKey)!.sources.push({ type: 'member', id: member.id });
+        duplicatesFound++;
+        
+        // Update person data with member-specific information if available
+        const existingPerson = personData.get(identityKey)!.person;
+        if (member.ssn && !existingPerson.ssnLastFour) {
+          existingPerson.ssnLastFour = member.ssn.slice(-4);
+        }
+        if (member.dateOfBirth && !existingPerson.dateOfBirth) {
+          existingPerson.dateOfBirth = new Date(member.dateOfBirth);
+        }
+      } else {
+        // Create new person entry from member data
+        personData.set(identityKey, {
+          person: {
+            firstName: member.firstName || '',
+            lastName: member.lastName || '',
+            primaryEmail: member.email || '',
+            primaryPhone: member.phone || '',
+            dateOfBirth: member.dateOfBirth ? new Date(member.dateOfBirth) : undefined,
+            ssnLastFour: member.ssn ? member.ssn.slice(-4) : undefined,
+            streetAddress: member.address || '',
+            city: member.city || '',
+            state: member.state || '',
+            zipCode: member.zipCode || '',
+            country: 'USA',
+            dataSource: 'migration',
+            identityHash: identityKey,
+            isVerified: true,
+            createdBy: member.userId || undefined,
+            updatedBy: member.userId || undefined
+          },
+          sources: [{ type: 'member', id: member.id }]
+        });
+      }
+    }
+
+    // Process contacts
+    for (const contact of allContacts) {
+      const identityKey = this.generateIdentityKey(contact.email, contact.phone, contact.firstName, contact.lastName);
+      
+      if (personData.has(identityKey)) {
+        // Duplicate found - add this contact as a source
+        personData.get(identityKey)!.sources.push({ type: 'contact', id: contact.id });
+        duplicatesFound++;
+      } else {
+        // Create new person entry from contact data
+        personData.set(identityKey, {
+          person: {
+            firstName: contact.firstName || '',
+            lastName: contact.lastName || '',
+            primaryEmail: contact.email || '',
+            primaryPhone: contact.phone || '',
+            streetAddress: contact.address || '',
+            city: contact.city || '',
+            state: contact.state || '',
+            zipCode: contact.zipCode || '',
+            country: 'USA',
+            dataSource: 'migration',
+            identityHash: identityKey,
+            isVerified: false,
+            createdBy: contact.assignedAgent || undefined,
+            updatedBy: contact.assignedAgent || undefined
+          },
+          sources: [{ type: 'contact', id: contact.id }]
+        });
+      }
+    }
+
+      // Step 2: Create persons and associations (all within transaction)
+      for (const [identityKey, data] of personData) {
+        try {
+          // Create the person using transaction
+          const [person] = await tx.insert(persons).values({
+            ...data.person,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          }).returning();
+          personsCreated++;
+
+          // Create associations for each source using transaction
+          for (const source of data.sources) {
+            if (source.type === 'user') {
+              await tx.insert(personUsers).values({
+                personId: person.id,
+                userId: source.id as string,
+                roleContext: { migrated: true, originalSource: 'user' },
+                createdAt: new Date(),
+              });
+              associationsCreated++;
+            } else if (source.type === 'member') {
+              const member = allMembers.find(m => m.id === source.id);
+              await tx.insert(personMembers).values({
+                personId: person.id,
+                memberId: source.id as number,
+                organizationId: member?.organizationId || undefined,
+                memberNumber: member?.memberNumber || undefined,
+                membershipStatus: member?.membershipStatus || 'Active',
+                membershipDate: member?.membershipDate || new Date(),
+                additionalInfo: { migrated: true, originalSource: 'member' },
+                createdAt: new Date(),
+              });
+              associationsCreated++;
+            } else if (source.type === 'contact') {
+              const contact = allContacts.find(c => c.id === source.id);
+              await tx.insert(personContacts).values({
+                personId: person.id,
+                contactId: source.id as number,
+                contactContext: contact?.type || 'lead',
+                organizationId: contact?.organizationId || undefined,
+                assignedAgent: contact?.assignedAgent || undefined,
+                contactMetadata: { migrated: true, originalSource: 'contact' },
+                createdAt: new Date(),
+              });
+              associationsCreated++;
+            }
+          }
+
+          console.log(`Created person ${person.id} with ${data.sources.length} associations`);
+        } catch (error) {
+          console.error(`Error creating person for identity ${identityKey}:`, error);
+          // Re-throw to trigger transaction rollback
+          throw error;
+        }
+      }
+
+      console.log(`Migration completed: ${personsCreated} persons created, ${associationsCreated} associations created, ${duplicatesFound} duplicates found`);
+      
+      return { personsCreated, associationsCreated, duplicatesFound };
+    }); // End transaction
+  }
+
+  private generateIdentityKey(email?: string | null, phone?: string | null, firstName?: string | null, lastName?: string | null): string {
+    // Create a consistent identity key for duplicate detection
+    const emailPart = email ? email.toLowerCase().trim() : '';
+    const phonePart = phone ? phone.replace(/[^0-9]/g, '') : ''; // Remove formatting
+    const namePart = `${firstName || ''}|${lastName || ''}`.toLowerCase().trim();
+    
+    // Primary matching on email, fallback to phone + name
+    if (emailPart) {
+      return `email:${emailPart}`;
+    } else if (phonePart && namePart !== '|') {
+      return `phone:${phonePart}:name:${namePart}`;
+    } else {
+      return `name:${namePart}:${Date.now()}`; // Fallback to prevent collisions
+    }
+  }
+
+  async identifyPersonDuplicates(): Promise<Array<{ email?: string; phone?: string; duplicates: Person[] }>> {
+    const duplicates: Array<{ email?: string; phone?: string; duplicates: Person[] }> = [];
+    
+    // Find email duplicates
+    const emailDuplicates = await db.select({
+      email: persons.primaryEmail,
+      count: count()
+    })
+    .from(persons)
+    .where(ne(persons.primaryEmail, null))
+    .groupBy(persons.primaryEmail)
+    .having(gt(count(), 1));
+
+    for (const emailDup of emailDuplicates) {
+      if (emailDup.email) {
+        const duplicatePersons = await db.select().from(persons)
+          .where(eq(persons.primaryEmail, emailDup.email));
+        duplicates.push({
+          email: emailDup.email,
+          duplicates: duplicatePersons
+        });
+      }
+    }
+
+    // Find phone duplicates
+    const phoneDuplicates = await db.select({
+      phone: persons.primaryPhone,
+      count: count()
+    })
+    .from(persons)
+    .where(ne(persons.primaryPhone, null))
+    .groupBy(persons.primaryPhone)
+    .having(gt(count(), 1));
+
+    for (const phoneDup of phoneDuplicates) {
+      if (phoneDup.phone) {
+        const duplicatePersons = await db.select().from(persons)
+          .where(eq(persons.primaryPhone, phoneDup.phone));
+        duplicates.push({
+          phone: phoneDup.phone,
+          duplicates: duplicatePersons
+        });
+      }
+    }
+
+    return duplicates;
   }
 }
 

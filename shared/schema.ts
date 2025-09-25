@@ -1161,3 +1161,35 @@ export const ROLE_PERMISSIONS = {
     resources: ["public_content", "insurance_types"] as const
   }
 } as const;
+
+// Person-related exports and types
+export type Person = typeof persons.$inferSelect;
+export type PersonUser = typeof personUsers.$inferSelect;
+export type PersonMember = typeof personMembers.$inferSelect;
+export type PersonContact = typeof personContacts.$inferSelect;
+
+export const insertPersonSchema = createInsertSchema(persons).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPersonUserSchema = createInsertSchema(personUsers).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertPersonMemberSchema = createInsertSchema(personMembers).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertPersonContactSchema = createInsertSchema(personContacts).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertPerson = z.infer<typeof insertPersonSchema>;
+export type InsertPersonUser = z.infer<typeof insertPersonUserSchema>;
+export type InsertPersonMember = z.infer<typeof insertPersonMemberSchema>;
+export type InsertPersonContact = z.infer<typeof insertPersonContactSchema>;
