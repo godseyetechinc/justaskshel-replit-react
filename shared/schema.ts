@@ -571,6 +571,97 @@ export const applicantDependents = pgTable("applicant_dependents", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// ===== UNIFIED PERSON ENTITY MODEL =====
+// Central person identity table - single source of truth for individual identity
+export const persons = pgTable("persons", {
+  id: serial("id").primaryKey(),
+  
+  // Core Identity
+  firstName: varchar("first_name", { length: 50 }).notNull(),
+  lastName: varchar("last_name", { length: 50 }).notNull(),
+  fullName: varchar("full_name", { length: 101 }).$default(() => sql`first_name || ' ' || last_name`),
+  dateOfBirth: timestamp("date_of_birth"),
+  gender: varchar("gender", { enum: ["Male", "Female", "Other", "Prefer not to say"] }),
+  
+  // Unique Identifiers
+  ssnEncrypted: varchar("ssn_encrypted", { length: 255 }), // Encrypted SSN
+  externalIds: jsonb("external_ids"), // For storing external system IDs
+  
+  // Contact Information (normalized)
+  primaryEmail: varchar("primary_email", { length: 100 }),
+  secondaryEmail: varchar("secondary_email", { length: 100 }),
+  primaryPhone: varchar("primary_phone", { length: 20 }),
+  secondaryPhone: varchar("secondary_phone", { length: 20 }),
+  
+  // Address Information
+  streetAddress: text("street_address"),
+  addressLine2: varchar("address_line_2", { length: 100 }),
+  city: varchar("city", { length: 50 }),
+  state: varchar("state", { length: 50 }),
+  zipCode: varchar("zip_code", { length: 10 }),
+  country: varchar("country", { length: 50 }).default("USA"),
+  
+  // Metadata
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  createdBy: varchar("created_by").references(() => users.id),
+  updatedBy: varchar("updated_by").references(() => users.id),
+  
+  // Data Quality
+  isVerified: boolean("is_verified").default(false),
+  verificationDate: timestamp("verification_date"),
+  dataSource: varchar("data_source", { length: 50 }), // 'manual', 'import', 'migration', etc.
+  identityHash: varchar("identity_hash", { length: 64 }), // For duplicate detection
+}, (table) => [
+  index("idx_persons_name").on(table.lastName, table.firstName),
+  index("idx_persons_primary_email").on(table.primaryEmail),
+  index("idx_persons_primary_phone").on(table.primaryPhone),
+  index("idx_persons_identity_hash").on(table.identityHash),
+]);
+
+// User roles association
+export const personUsers = pgTable("person_users", {
+  id: serial("id").primaryKey(),
+  personId: integer("person_id").references(() => persons.id, { onDelete: "cascade" }).notNull(),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  roleContext: jsonb("role_context"), // Store role-specific metadata
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_person_users_person_id").on(table.personId),
+  index("idx_person_users_user_id").on(table.userId),
+]);
+
+// Member association
+export const personMembers = pgTable("person_members", {
+  id: serial("id").primaryKey(),
+  personId: integer("person_id").references(() => persons.id, { onDelete: "cascade" }).notNull(),
+  memberId: integer("member_id").references(() => members.id, { onDelete: "cascade" }).notNull(),
+  organizationId: integer("organization_id").references(() => agentOrganizations.id),
+  memberNumber: varchar("member_number", { length: 20 }),
+  membershipStatus: varchar("membership_status", { length: 20 }).default("Active"),
+  membershipDate: timestamp("membership_date").defaultNow(),
+  additionalInfo: jsonb("additional_info"), // Member-specific data
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_person_members_person_id").on(table.personId),
+  index("idx_person_members_member_id").on(table.memberId),
+]);
+
+// Contact association
+export const personContacts = pgTable("person_contacts", {
+  id: serial("id").primaryKey(),
+  personId: integer("person_id").references(() => persons.id, { onDelete: "cascade" }).notNull(),
+  contactId: integer("contact_id").references(() => contacts.id, { onDelete: "cascade" }).notNull(),
+  contactContext: varchar("contact_context", { length: 50 }), // 'lead', 'customer', 'provider', etc.
+  organizationId: integer("organization_id").references(() => agentOrganizations.id),
+  assignedAgent: varchar("assigned_agent").references(() => users.id),
+  contactMetadata: jsonb("contact_metadata"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_person_contacts_person_id").on(table.personId),
+  index("idx_person_contacts_contact_id").on(table.contactId),
+]);
+
 // Relations
 export const usersRelations = relations(users, ({ one, many }) => ({
   member: one(members),
