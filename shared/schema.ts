@@ -540,7 +540,7 @@ export const persons = pgTable("persons", {
   // Core Identity
   firstName: varchar("first_name", { length: 50 }).notNull(),
   lastName: varchar("last_name", { length: 50 }).notNull(),
-  fullName: varchar("full_name", { length: 101 }).$default(() => sql`first_name || ' ' || last_name`),
+  fullName: varchar("full_name", { length: 101 }),
   dateOfBirth: timestamp("date_of_birth"),
   gender: varchar("gender", { enum: ["Male", "Female", "Other", "Prefer not to say"] }),
   

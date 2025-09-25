@@ -396,6 +396,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Temporary migration endpoint for Unified Person Entity Model
+  app.post("/api/admin/migrate-persons", auth, async (req: any, res) => {
+    try {
+      // Check if user has sufficient privileges (SuperAdmin only)
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user || user.privilegeLevel !== 0) {
+        return res.status(403).json({ message: "Insufficient privileges. SuperAdmin access required." });
+      }
+
+      console.log("Starting person data migration...");
+      const migrationResult = await storage.migrateDataToPersons();
+      
+      console.log("Migration completed successfully:", migrationResult);
+      res.json({
+        message: "Person data migration completed successfully",
+        result: migrationResult
+      });
+    } catch (error) {
+      console.error("Error during person migration:", error);
+      res.status(500).json({ 
+        message: "Failed to migrate person data",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   // Insurance types
   app.get("/api/insurance-types", async (req, res) => {
     try {
