@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -53,7 +54,8 @@ import {
   Trash2,
   Paperclip,
   Download,
-  FileIcon
+  FileIcon,
+  Loader2
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -77,9 +79,20 @@ const priorityColors = {
   urgent: "bg-red-100 text-red-800"
 };
 
-const claimFormSchema = insertClaimSchema.extend({
-  incidentDate: z.string().min(1, "Incident date is required"),
-  estimatedAmount: z.string().optional().transform((val) => val ? parseFloat(val) : undefined),
+// Updated form schema with better validation
+const claimFormSchema = z.object({
+  title: z.string().min(1, "Claim title is required").max(200, "Title must be 200 characters or less"),
+  description: z.string().optional(),
+  claimType: z.string().min(1, "Please select a claim type"),
+  incidentDate: z.string().min(1, "Incident date is required")
+    .refine((date) => !isNaN(Date.parse(date)), "Please enter a valid date"),
+  estimatedAmount: z.union([
+    z.string().transform((val) => val === "" ? undefined : parseFloat(val)),
+    z.undefined()
+  ]).optional().refine((val) => val === undefined || !isNaN(val), "Please enter a valid amount"),
+  priority: z.string().default("normal"),
+  policyId: z.number().optional(),
+  // Additional fields for the form
   policyNumber: z.string().optional(),
   providerName: z.string().optional(),
   providerAddress: z.string().optional(),
@@ -446,6 +459,24 @@ export default function ClaimsWorkflow() {
                   Submit a new insurance claim with all required details
                 </DialogDescription>
               </DialogHeader>
+              
+              {/* Form Validation Error Display */}
+              {Object.keys(newClaimForm.formState.errors).length > 0 && (
+                <Alert variant="destructive" className="mb-4">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Please fix the following errors:</AlertTitle>
+                  <AlertDescription>
+                    <ul className="mt-2 space-y-1">
+                      {Object.entries(newClaimForm.formState.errors).map(([field, error]) => (
+                        <li key={field} className="text-sm">
+                          • {error?.message || `${field} is required`}
+                        </li>
+                      ))}
+                    </ul>
+                  </AlertDescription>
+                </Alert>
+              )}
+              
               <Form {...newClaimForm}>
                 <form onSubmit={newClaimForm.handleSubmit(onCreateClaim)} className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
@@ -727,10 +758,17 @@ export default function ClaimsWorkflow() {
                     </Button>
                     <Button 
                       type="submit" 
-                      disabled={createClaimMutation.isPending}
+                      disabled={createClaimMutation.isPending || newClaimForm.formState.isSubmitting}
                       data-testid="button-create-claim"
                     >
-                      {createClaimMutation.isPending ? "Creating..." : "Create Claim"}
+                      {createClaimMutation.isPending || newClaimForm.formState.isSubmitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Creating Claim...
+                        </>
+                      ) : (
+                        "Create Claim"
+                      )}
                     </Button>
                   </div>
                 </form>
