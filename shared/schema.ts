@@ -403,25 +403,6 @@ export const contacts = pgTable("contacts", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Applications - insurance applications
-export const applications = pgTable("applications", {
-  id: serial("id").primaryKey(),
-  applicationNumber: varchar("application_number", { length: 30 }).unique().notNull(),
-  userId: varchar("user_id").references(() => users.id),
-  contactId: integer("contact_id").references(() => contacts.id),
-  insuranceTypeId: integer("insurance_type_id").references(() => insuranceTypes.id),
-  status: varchar("status", { enum: ["Draft", "Submitted", "Under Review", "Approved", "Rejected", "Withdrawn"] }).default("Draft"),
-  applicationData: jsonb("application_data"), // stores form data
-  submittedAt: timestamp("submitted_at"),
-  reviewedAt: timestamp("reviewed_at"),
-  reviewedBy: varchar("reviewed_by").references(() => users.id),
-  approvedAt: timestamp("approved_at"),
-  rejectedAt: timestamp("rejected_at"),
-  rejectionReason: text("rejection_reason"),
-  notes: text("notes"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
 
 // Points system - member rewards/points transactions
 export const pointsTransactions = pgTable("points_transactions", {
@@ -624,7 +605,6 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   policies: many(policies),
   claims: many(claims),
   dependents: many(dependents),
-  applications: many(applications),
   pointsTransactions: many(pointsTransactions),
   pointsSummary: one(pointsSummary),
   rewardRedemptions: many(rewardRedemptions),
@@ -643,27 +623,8 @@ export const contactsRelations = relations(contacts, ({ one, many }) => ({
     fields: [contacts.assignedAgent],
     references: [users.id],
   }),
-  applications: many(applications),
 }));
 
-export const applicationsRelations = relations(applications, ({ one, many }) => ({
-  user: one(users, {
-    fields: [applications.userId],
-    references: [users.id],
-  }),
-  contact: one(contacts, {
-    fields: [applications.contactId],
-    references: [contacts.id],
-  }),
-  insuranceType: one(insuranceTypes, {
-    fields: [applications.insuranceTypeId],
-    references: [insuranceTypes.id],
-  }),
-  reviewer: one(users, {
-    fields: [applications.reviewedBy],
-    references: [users.id],
-  }),
-}));
 
 
 export const pointsTransactionsRelations = relations(pointsTransactions, ({ one }) => ({
@@ -876,8 +837,6 @@ export type Member = typeof members.$inferSelect;
 export type InsertContact = typeof contacts.$inferInsert;
 export type Contact = typeof contacts.$inferSelect;
 
-export type InsertApplication = typeof applications.$inferInsert;
-export type Application = typeof applications.$inferSelect;
 
 // Points system types
 export type PointsTransaction = typeof pointsTransactions.$inferSelect;
@@ -985,11 +944,6 @@ export const insertContactSchema = createInsertSchema(contacts).omit({
   updatedAt: true,
 });
 
-export const insertApplicationSchema = createInsertSchema(applications).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
 
 // Points system Zod schemas
 export const insertPointsTransactionSchema = createInsertSchema(pointsTransactions).omit({
@@ -1140,12 +1094,12 @@ export const ROLE_PERMISSIONS = {
     resources: ["all"] as const
   },
   Agent: {
-    privileges: ["read", "write", "delete", "manage_claims", "manage_applications", "view_customer_data"] as const,
-    resources: ["applications", "claims", "policies", "contacts", "quotes", "members"] as const
+    privileges: ["read", "write", "delete", "manage_claims", "view_customer_data"] as const,
+    resources: ["claims", "policies", "contacts", "quotes", "members"] as const
   },
   Member: {
-    privileges: ["read", "write_own", "create_applications", "view_own_data"] as const,
-    resources: ["own_policies", "own_applications", "own_claims", "own_quotes", "own_profile", "dependents"] as const
+    privileges: ["read", "write_own", "view_own_data"] as const,
+    resources: ["own_policies", "own_claims", "own_quotes", "own_profile", "dependents"] as const
   },
   Guest: {
     privileges: ["read_limited", "create_account", "view_public"] as const,
