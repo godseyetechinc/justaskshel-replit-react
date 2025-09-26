@@ -359,8 +359,8 @@ export default function ClaimsWorkflow() {
       const claimData = {
         ...data,
         claimNumber,
-        incidentDate: new Date(data.incidentDate), // Send as Date object, not ISO string
-        estimatedAmount: data.estimatedAmount ? Number(data.estimatedAmount) : null, // Ensure it's a number
+        incidentDate: data.incidentDate, // Send as date string (backend will convert)
+        estimatedAmount: data.estimatedAmount ? data.estimatedAmount.toString() : null, // Convert to string with decimal
       };
       
       console.log("Sending claim data:", claimData);
