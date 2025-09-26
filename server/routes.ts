@@ -1075,11 +1075,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/claims", auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const validatedData = insertClaimSchema.parse({
+      
+      // Convert incidentDate string to Date object before validation
+      const dataToValidate = {
         ...req.body,
         userId,
         claimNumber: `CLM-${Date.now()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`,
-      });
+      };
+      
+      // Parse incidentDate string to Date object if provided
+      if (dataToValidate.incidentDate && typeof dataToValidate.incidentDate === 'string') {
+        dataToValidate.incidentDate = new Date(dataToValidate.incidentDate);
+      }
+      
+      console.log('About to validate claim data:', JSON.stringify(dataToValidate, null, 2));
+      const validatedData = insertClaimSchema.parse(dataToValidate);
 
       const claim = await storage.createClaim(validatedData);
 
