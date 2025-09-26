@@ -359,8 +359,8 @@ export default function ClaimsWorkflow() {
       const claimData = {
         ...data,
         claimNumber,
-        incidentDate: new Date(data.incidentDate).toISOString(),
-        estimatedAmount: data.estimatedAmount || null,
+        incidentDate: new Date(data.incidentDate), // Send as Date object, not ISO string
+        estimatedAmount: data.estimatedAmount ? Number(data.estimatedAmount) : null, // Ensure it's a number
       };
       
       console.log("Sending claim data:", claimData);
