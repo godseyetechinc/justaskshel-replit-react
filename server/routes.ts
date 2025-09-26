@@ -1088,7 +1088,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         dataToValidate.incidentDate = new Date(dataToValidate.incidentDate);
       }
       
-      console.log('About to validate claim data:', JSON.stringify(dataToValidate, null, 2));
       const validatedData = insertClaimSchema.parse(dataToValidate);
 
       const claim = await storage.createClaim(validatedData);
