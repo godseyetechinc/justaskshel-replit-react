@@ -170,14 +170,14 @@ export const claims = pgTable("claims", {
   status: varchar("status", { length: 20 }).default("draft"), // draft, submitted, under_review, approved, denied, paid, closed
   priority: varchar("priority", { length: 20 }).default("normal"), // low, normal, high, urgent
   assignedAgent: varchar("assigned_agent").references(() => users.id),
-  // Additional claim fields for comprehensive data
-  policyNumber: varchar("policy_number", { length: 50 }),
-  providerName: varchar("provider_name", { length: 200 }),
-  providerAddress: text("provider_address"),
-  contactPhone: varchar("contact_phone", { length: 20 }),
-  emergencyContact: varchar("emergency_contact", { length: 100 }),
-  emergencyPhone: varchar("emergency_phone", { length: 20 }),
-  additionalNotes: text("additional_notes"),
+  // Additional claim fields for comprehensive data (will be enabled after schema sync)
+  // policyNumber: varchar("policy_number", { length: 50 }),
+  // providerName: varchar("provider_name", { length: 200 }),
+  // providerAddress: text("provider_address"),
+  // contactPhone: varchar("contact_phone", { length: 20 }),
+  // emergencyContact: varchar("emergency_contact", { length: 100 }),
+  // emergencyPhone: varchar("emergency_phone", { length: 20 }),
+  // additionalNotes: text("additional_notes"),
   submittedAt: timestamp("submitted_at"),
   reviewedAt: timestamp("reviewed_at"),
   processedAt: timestamp("processed_at"),

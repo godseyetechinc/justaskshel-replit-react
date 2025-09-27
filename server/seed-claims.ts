@@ -277,7 +277,18 @@ export async function seedClaims() {
         policyId: policy.id,
         claimNumber: `CLM-${Date.now()}-${String(i).padStart(4, '0')}`,
         title: claimTitle,
-        description: claimDescription,
+        description: JSON.stringify({
+          originalDescription: claimDescription,
+          comprehensiveData: {
+            policyNumber: policy.policyNumber,
+            providerName: faker.helpers.arrayElement(claimConfig.providers),
+            providerAddress: `${faker.location.streetAddress()}, ${faker.location.city()}, ${faker.location.state({ abbreviated: true })} ${faker.location.zipCode()}`,
+            contactPhone: generatePhoneNumber(),
+            emergencyContact: `${faker.person.firstName()} ${faker.person.lastName()}`,
+            emergencyPhone: generatePhoneNumber(),
+            additionalNotes: faker.lorem.sentences(faker.number.int({ min: 1, max: 3 }))
+          }
+        }),
         claimType: claimTypeKey,
         incidentDate: faker.date.between({ 
           from: new Date('2023-01-01'), 
@@ -288,15 +299,6 @@ export async function seedClaims() {
         status,
         priority,
         assignedAgent: assignedAgent.id,
-        
-        // NEW COMPREHENSIVE FIELDS - Use actual policy number for data consistency
-        policyNumber: policy.policyNumber,
-        providerName: faker.helpers.arrayElement(claimConfig.providers),
-        providerAddress: `${faker.location.streetAddress()}, ${faker.location.city()}, ${faker.location.state({ abbreviated: true })} ${faker.location.zipCode()}`,
-        contactPhone: generatePhoneNumber(),
-        emergencyContact: `${faker.person.firstName()} ${faker.person.lastName()}`,
-        emergencyPhone: generatePhoneNumber(),
-        additionalNotes: faker.lorem.sentences(faker.number.int({ min: 1, max: 3 })),
         
         submittedAt,
         reviewedAt,
