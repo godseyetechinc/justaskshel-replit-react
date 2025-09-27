@@ -183,15 +183,50 @@ export async function seedClaims() {
 
     // Get all users and policies for proper relationships
     const allUsers = await db.select().from(users);
-    const allPolicies = await db.select().from(policies);
+    const allPolicies = await db.select({
+      id: policies.id,
+      userId: policies.userId,
+      policyNumber: policies.policyNumber,
+      status: policies.status
+    }).from(policies);
     const memberUsers = allUsers.filter(user => user.role === 'Member');
     const agentUsers = allUsers.filter(user => user.role === 'Agent');
 
-    if (memberUsers.length === 0 || allPolicies.length === 0) {
-      throw new Error('No member users or policies found. Please run user and policy seeding first.');
+    if (memberUsers.length === 0) {
+      throw new Error('No member users found. Please run user seeding first.');
     }
 
-    console.log(`Found ${memberUsers.length} members and ${allPolicies.length} policies for claims`);
+    // Create basic policies if none exist
+    let policiesForClaims = allPolicies;
+    if (allPolicies.length === 0) {
+      console.log('No policies found. Creating basic policies for claims testing...');
+      
+      const createdPolicies = [];
+      for (let i = 0; i < Math.min(50, memberUsers.length); i++) {
+        const member = memberUsers[i];
+        const policyData = {
+          userId: member.id,
+          policyNumber: `POL-${Date.now()}-${String(i).padStart(3, '0')}`,
+          status: 'active',
+          startDate: faker.date.past({ years: 1 }),
+          endDate: faker.date.future({ years: 1 }),
+          nextPaymentDate: faker.date.future({ days: 30 })
+        };
+        
+        const [newPolicy] = await db.insert(policies).values(policyData).returning({
+          id: policies.id,
+          userId: policies.userId,
+          policyNumber: policies.policyNumber,
+          status: policies.status
+        });
+        createdPolicies.push(newPolicy);
+      }
+      
+      policiesForClaims = createdPolicies;
+      console.log(`Created ${createdPolicies.length} basic policies for claims`);
+    }
+
+    console.log(`Found ${memberUsers.length} members and ${policiesForClaims.length} policies for claims`);
 
     const createdClaims = [];
     
@@ -205,10 +240,10 @@ export async function seedClaims() {
       
       // Select random member and their policy
       const member = faker.helpers.arrayElement(memberUsers);
-      const memberPolicies = allPolicies.filter(policy => policy.userId === member.id);
+      const memberPolicies = policiesForClaims.filter(policy => policy.userId === member.id);
       const policy = memberPolicies.length > 0 
         ? faker.helpers.arrayElement(memberPolicies)
-        : faker.helpers.arrayElement(allPolicies);
+        : faker.helpers.arrayElement(policiesForClaims);
       
       // Assign to random agent
       const assignedAgent = faker.helpers.arrayElement(agentUsers);
@@ -254,8 +289,8 @@ export async function seedClaims() {
         priority,
         assignedAgent: assignedAgent.id,
         
-        // NEW COMPREHENSIVE FIELDS
-        policyNumber: generatePolicyNumber(),
+        // NEW COMPREHENSIVE FIELDS - Use actual policy number for data consistency
+        policyNumber: policy.policyNumber,
         providerName: faker.helpers.arrayElement(claimConfig.providers),
         providerAddress: `${faker.location.streetAddress()}, ${faker.location.city()}, ${faker.location.state({ abbreviated: true })} ${faker.location.zipCode()}`,
         contactPhone: generatePhoneNumber(),

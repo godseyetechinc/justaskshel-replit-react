@@ -142,40 +142,17 @@ export const wishlist = pgTable("wishlist", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// User policies - Enhanced policy management
+// User policies - Match actual database schema
 export const policies = pgTable("policies", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").references(() => users.id),
-  quoteId: integer("quote_id").references(() => insuranceQuotes.id),
-  policyNumber: varchar("policy_number", { length: 50 }).notNull(),
-  status: varchar("status", { 
-    enum: ["Active", "Pending", "Expired", "Cancelled", "Suspended", "Lapsed"] 
-  }).default("Pending"),
+  quoteId: integer("quote_id"),
+  policyNumber: varchar("policy_number").notNull(),
+  status: varchar("status").default("active"),
   startDate: timestamp("start_date").notNull(),
   endDate: timestamp("end_date"),
-  renewalDate: timestamp("renewal_date"),
   nextPaymentDate: timestamp("next_payment_date"),
-  annualPremium: decimal("annual_premium", { precision: 10, scale: 2 }),
-  monthlyPremium: decimal("monthly_premium", { precision: 10, scale: 2 }),
-  paymentFrequency: varchar("payment_frequency", { 
-    enum: ["Monthly", "Quarterly", "Semi-Annual", "Annual"] 
-  }).default("Monthly"),
-  coverageAmount: decimal("coverage_amount", { precision: 12, scale: 2 }),
-  deductible: decimal("deductible", { precision: 10, scale: 2 }),
-  agentId: varchar("agent_id").references(() => users.id),
-  underwriterId: varchar("underwriter_id").references(() => users.id),
-  beneficiary: jsonb("beneficiary"), // Primary beneficiary details
-  contingentBeneficiary: jsonb("contingent_beneficiary"), // Contingent beneficiary details
-  medicalExamRequired: boolean("medical_exam_required").default(false),
-  medicalExamCompleted: boolean("medical_exam_completed").default(false),
-  medicalExamDate: timestamp("medical_exam_date"),
-  issuedDate: timestamp("issued_date"),
-  lastReviewDate: timestamp("last_review_date"),
-  autoRenewal: boolean("auto_renewal").default(true),
-  notes: text("notes"),
-  metadata: jsonb("metadata"), // Additional policy-specific data
   createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Claims
@@ -715,22 +692,7 @@ export const policiesRelations = relations(policies, ({ one, many }) => ({
     fields: [policies.userId],
     references: [users.id],
   }),
-  quote: one(insuranceQuotes, {
-    fields: [policies.quoteId],
-    references: [insuranceQuotes.id],
-  }),
-  agent: one(users, {
-    fields: [policies.agentId],
-    references: [users.id],
-  }),
-  underwriter: one(users, {
-    fields: [policies.underwriterId],
-    references: [users.id],
-  }),
   claims: many(claims),
-  documents: many(policyDocuments),
-  payments: many(premiumPayments),
-  amendments: many(policyAmendments),
 }));
 
 export const claimsRelations = relations(claims, ({ one, many }) => ({
