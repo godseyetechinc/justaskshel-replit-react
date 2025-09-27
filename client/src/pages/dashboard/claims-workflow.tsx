@@ -107,10 +107,212 @@ const communicationFormSchema = insertClaimCommunicationSchema.omit({
   userId: true,
 });
 
+// Edit claim form component
+function EditClaimForm({ claim, onClose, onUpdate }: { claim: any; onClose: () => void; onUpdate: () => void }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Update claim mutation
+  const updateClaimMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const updateData = {
+        ...data,
+        incidentDate: data.incidentDate,
+        estimatedAmount: data.estimatedAmount ? data.estimatedAmount.toString() : null,
+      };
+      return apiRequest(`/api/claims/${claim?.id}`, { 
+        method: "PUT", 
+        body: JSON.stringify(updateData) 
+      });
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Claim updated successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/claims"] });
+      onUpdate();
+      onClose();
+    },
+    onError: (error) => {
+      console.error("Update claim mutation error:", error);
+      toast({ title: "Error", description: "Failed to update claim", variant: "destructive" });
+    },
+  });
+
+  const editForm = useForm({
+    resolver: zodResolver(claimFormSchema),
+    defaultValues: {
+      title: claim?.title || "",
+      description: claim?.description || "",
+      claimType: claim?.claimType || "",
+      incidentDate: claim?.incidentDate ? new Date(claim.incidentDate).toISOString().split('T')[0] : "",
+      estimatedAmount: claim?.estimatedAmount || "",
+      priority: claim?.priority || "normal",
+    },
+  });
+
+  const onUpdateClaim = async (data: any) => {
+    try {
+      await updateClaimMutation.mutateAsync(data);
+    } catch (error) {
+      console.error("Error updating claim:", error);
+    }
+  };
+
+  return (
+    <Form {...editForm}>
+      <form onSubmit={editForm.handleSubmit(onUpdateClaim)} className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormField
+            control={editForm.control}
+            name="title"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Claim Title *</FormLabel>
+                <FormControl>
+                  <Input placeholder="Enter claim title" {...field} data-testid="input-edit-title" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={editForm.control}
+            name="claimType"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Claim Type *</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger data-testid="select-edit-claim-type">
+                      <SelectValue placeholder="Select claim type" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="medical">Medical</SelectItem>
+                    <SelectItem value="dental">Dental</SelectItem>
+                    <SelectItem value="vision">Vision</SelectItem>
+                    <SelectItem value="life">Life</SelectItem>
+                    <SelectItem value="disability">Disability</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormField
+            control={editForm.control}
+            name="incidentDate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Incident Date *</FormLabel>
+                <FormControl>
+                  <Input type="date" {...field} data-testid="input-edit-incident-date" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={editForm.control}
+            name="estimatedAmount"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Estimated Amount</FormLabel>
+                <FormControl>
+                  <Input 
+                    type="number" 
+                    step="0.01" 
+                    placeholder="0.00" 
+                    {...field} 
+                    data-testid="input-edit-estimated-amount"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <FormField
+          control={editForm.control}
+          name="priority"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Priority</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger data-testid="select-edit-priority">
+                    <SelectValue placeholder="Select priority" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="normal">Normal</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="urgent">Urgent</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={editForm.control}
+          name="description"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Description</FormLabel>
+              <FormControl>
+                <Textarea 
+                  placeholder="Describe the claim details..." 
+                  className="min-h-[100px]"
+                  {...field} 
+                  data-testid="textarea-edit-description"
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <div className="flex justify-end gap-2 pt-4">
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={onClose}
+            data-testid="button-cancel-edit"
+          >
+            Cancel
+          </Button>
+          <Button 
+            type="submit" 
+            disabled={updateClaimMutation.isPending}
+            data-testid="button-save-claim"
+          >
+            {updateClaimMutation.isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              "Save Changes"
+            )}
+          </Button>
+        </div>
+      </form>
+    </Form>
+  );
+}
+
 export default function ClaimsWorkflow() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedClaim, setSelectedClaim] = useState<any>(null);
   const [isNewClaimOpen, setIsNewClaimOpen] = useState(false);
+  const [isViewClaimOpen, setIsViewClaimOpen] = useState(false);
+  const [isEditClaimOpen, setIsEditClaimOpen] = useState(false);
   const [isCommunicationOpen, setIsCommunicationOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(10);
@@ -288,6 +490,33 @@ export default function ClaimsWorkflow() {
     },
     onError: () => {
       toast({ title: "Error", description: "Failed to update workflow step", variant: "destructive" });
+    },
+  });
+
+  // Update claim mutation
+  const updateClaimMutation = useMutation({
+    mutationFn: async (data: any) => {
+      // Convert incidentDate to proper format and estimatedAmount to string if needed
+      const updateData = {
+        ...data,
+        incidentDate: data.incidentDate, // Send as string, backend will convert
+        estimatedAmount: data.estimatedAmount ? data.estimatedAmount.toString() : null,
+      };
+      return apiRequest(`/api/claims/${selectedClaim?.id}`, { 
+        method: "PUT", 
+        body: JSON.stringify(updateData) 
+      });
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Claim updated successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/claims"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/claims", selectedClaim?.id] });
+      setIsEditClaimOpen(false);
+      setSelectedClaim(null);
+    },
+    onError: (error) => {
+      console.error("Update claim mutation error:", error);
+      toast({ title: "Error", description: "Failed to update claim", variant: "destructive" });
     },
   });
 
@@ -839,11 +1068,17 @@ export default function ClaimsWorkflow() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="start">
                               <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuItem onClick={() => setSelectedClaim(claim)} data-testid={`action-view-${claim.id}`}>
+                              <DropdownMenuItem onClick={() => {
+                                setSelectedClaim(claim);
+                                setIsViewClaimOpen(true);
+                              }} data-testid={`action-view-${claim.id}`}>
                                 <Eye className="mr-2 h-4 w-4" />
                                 View Details
                               </DropdownMenuItem>
-                              <DropdownMenuItem data-testid={`action-edit-${claim.id}`}>
+                              <DropdownMenuItem onClick={() => {
+                                setSelectedClaim(claim);
+                                setIsEditClaimOpen(true);
+                              }} data-testid={`action-edit-${claim.id}`}>
                                 <Edit className="mr-2 h-4 w-4" />
                                 Edit Claim
                               </DropdownMenuItem>
@@ -863,7 +1098,10 @@ export default function ClaimsWorkflow() {
                           <Button 
                             variant="link" 
                             className="p-0 h-auto font-medium"
-                            onClick={() => setSelectedClaim(claim)}
+                            onClick={() => {
+                              setSelectedClaim(claim);
+                              setIsViewClaimOpen(true);
+                            }}
                           >
                             {claim.claimNumber}
                           </Button>
@@ -956,9 +1194,20 @@ export default function ClaimsWorkflow() {
           </CardContent>
         </Card>
 
-        {/* Claim Details */}
-        <div className="grid grid-cols-1 gap-6">
-            {selectedClaim ? (
+        {/* View Claim Modal */}
+        <Dialog open={isViewClaimOpen} onOpenChange={setIsViewClaimOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Eye className="h-5 w-5" />
+                Claim Details
+              </DialogTitle>
+              <DialogDescription>
+                {selectedClaim?.claimNumber}
+              </DialogDescription>
+            </DialogHeader>
+            
+            {selectedClaim && (
               <Tabs defaultValue="overview" className="space-y-4">
                 <TabsList className="grid w-full grid-cols-4">
                   <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -971,13 +1220,7 @@ export default function ClaimsWorkflow() {
                   <Card>
                     <CardHeader>
                       <div className="flex items-center justify-between">
-                        <div>
-                          <CardTitle className="flex items-center gap-2">
-                            <Eye className="h-5 w-5" />
-                            Claim Details
-                          </CardTitle>
-                          <CardDescription>{selectedClaim.claimNumber}</CardDescription>
-                        </div>
+                        <CardTitle>Claim Information</CardTitle>
                         <Badge className={`${statusColors[selectedClaim.status as keyof typeof statusColors]} text-white`}>
                           {selectedClaim.status.replace('_', ' ')}
                         </Badge>
@@ -1326,17 +1569,35 @@ export default function ClaimsWorkflow() {
                   </Card>
                 </TabsContent>
               </Tabs>
-            ) : (
-              <Card>
-                <CardContent className="flex items-center justify-center h-64">
-                  <div className="text-center">
-                    <Activity className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500">Select a claim to view details</p>
-                  </div>
-                </CardContent>
-              </Card>
             )}
-        </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Claim Modal */}
+        <Dialog open={isEditClaimOpen} onOpenChange={setIsEditClaimOpen}>
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Edit className="h-5 w-5" />
+                Edit Claim
+              </DialogTitle>
+              <DialogDescription>
+                Update claim information for {selectedClaim?.claimNumber}
+              </DialogDescription>
+            </DialogHeader>
+            
+            {selectedClaim && (
+              <EditClaimForm 
+                claim={selectedClaim}
+                onClose={() => setIsEditClaimOpen(false)}
+                onUpdate={() => {
+                  // Force refresh of claims data
+                  queryClient.invalidateQueries({ queryKey: ["/api/claims"] });
+                }}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );
