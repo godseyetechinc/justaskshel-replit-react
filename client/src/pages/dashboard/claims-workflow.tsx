@@ -146,6 +146,13 @@ function EditClaimForm({ claim, onClose, onUpdate }: { claim: any; onClose: () =
       incidentDate: claim?.incidentDate ? new Date(claim.incidentDate).toISOString().split('T')[0] : "",
       estimatedAmount: claim?.estimatedAmount || "",
       priority: claim?.priority || "normal",
+      policyNumber: claim?.policyNumber || "",
+      providerName: claim?.providerName || "",
+      providerAddress: claim?.providerAddress || "",
+      contactPhone: claim?.contactPhone || "",
+      emergencyContact: claim?.emergencyContact || "",
+      emergencyPhone: claim?.emergencyPhone || "",
+      additionalNotes: claim?.additionalNotes || "",
     },
   });
 
@@ -160,15 +167,15 @@ function EditClaimForm({ claim, onClose, onUpdate }: { claim: any; onClose: () =
   return (
     <Form {...editForm}>
       <form onSubmit={editForm.handleSubmit(onUpdateClaim)} className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-4">
           <FormField
             control={editForm.control}
             name="title"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Claim Title *</FormLabel>
+                <FormLabel>Claim Title</FormLabel>
                 <FormControl>
-                  <Input placeholder="Enter claim title" {...field} data-testid="input-edit-title" />
+                  <Input placeholder="Brief description of claim" {...field} data-testid="input-edit-title" />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -179,7 +186,7 @@ function EditClaimForm({ claim, onClose, onUpdate }: { claim: any; onClose: () =
             name="claimType"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Claim Type *</FormLabel>
+                <FormLabel>Claim Type</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger data-testid="select-edit-claim-type">
@@ -190,7 +197,7 @@ function EditClaimForm({ claim, onClose, onUpdate }: { claim: any; onClose: () =
                     <SelectItem value="medical">Medical</SelectItem>
                     <SelectItem value="dental">Dental</SelectItem>
                     <SelectItem value="vision">Vision</SelectItem>
-                    <SelectItem value="life">Life</SelectItem>
+                    <SelectItem value="life">Life Insurance</SelectItem>
                     <SelectItem value="disability">Disability</SelectItem>
                   </SelectContent>
                 </Select>
@@ -199,14 +206,13 @@ function EditClaimForm({ claim, onClose, onUpdate }: { claim: any; onClose: () =
             )}
           />
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-4">
           <FormField
             control={editForm.control}
             name="incidentDate"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Incident Date *</FormLabel>
+                <FormLabel>Incident Date</FormLabel>
                 <FormControl>
                   <Input type="date" {...field} data-testid="input-edit-incident-date" />
                 </FormControl>
@@ -221,20 +227,13 @@ function EditClaimForm({ claim, onClose, onUpdate }: { claim: any; onClose: () =
               <FormItem>
                 <FormLabel>Estimated Amount</FormLabel>
                 <FormControl>
-                  <Input 
-                    type="number" 
-                    step="0.01" 
-                    placeholder="0.00" 
-                    {...field} 
-                    data-testid="input-edit-estimated-amount"
-                  />
+                  <Input type="number" step="0.01" placeholder="0.00" {...field} data-testid="input-edit-estimated-amount" />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
         </div>
-
         <FormField
           control={editForm.control}
           name="priority"
@@ -258,7 +257,6 @@ function EditClaimForm({ claim, onClose, onUpdate }: { claim: any; onClose: () =
             </FormItem>
           )}
         />
-
         <FormField
           control={editForm.control}
           name="description"
@@ -267,10 +265,116 @@ function EditClaimForm({ claim, onClose, onUpdate }: { claim: any; onClose: () =
               <FormLabel>Description</FormLabel>
               <FormControl>
                 <Textarea 
-                  placeholder="Describe the claim details..." 
+                  placeholder="Detailed description of the claim..." 
                   className="min-h-[100px]"
                   {...field} 
                   data-testid="textarea-edit-description"
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        {/* Additional Important Fields */}
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={editForm.control}
+            name="policyNumber"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Policy Number</FormLabel>
+                <FormControl>
+                  <Input placeholder="Enter policy number" {...field} data-testid="input-edit-policy-number" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={editForm.control}
+            name="providerName"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Healthcare Provider/Hospital</FormLabel>
+                <FormControl>
+                  <Input placeholder="Provider or hospital name" {...field} data-testid="input-edit-provider-name" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+        
+        <FormField
+          control={editForm.control}
+          name="providerAddress"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Provider Address</FormLabel>
+              <FormControl>
+                <Input placeholder="Full address of provider/hospital" {...field} data-testid="input-edit-provider-address" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={editForm.control}
+            name="contactPhone"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Contact Phone</FormLabel>
+                <FormControl>
+                  <Input placeholder="Your phone number" type="tel" {...field} data-testid="input-edit-contact-phone" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={editForm.control}
+            name="emergencyContact"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Emergency Contact</FormLabel>
+                <FormControl>
+                  <Input placeholder="Emergency contact name" {...field} data-testid="input-edit-emergency-contact" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+        
+        <FormField
+          control={editForm.control}
+          name="emergencyPhone"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Emergency Contact Phone</FormLabel>
+              <FormControl>
+                <Input placeholder="Emergency contact phone number" type="tel" {...field} data-testid="input-edit-emergency-phone" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <FormField
+          control={editForm.control}
+          name="additionalNotes"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Additional Notes</FormLabel>
+              <FormControl>
+                <Textarea 
+                  placeholder="Any additional information or special circumstances..." 
+                  className="min-h-[80px]"
+                  {...field} 
+                  data-testid="textarea-edit-additional-notes"
                 />
               </FormControl>
               <FormMessage />
