@@ -2,7 +2,19 @@ import { useAuth } from "@/hooks/useAuth";
 import { useRoleAuth } from "@/hooks/useRoleAuth";
 import { useLogout } from "@/hooks/useLogout";
 import { Button } from "@/components/ui/button";
-import { Shield, Menu, X, ChevronDown, Settings, Heart, Users, FileText, HelpCircle, Phone, Grid3X3 } from "lucide-react";
+import {
+  Shield,
+  Menu,
+  X,
+  ChevronDown,
+  Settings,
+  Heart,
+  Users,
+  FileText,
+  HelpCircle,
+  Phone,
+  Grid3X3,
+} from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
@@ -23,7 +35,7 @@ export default function Navigation() {
   const { logout, isLoggingOut } = useLogout();
   const [location] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  
+
   // Type-safe user object
   const typedUser = user as any;
 
@@ -37,73 +49,73 @@ export default function Navigation() {
 
   const mainNavigation = [
     { name: "Home", href: "/", icon: null },
-    { name: "Get Quotes", href: "/quotes", icon: null },
-    { name: "Needs Analysis", href: "/needs-analysis", icon: null },
+    { name: "Quotes", href: "/quotes", icon: null },
+    { name: "Needs", href: "/needs-analysis", icon: null },
   ];
 
   const coverageTypes = [
-    { 
-      name: "Life Insurance", 
+    {
+      name: "Life Insurance",
       href: "/life-insurance",
       description: "Protect your family's financial future",
-      icon: "👨‍👩‍👧‍👦"
+      icon: "👨‍👩‍👧‍👦",
     },
-    { 
-      name: "Health Insurance", 
+    {
+      name: "Health Insurance",
       href: "/health-insurance",
       description: "Comprehensive medical coverage",
-      icon: "🏥"
+      icon: "🏥",
     },
-    { 
-      name: "Dental Insurance", 
+    {
+      name: "Dental Insurance",
       href: "/dental-insurance",
       description: "Oral health and dental care",
-      icon: "🦷"
+      icon: "🦷",
     },
-    { 
-      name: "Vision Insurance", 
+    {
+      name: "Vision Insurance",
       href: "/vision-insurance",
       description: "Eye care and vision services",
-      icon: "👁️"
+      icon: "👁️",
     },
-    { 
-      name: "Hospital Indemnity", 
+    {
+      name: "Hospital Indemnity",
       href: "/hospital-indemnity-insurance",
       description: "Additional hospital stay coverage",
-      icon: "🏥"
+      icon: "🏥",
     },
-    { 
-      name: "Discount Health Plans", 
+    {
+      name: "Discount Health Plans",
       href: "/discount-health-insurance",
       description: "Affordable healthcare savings",
-      icon: "💰"
+      icon: "💰",
     },
   ];
 
   const resourcesMenu = [
     {
       name: "Claims Assistance",
-      href: "/claims-assistance", 
+      href: "/claims-assistance",
       description: "Help with filing and managing claims",
-      icon: "📋"
+      icon: "📋",
     },
     {
       name: "About Us",
       href: "/about-us",
       description: "Learn about our company",
-      icon: "ℹ️"
+      icon: "ℹ️",
     },
     {
       name: "Privacy Policy",
       href: "/privacy-policy",
       description: "How we protect your information",
-      icon: "🔒"
+      icon: "🔒",
     },
     {
       name: "Terms of Service",
       href: "/terms-of-service",
       description: "Our service terms and conditions",
-      icon: "📜"
+      icon: "📜",
     },
   ];
 
@@ -308,19 +320,21 @@ export default function Navigation() {
                         </div>
                       </Link>
                     </DropdownMenuItem>
-                    
+
                     <RoleGuard requiredRoles={["Admin", "Agent", "Member"]}>
                       <DropdownMenuItem asChild>
                         <Link href="/dashboard/policies">My Policies</Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
-                        <Link href="/dashboard/applications">My Applications</Link>
+                        <Link href="/dashboard/applications">
+                          My Applications
+                        </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
                         <Link href="/dashboard/claims">My Claims</Link>
                       </DropdownMenuItem>
                     </RoleGuard>
-                    
+
                     <RoleGuard requiredRoles={["Admin", "Agent"]}>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem asChild>
@@ -330,21 +344,20 @@ export default function Navigation() {
                         <Link href="/dashboard/members">Members</Link>
                       </DropdownMenuItem>
                     </RoleGuard>
-                    
+
                     <RoleGuard requiredRoles={["Admin"]}>
                       <DropdownMenuItem asChild>
-                        <Link href="/dashboard/user-management">User Management</Link>
+                        <Link href="/dashboard/user-management">
+                          User Management
+                        </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
                         <Link href="/dashboard/analytics">Analytics</Link>
                       </DropdownMenuItem>
                     </RoleGuard>
-                    
+
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={logout}
-                      disabled={isLoggingOut}
-                    >
+                    <DropdownMenuItem onClick={logout} disabled={isLoggingOut}>
                       {isLoggingOut ? "Logging out..." : "Log out"}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -358,9 +371,7 @@ export default function Navigation() {
                   </Button>
                 </Link>
                 <Link href="/signup">
-                  <Button data-testid="button-nav-signup">
-                    Get Started
-                  </Button>
+                  <Button data-testid="button-nav-signup">Get Started</Button>
                 </Link>
               </>
             )}
@@ -434,7 +445,9 @@ export default function Navigation() {
                         <span className="text-base mr-3">{type.icon}</span>
                         <div>
                           <div className="text-sm font-medium">{type.name}</div>
-                          <div className="text-xs text-gray-500">{type.description}</div>
+                          <div className="text-xs text-gray-500">
+                            {type.description}
+                          </div>
                         </div>
                       </div>
                     </Link>
@@ -461,7 +474,9 @@ export default function Navigation() {
                         <span className="text-base mr-3">{item.icon}</span>
                         <div>
                           <div className="text-sm font-medium">{item.name}</div>
-                          <div className="text-xs text-gray-500">{item.description}</div>
+                          <div className="text-xs text-gray-500">
+                            {item.description}
+                          </div>
                         </div>
                       </div>
                     </Link>
