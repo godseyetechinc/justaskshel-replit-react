@@ -1,178 +1,73 @@
 # JustAskShel Database Scripts
 
-This directory contains comprehensive SQL scripts for managing the JustAskShel Insurance Platform database schema and data.
+This directory contains organized SQL scripts for managing the JustAskShel database schema, seeding data, and database operations.
 
-## Overview
-
-The JustAskShel platform uses a PostgreSQL database with a comprehensive schema supporting multi-tenant insurance operations, including user management, policy administration, claims processing, and loyalty programs.
-
-## File Structure
+## Directory Structure
 
 ```
 database-scripts/
-└── sql/
-    ├── 01_create_schema.sql    # Complete database schema creation
-    ├── 02_seed_data.sql        # Initial data population
-    ├── 03_drop_schema.sql      # Complete schema removal
-    └── 04_utility_queries.sql  # Monitoring and maintenance queries
+├── README.md                  # This documentation
+├── run_scripts.sh            # Master execution script
+├── schema/                   # Schema lifecycle scripts
+│   ├── 00_init.sql          # Database initialization
+│   ├── 01_create_schema.sql # Complete schema creation
+│   └── 99_drop_schema.sql   # Schema cleanup (DESTRUCTIVE)
+├── tables/                   # Table DDL scripts
+│   ├── 10_create_core_tables.sql        # Core authentication tables
+│   ├── 20_create_insurance_tables.sql   # Insurance domain tables
+│   ├── 30_create_policy_claims_tables.sql # Policies and claims
+│   ├── 40_create_association_tables.sql # Member/contact associations
+│   └── 90_drop_all_tables.sql          # Drop all tables (DESTRUCTIVE)
+├── seed/                     # Data seeding scripts
+│   ├── 10_base_seed.sql     # Essential reference data
+│   ├── 20_test_accounts_seed.sql # Test user accounts
+│   └── 30_sample_data_seed.sql   # Sample policies and claims
+└── objects/                  # Database objects (indexes, views, etc.)
+    └── 10_create_indexes.sql # Performance indexes
 ```
 
-## Database Architecture
+## Execution Order
 
-### Core Components
+Scripts are numbered to ensure correct execution order:
 
-- **Multi-Tenant Architecture**: Support for multiple insurance organizations
-- **Role-Based Access Control**: 6-tier privilege system (SuperAdmin to Visitor)
-- **Comprehensive Insurance Management**: Quotes, policies, claims, and applications
-- **External Provider Integration**: Real-time quote aggregation from multiple providers
-- **Loyalty & Rewards System**: Points, tiers, and redemption management
-- **Advanced Claims Processing**: Document management and workflow tracking
+1. **Schema (00-09)**: Database initialization and schema creation
+2. **Tables (10-49)**: Table creation in dependency order
+3. **Objects (10-19)**: Indexes, views, triggers, constraints
+4. **Seed (10-39)**: Data seeding in logical order
+5. **Drop (90-99)**: Cleanup scripts (executed in reverse order)
 
-### Key Tables
+## Usage
 
-| Category | Tables | Purpose |
-|----------|--------|---------|
-| **Authentication** | sessions, users, roles | User management and session handling |
-| **Organizations** | agent_organizations | Multi-tenant organization structure |
-| **Insurance Core** | insurance_types, insurance_providers | Coverage types and provider data |
-| **Quotes & Policies** | insurance_quotes, policies, selected_quotes | Quote management and policy tracking |
-| **External Integration** | external_quote_requests | API quote request tracking |
-| **Claims** | claims, claim_documents, claim_communications | Claims processing and documentation |
-| **Members** | members, contacts, dependents | Customer and relationship management |
-| **Applications** | applications, applicants, applicant_dependents | Insurance application processing |
-| **Loyalty Program** | points_transactions, rewards, points_summary | Customer loyalty and rewards |
+### Using the Master Script (Recommended)
 
-## Usage Instructions
-
-### 1. Initial Database Setup
-
-Create a fresh database with complete schema and seed data:
+The `run_scripts.sh` provides a safe, automated way to execute scripts:
 
 ```bash
-# Step 1: Create all tables and indexes
-psql -d your_database -f sql/01_create_schema.sql
+# Create complete database with data
+./run_scripts.sh development create
 
-# Step 2: Populate with initial data
-psql -d your_database -f sql/02_seed_data.sql
+# Drop all database objects (DESTRUCTIVE)
+./run_scripts.sh development drop
+
+# Show help
+./run_scripts.sh help
 ```
 
-### 2. Database Reset
+## Test Accounts
 
-Complete database cleanup and recreation:
+The scripts create these test accounts for development:
 
-```bash
-# Step 1: Drop all existing tables and data (DESTRUCTIVE!)
-psql -d your_database -f sql/03_drop_schema.sql
+| Email | Password | Role | Privilege Level |
+|-------|----------|------|----------------|
+| superadmin@justaskshel.com | password123 | SuperAdmin | 0 |
+| admin1@justaskshel.com | password123 | LandlordAdmin | 1 |
+| agent1@justaskshel.com | password123 | Agent | 2 |
+| member1@justaskshel.com | password123 | Member | 3 |
 
-# Step 2: Recreate schema
-psql -d your_database -f sql/01_create_schema.sql
+## Safety Features
 
-# Step 3: Repopulate with seed data
-psql -d your_database -f sql/02_seed_data.sql
-```
-
-### 3. Monitoring and Maintenance
-
-Run analytics and maintenance queries:
-
-```bash
-# Execute utility queries for monitoring
-psql -d your_database -f sql/04_utility_queries.sql
-```
-
-## Initial Data Included
-
-### Organizations
-- **Demo Insurance Agency** (Professional plan, 15 agents, 500 members)
-- **ABC Insurance Group** (Enterprise plan, 25 agents, 1000 members)
-- **QuickQuote Insurance** (Basic plan, 10 agents, 250 members)
-
-### Users
-- **1 SuperAdmin**: Cross-tenant system administrator
-- **3 TenantAdmins**: One per organization
-- **5 Agents**: Distributed across organizations
-- **5 Members**: Sample customer accounts
-
-### System Data
-- **6 Insurance Types**: Life, Health, Dental, Vision, Hospital Indemnity, Discount Plans
-- **15 Insurance Providers**: Major insurance companies with ratings
-- **Sample Quotes**: Various coverage types and amounts
-- **Active Policies**: Live policies with payment schedules
-- **Sample Claims**: Different claim types and statuses
-- **Loyalty System**: Points rules, rewards catalog, and member balances
-
-## Security Features
-
-- **Password Hashing**: All passwords use bcrypt encryption
-- **Role-Based Permissions**: Detailed JSON permission structures
-- **Multi-Tenant Isolation**: Organization-based data segregation
-- **Secure Session Management**: PostgreSQL-backed session storage
-
-## Performance Optimizations
-
-- **Strategic Indexing**: Optimized indexes on frequently queried columns
-- **Foreign Key Relationships**: Proper referential integrity
-- **Query Optimization**: Efficient table structures for common operations
-- **Connection Pooling**: Ready for connection pool configurations
-
-## Environment Integration
-
-These scripts are designed to work with:
-
-- **Production Environment**: Neon PostgreSQL serverless database
-- **Development Environment**: Local PostgreSQL installations
-- **Testing Environment**: Isolated test database instances
-
-## Backup and Recovery
-
-The utility queries include:
-- **Data integrity checks**
-- **Backup verification queries**
-- **Orphaned record identification**
-- **Performance monitoring**
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Permission Errors**: Ensure database user has CREATE, INSERT, UPDATE, DELETE permissions
-2. **Foreign Key Violations**: Run scripts in the specified order
-3. **Sequence Conflicts**: Seed data script includes sequence reset commands
-4. **Missing Extensions**: pgcrypto extension required for UUID generation
-
-### Verification Queries
-
-After setup, verify installation:
-
-```sql
--- Check table creation
-SELECT table_name FROM information_schema.tables 
-WHERE table_schema = 'public' ORDER BY table_name;
-
--- Verify seed data
-SELECT 'users' as table_name, count(*) as records FROM users
-UNION ALL
-SELECT 'policies', count(*) FROM policies
-UNION ALL  
-SELECT 'claims', count(*) FROM claims;
-```
-
-## Development Notes
-
-- Scripts are compatible with PostgreSQL 12+
-- All timestamps use UTC timezone
-- JSON columns use JSONB for performance
-- Sequences are properly managed to avoid conflicts
-
-## Support
-
-For issues or questions regarding the database schema:
-
-1. Check the utility queries for diagnostic information
-2. Verify all scripts ran successfully in order
-3. Review PostgreSQL logs for specific error messages
-4. Ensure proper database permissions and connectivity
-
----
-
-**⚠️ Important**: Always backup your database before running drop or modification scripts. The `03_drop_schema.sql` script permanently removes all data.
+- **Idempotent Scripts**: All scripts can be run multiple times safely
+- **Transaction Wrapping**: Critical operations are wrapped in transactions
+- **Confirmation Prompts**: Destructive operations require explicit confirmation
+- **Environment Checks**: Production operations require additional confirmation
+- **Dependency Validation**: Scripts verify prerequisites before execution
