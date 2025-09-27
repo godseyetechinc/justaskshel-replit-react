@@ -62,6 +62,29 @@ import { format } from "date-fns";
 import { ObjectUploader } from "@/components/ObjectUploader";
 import type { UploadResult } from "@uppy/core";
 
+// Helper function to parse comprehensive claim data from JSON description
+function parseClaimData(claim: any) {
+  try {
+    if (claim?.description && typeof claim.description === 'string' && claim.description.startsWith('{')) {
+      const parsed = JSON.parse(claim.description);
+      return {
+        ...claim,
+        description: parsed.originalDescription || claim.description,
+        policyNumber: parsed.comprehensiveData?.policyNumber || '',
+        providerName: parsed.comprehensiveData?.providerName || '',
+        providerAddress: parsed.comprehensiveData?.providerAddress || '',
+        contactPhone: parsed.comprehensiveData?.contactPhone || '',
+        emergencyContact: parsed.comprehensiveData?.emergencyContact || '',
+        emergencyPhone: parsed.comprehensiveData?.emergencyPhone || '',
+        additionalNotes: parsed.comprehensiveData?.additionalNotes || '',
+      };
+    }
+  } catch (error) {
+    console.warn('Failed to parse claim description JSON:', error);
+  }
+  return claim;
+}
+
 const statusColors = {
   draft: "bg-gray-500",
   submitted: "bg-blue-500",
@@ -112,6 +135,9 @@ function EditClaimForm({ claim, onClose, onUpdate }: { claim: any; onClose: () =
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Parse claim data to extract comprehensive fields from JSON
+  const parsedClaim = parseClaimData(claim);
+
   // Update claim mutation
   const updateClaimMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -119,6 +145,19 @@ function EditClaimForm({ claim, onClose, onUpdate }: { claim: any; onClose: () =
         ...data,
         incidentDate: data.incidentDate,
         estimatedAmount: data.estimatedAmount ? data.estimatedAmount.toString() : null,
+        // Store comprehensive data back in JSON format for now
+        description: JSON.stringify({
+          originalDescription: data.description,
+          comprehensiveData: {
+            policyNumber: data.policyNumber,
+            providerName: data.providerName,
+            providerAddress: data.providerAddress,
+            contactPhone: data.contactPhone,
+            emergencyContact: data.emergencyContact,
+            emergencyPhone: data.emergencyPhone,
+            additionalNotes: data.additionalNotes,
+          }
+        })
       };
       return apiRequest(`/api/claims/${claim?.id}`, { 
         method: "PUT", 
@@ -140,19 +179,19 @@ function EditClaimForm({ claim, onClose, onUpdate }: { claim: any; onClose: () =
   const editForm = useForm({
     resolver: zodResolver(claimFormSchema),
     defaultValues: {
-      title: claim?.title || "",
-      description: claim?.description || "",
-      claimType: claim?.claimType || "",
-      incidentDate: claim?.incidentDate ? new Date(claim.incidentDate).toISOString().split('T')[0] : "",
-      estimatedAmount: claim?.estimatedAmount || "",
-      priority: claim?.priority || "normal",
-      policyNumber: claim?.policyNumber || "",
-      providerName: claim?.providerName || "",
-      providerAddress: claim?.providerAddress || "",
-      contactPhone: claim?.contactPhone || "",
-      emergencyContact: claim?.emergencyContact || "",
-      emergencyPhone: claim?.emergencyPhone || "",
-      additionalNotes: claim?.additionalNotes || "",
+      title: parsedClaim?.title || "",
+      description: parsedClaim?.description || "",
+      claimType: parsedClaim?.claimType || "",
+      incidentDate: parsedClaim?.incidentDate ? new Date(parsedClaim.incidentDate).toISOString().split('T')[0] : "",
+      estimatedAmount: parsedClaim?.estimatedAmount || "",
+      priority: parsedClaim?.priority || "normal",
+      policyNumber: parsedClaim?.policyNumber || "",
+      providerName: parsedClaim?.providerName || "",
+      providerAddress: parsedClaim?.providerAddress || "",
+      contactPhone: parsedClaim?.contactPhone || "",
+      emergencyContact: parsedClaim?.emergencyContact || "",
+      emergencyPhone: parsedClaim?.emergencyPhone || "",
+      additionalNotes: parsedClaim?.additionalNotes || "",
     },
   });
 
@@ -1311,85 +1350,136 @@ export default function ClaimsWorkflow() {
               </DialogDescription>
             </DialogHeader>
             
-            {selectedClaim && (
-              <Tabs defaultValue="overview" className="space-y-4">
-                <TabsList className="grid w-full grid-cols-4">
-                  <TabsTrigger value="overview">Overview</TabsTrigger>
-                  <TabsTrigger value="workflow">Workflow</TabsTrigger>
-                  <TabsTrigger value="communications">Communications</TabsTrigger>
-                  <TabsTrigger value="documents">Documents</TabsTrigger>
-                </TabsList>
+            {selectedClaim && (() => {
+              const parsedClaim = parseClaimData(selectedClaim);
+              return (
+                <Tabs defaultValue="overview" className="space-y-4">
+                  <TabsList className="grid w-full grid-cols-4">
+                    <TabsTrigger value="overview">Overview</TabsTrigger>
+                    <TabsTrigger value="workflow">Workflow</TabsTrigger>
+                    <TabsTrigger value="communications">Communications</TabsTrigger>
+                    <TabsTrigger value="documents">Documents</TabsTrigger>
+                  </TabsList>
 
-                <TabsContent value="overview">
-                  <Card>
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <CardTitle>Claim Information</CardTitle>
-                        <Badge className={`${statusColors[selectedClaim.status as keyof typeof statusColors]} text-white`}>
-                          {selectedClaim.status.replace('_', ' ')}
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                      <div className="grid grid-cols-2 gap-6">
-                        <div className="space-y-4">
-                          <div>
-                            <label className="text-sm font-medium text-gray-700">Title</label>
-                            <p className="text-sm text-gray-900">{selectedClaim.title}</p>
-                          </div>
-                          <div>
-                            <label className="text-sm font-medium text-gray-700">Claim Type</label>
-                            <p className="text-sm text-gray-900 capitalize">{selectedClaim.claimType}</p>
-                          </div>
-                          <div>
-                            <label className="text-sm font-medium text-gray-700">Priority</label>
-                            <Badge className={`${priorityColors[selectedClaim.priority as keyof typeof priorityColors]} text-xs`}>
-                              {selectedClaim.priority}
+                  <TabsContent value="overview">
+                    <div className="space-y-6">
+                      <Card>
+                        <CardHeader>
+                          <div className="flex items-center justify-between">
+                            <CardTitle>Claim Information</CardTitle>
+                            <Badge className={`${statusColors[parsedClaim.status as keyof typeof statusColors]} text-white`}>
+                              {parsedClaim.status.replace('_', ' ')}
                             </Badge>
                           </div>
-                        </div>
-                        <div className="space-y-4">
-                          <div>
-                            <label className="text-sm font-medium text-gray-700">Incident Date</label>
-                            <p className="text-sm text-gray-900">
-                              {selectedClaim.incidentDate ? (() => {
-                                try {
-                                  return format(new Date(selectedClaim.incidentDate), 'MMM dd, yyyy');
-                                } catch {
-                                  return "Invalid date";
-                                }
-                              })() : 'N/A'}
-                            </p>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                          <div className="grid grid-cols-2 gap-6">
+                            <div className="space-y-4">
+                              <div>
+                                <label className="text-sm font-medium text-gray-700">Title</label>
+                                <p className="text-sm text-gray-900">{parsedClaim.title}</p>
+                              </div>
+                              <div>
+                                <label className="text-sm font-medium text-gray-700">Claim Type</label>
+                                <p className="text-sm text-gray-900 capitalize">{parsedClaim.claimType}</p>
+                              </div>
+                              <div>
+                                <label className="text-sm font-medium text-gray-700">Priority</label>
+                                <Badge className={`${priorityColors[parsedClaim.priority as keyof typeof priorityColors]} text-xs`}>
+                                  {parsedClaim.priority}
+                                </Badge>
+                              </div>
+                            </div>
+                            <div className="space-y-4">
+                              <div>
+                                <label className="text-sm font-medium text-gray-700">Incident Date</label>
+                                <p className="text-sm text-gray-900">
+                                  {parsedClaim.incidentDate ? (() => {
+                                    try {
+                                      return format(new Date(parsedClaim.incidentDate), 'MMM dd, yyyy');
+                                    } catch {
+                                      return "Invalid date";
+                                    }
+                                  })() : 'N/A'}
+                                </p>
+                              </div>
+                              <div>
+                                <label className="text-sm font-medium text-gray-700">Estimated Amount</label>
+                                <p className="text-sm text-gray-900">
+                                  {parsedClaim.estimatedAmount ? `$${parseFloat(parsedClaim.estimatedAmount).toFixed(2)}` : 'N/A'}
+                                </p>
+                              </div>
+                              <div>
+                                <label className="text-sm font-medium text-gray-700">Created</label>
+                                <p className="text-sm text-gray-900">
+                                  {(() => {
+                                    try {
+                                      return format(new Date(parsedClaim.createdAt), 'MMM dd, yyyy');
+                                    } catch {
+                                      return "Invalid date";
+                                    }
+                                  })()}
+                                </p>
+                              </div>
+                            </div>
                           </div>
                           <div>
-                            <label className="text-sm font-medium text-gray-700">Estimated Amount</label>
-                            <p className="text-sm text-gray-900">
-                              {selectedClaim.estimatedAmount ? `$${parseFloat(selectedClaim.estimatedAmount).toFixed(2)}` : 'N/A'}
-                            </p>
+                            <label className="text-sm font-medium text-gray-700">Description</label>
+                            <p className="text-sm text-gray-900 mt-1">{parsedClaim.description || 'No description provided'}</p>
                           </div>
-                          <div>
-                            <label className="text-sm font-medium text-gray-700">Created</label>
-                            <p className="text-sm text-gray-900">
-                              {(() => {
-                                try {
-                                  return format(new Date(selectedClaim.createdAt), 'MMM dd, yyyy');
-                                } catch {
-                                  return "Invalid date";
-                                }
-                              })()}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-gray-700">Description</label>
-                        <p className="text-sm text-gray-900 mt-1">{selectedClaim.description || 'No description provided'}</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
+                        </CardContent>
+                      </Card>
 
-                <TabsContent value="workflow">
+                      {/* Comprehensive Data Section */}
+                      {(parsedClaim.policyNumber || parsedClaim.providerName || parsedClaim.contactPhone) && (
+                        <Card>
+                          <CardHeader>
+                            <CardTitle>Provider & Contact Information</CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-6">
+                            <div className="grid grid-cols-2 gap-6">
+                              <div className="space-y-4">
+                                <div>
+                                  <label className="text-sm font-medium text-gray-700">Policy Number</label>
+                                  <p className="text-sm text-gray-900">{parsedClaim.policyNumber || 'N/A'}</p>
+                                </div>
+                                <div>
+                                  <label className="text-sm font-medium text-gray-700">Provider Name</label>
+                                  <p className="text-sm text-gray-900">{parsedClaim.providerName || 'N/A'}</p>
+                                </div>
+                                <div>
+                                  <label className="text-sm font-medium text-gray-700">Contact Phone</label>
+                                  <p className="text-sm text-gray-900">{parsedClaim.contactPhone || 'N/A'}</p>
+                                </div>
+                              </div>
+                              <div className="space-y-4">
+                                <div>
+                                  <label className="text-sm font-medium text-gray-700">Emergency Contact</label>
+                                  <p className="text-sm text-gray-900">{parsedClaim.emergencyContact || 'N/A'}</p>
+                                </div>
+                                <div>
+                                  <label className="text-sm font-medium text-gray-700">Emergency Phone</label>
+                                  <p className="text-sm text-gray-900">{parsedClaim.emergencyPhone || 'N/A'}</p>
+                                </div>
+                                <div>
+                                  <label className="text-sm font-medium text-gray-700">Provider Address</label>
+                                  <p className="text-sm text-gray-900">{parsedClaim.providerAddress || 'N/A'}</p>
+                                </div>
+                              </div>
+                            </div>
+                            {parsedClaim.additionalNotes && (
+                              <div>
+                                <label className="text-sm font-medium text-gray-700">Additional Notes</label>
+                                <p className="text-sm text-gray-900 mt-1">{parsedClaim.additionalNotes}</p>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      )}
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="workflow">
                   <Card>
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
@@ -1673,7 +1763,8 @@ export default function ClaimsWorkflow() {
                   </Card>
                 </TabsContent>
               </Tabs>
-            )}
+              );
+            })()}
           </DialogContent>
         </Dialog>
 
