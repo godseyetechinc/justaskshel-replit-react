@@ -65,20 +65,52 @@ export async function seedUsers() {
 
     const passwordHash = await generatePasswordHash();
 
-    // Create admins (5)
-    const adminUsers = [];
-    for (let i = 0; i < 5; i++) {
+    // Create essential test accounts first
+    console.log('Creating essential test accounts...');
+    
+    // SuperAdmin account
+    const [superAdmin] = await db.insert(users).values({
+      email: 'superadmin@justaskshel.com',
+      password: passwordHash,
+      role: 'SuperAdmin' as const,
+      privilegeLevel: 0,
+      isActive: true,
+    }).returning();
+    
+    // LandlordAdmin account  
+    const [landlordAdmin] = await db.insert(users).values({
+      email: 'admin1@justaskshel.com',
+      password: passwordHash,
+      role: 'LandlordAdmin' as const,
+      privilegeLevel: 1,
+      isActive: true,
+    }).returning();
+    
+    // Agent account
+    const [testAgent] = await db.insert(users).values({
+      email: 'agent1@justaskshel.com',
+      password: passwordHash,
+      role: 'Agent' as const,
+      privilegeLevel: 2,
+      isActive: true,
+    }).returning();
+    
+    console.log('Created essential test accounts: SuperAdmin, LandlordAdmin, Agent');
+
+    // Create additional admins (4 more)
+    const adminUsers = [landlordAdmin]; // Include the test admin
+    for (let i = 2; i <= 5; i++) {
       const firstName = faker.person.firstName();
       const lastName = faker.person.lastName();
-      const email = `admin${i + 1}@justaskshel.com`;
+      const email = `admin${i}@justaskshel.com`;
       
       const [admin] = await db.insert(users).values({
         email,
         firstName,
         lastName,
         password: passwordHash,
-        role: 'Agent' as const,
-        privilegeLevel: 2,
+        role: 'LandlordAdmin' as const,
+        privilegeLevel: 1,
         isActive: true,
         phone: generatePhoneNumber(),
         address: faker.location.streetAddress(),
@@ -97,12 +129,12 @@ export async function seedUsers() {
 
     console.log('Created 5 admin users with contacts');
 
-    // Create agents (10)
-    const agentUsers = [];
-    for (let i = 0; i < 10; i++) {
+    // Create agents (9 more)
+    const agentUsers = [testAgent]; // Include the test agent
+    for (let i = 2; i <= 10; i++) {
       const firstName = faker.person.firstName();
       const lastName = faker.person.lastName();
-      const email = `agent${i + 1}@justaskshel.com`;
+      const email = `agent${i}@justaskshel.com`;
       
       const [agent] = await db.insert(users).values({
         email,

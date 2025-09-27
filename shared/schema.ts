@@ -33,8 +33,8 @@ export const users = pgTable("users", {
   email: varchar("email").unique(), // Keep for authentication
   profileImageUrl: varchar("profile_image_url"),
   password: varchar("password", { length: 255 }), // Hashed password
-  role: varchar("role", { enum: ["SuperAdmin", "TenantAdmin", "Agent", "Member", "Guest", "Visitor"] }).default("Guest"),
-  privilegeLevel: integer("privilege_level").default(4), // 0=SuperAdmin, 1=TenantAdmin, 2=Agent, 3=Member, 4=Guest, 5=Visitor
+  role: varchar("role", { enum: ["SuperAdmin", "LandlordAdmin", "Agent", "Member", "Guest", "Visitor"] }).default("Guest"),
+  privilegeLevel: integer("privilege_level").default(4), // 0=SuperAdmin, 1=LandlordAdmin, 2=Agent, 3=Member, 4=Guest, 5=Visitor
   organizationId: integer("organization_id").references(() => agentOrganizations.id),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
