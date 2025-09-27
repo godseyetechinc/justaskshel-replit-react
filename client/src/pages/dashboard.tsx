@@ -7,6 +7,29 @@ import DashboardLayout from "@/components/dashboard-layout";
 import { Shield, FileText, Star, Users, TrendingUp, Clock, BarChart3, UserPlus } from "lucide-react";
 import { Link } from "wouter";
 
+// Helper function to parse comprehensive claim data from JSON description
+function parseClaimData(claim: any) {
+  try {
+    if (claim?.description && typeof claim.description === 'string' && claim.description.startsWith('{')) {
+      const parsed = JSON.parse(claim.description);
+      return {
+        ...claim,
+        description: parsed.originalDescription || claim.description,
+        policyNumber: parsed.comprehensiveData?.policyNumber || '',
+        providerName: parsed.comprehensiveData?.providerName || '',
+        providerAddress: parsed.comprehensiveData?.providerAddress || '',
+        contactPhone: parsed.comprehensiveData?.contactPhone || '',
+        emergencyContact: parsed.comprehensiveData?.emergencyContact || '',
+        emergencyPhone: parsed.comprehensiveData?.emergencyPhone || '',
+        additionalNotes: parsed.comprehensiveData?.additionalNotes || '',
+      };
+    }
+  } catch (error) {
+    console.warn('Failed to parse claim description JSON:', error);
+  }
+  return claim;
+}
+
 export default function Dashboard() {
   const { user, userRole, isAdmin, isAgent } = useRoleAuth();
   
@@ -140,19 +163,25 @@ export default function Dashboard() {
           <CardContent>
             {claims && Array.isArray(claims) && claims.length > 0 ? (
               <div className="space-y-4">
-                {claims.slice(0, 3).map((claim: any) => (
-                  <div key={claim.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div>
-                      <p className="font-medium text-gray-900">Claim #{claim.claimNumber}</p>
-                      <p className="text-sm text-gray-600">{claim.description}</p>
+                {claims.slice(0, 3).map((claim: any) => {
+                  const parsedClaim = parseClaimData(claim);
+                  return (
+                    <div key={claim.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div>
+                        <p className="font-medium text-gray-900">Claim #{parsedClaim.claimNumber}</p>
+                        <p className="text-sm text-gray-600">{parsedClaim.description || 'No description provided'}</p>
+                        {parsedClaim.providerName && (
+                          <p className="text-xs text-gray-500 mt-1">Provider: {parsedClaim.providerName}</p>
+                        )}
+                      </div>
+                      <Badge 
+                        variant={parsedClaim.status === "approved" ? "default" : "secondary"}
+                      >
+                        {parsedClaim.status}
+                      </Badge>
                     </div>
-                    <Badge 
-                      variant={claim.status === "approved" ? "default" : "secondary"}
-                    >
-                      {claim.status}
-                    </Badge>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <p className="text-gray-500 text-center py-8">No recent activity</p>
