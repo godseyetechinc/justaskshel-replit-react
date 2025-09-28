@@ -101,6 +101,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         role: user.role,
         privilegeLevel: user.privilegeLevel,
       });
+      
+      // Award daily login points for authenticated users
+      try {
+        await pointsService.awardDailyLoginPoints(userId);
+      } catch (error) {
+        console.error("Error awarding daily login points:", error);
+        // Don't fail the auth request if points fail
+      }
+      
       res.json(user);
     } catch (error) {
       console.error("Error fetching user:", error);
@@ -187,6 +196,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Set session
       (req.session as any).userId = user.id;
+
+      // Award daily login points for successful login
+      try {
+        await pointsService.awardDailyLoginPoints(user.id);
+      } catch (error) {
+        console.error("Error awarding daily login points:", error);
+        // Don't fail the login request if points fail
+      }
 
       res.json({
         message: "Login successful",

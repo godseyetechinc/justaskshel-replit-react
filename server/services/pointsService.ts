@@ -1,6 +1,6 @@
 import { db } from "../db";
 import { pointsTransactions, pointsSummary, pointsRules, users } from "../../shared/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 
 export interface ActivityPoints {
   activity: string;
@@ -291,6 +291,37 @@ export class PointsService {
       }
     } catch (error) {
       console.error(`Error checking tier progression for user ${userId}:`, error);
+    }
+  }
+
+  /**
+   * Award daily login points if user hasn't logged in today
+   */
+  async awardDailyLoginPoints(userId: string): Promise<any> {
+    try {
+      // Check if user already earned login points today
+      const now = new Date();
+      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+      const todaysLoginPoints = await db.select().from(pointsTransactions)
+        .where(and(
+          eq(pointsTransactions.userId, userId),
+          eq(pointsTransactions.category, "Login"),
+          eq(pointsTransactions.transactionType, "Earned"),
+          sql`${pointsTransactions.createdAt} >= ${startOfDay}`
+        ));
+
+      if (todaysLoginPoints.length > 0) {
+        console.log(`User ${userId} already received daily login points today`);
+        return null;
+      }
+
+      // Award daily login points
+      return await this.awardPointsForActivity(userId, "DAILY_LOGIN");
+
+    } catch (error) {
+      console.error(`Error awarding daily login points to user ${userId}:`, error);
+      throw error;
     }
   }
 
