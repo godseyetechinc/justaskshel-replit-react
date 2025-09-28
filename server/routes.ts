@@ -3138,11 +3138,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // User Points Insights - Personal Analytics
   app.get("/api/user/insights", async (req: any, res) => {
     try {
-      if (!req.session?.user?.id) {
+      console.log("User insights request - session user:", req.session?.user);
+      
+      const userId = req.session?.user?.id;
+      if (!userId) {
         return res.status(401).json({ message: "Authentication required" });
       }
 
-      const insights = await analyticsService.getUserInsights(req.session.user.id);
+      const insights = await analyticsService.getUserInsights(userId);
       if (!insights) {
         return res.status(404).json({ message: "User insights not found" });
       }

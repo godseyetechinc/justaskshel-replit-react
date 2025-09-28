@@ -81,7 +81,8 @@ const PointsAnalyticsDashboard = () => {
 
   // Fetch points trends
   const { data: trends, isLoading: trendsLoading } = useQuery<PointsTrend[]>({
-    queryKey: ['/api/admin/analytics/points-trends', { days: selectedDays }],
+    queryKey: ['/api/admin/analytics/points-trends', selectedDays],
+    queryFn: () => fetch(`/api/admin/analytics/points-trends?days=${selectedDays}`).then(res => res.json()),
     enabled: true
   });
 
