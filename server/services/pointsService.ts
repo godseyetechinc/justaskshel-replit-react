@@ -62,9 +62,9 @@ export class PointsService {
     },
     WELCOME_BONUS: {
       activity: "WELCOME_BONUS",
-      points: 100,
+      points: 1000,
       description: "Welcome bonus for new users",
-      category: "Bonus"
+      category: "Welcome"
     }
   };
 
