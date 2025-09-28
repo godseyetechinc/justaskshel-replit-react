@@ -908,6 +908,89 @@ export type InsertRewardRedemption = typeof rewardRedemptions.$inferInsert;
 export type PointsRule = typeof pointsRules.$inferSelect;
 export type InsertPointsRule = typeof pointsRules.$inferInsert;
 
+// ===== PHASE 5: SEASONAL CAMPAIGNS SCHEMA =====
+
+// Seasonal campaigns for holiday bonuses and limited-time events
+export const seasonalCampaigns = pgTable("seasonal_campaigns", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 200 }).notNull(),
+  description: text("description"),
+  campaignType: varchar("campaign_type", { 
+    enum: ["Holiday", "Special Event", "Milestone", "Seasonal", "Anniversary"] 
+  }).notNull(),
+  pointsMultiplier: decimal("points_multiplier", { precision: 3, scale: 2 }).default("1.00"), // e.g., 1.5x points
+  bonusPoints: integer("bonus_points").default(0), // flat bonus points
+  isActive: boolean("is_active").default(true),
+  autoStart: boolean("auto_start").default(false), // auto-activate on start date
+  autoEnd: boolean("auto_end").default(true), // auto-deactivate on end date
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  targetUserTiers: varchar("target_user_tiers").array(), // ["Bronze", "Silver"] - empty array means all tiers
+  targetCategories: varchar("target_categories").array(), // point rule categories to apply multiplier
+  maxParticipants: integer("max_participants"), // optional participant limit
+  currentParticipants: integer("current_participants").default(0),
+  conditions: jsonb("conditions"), // additional campaign conditions
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Campaign participation tracking
+export const campaignParticipations = pgTable("campaign_participations", {
+  id: serial("id").primaryKey(),
+  campaignId: integer("campaign_id").references(() => seasonalCampaigns.id).notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  pointsEarned: integer("points_earned").default(0),
+  bonusPointsEarned: integer("bonus_points_earned").default(0),
+  participatedAt: timestamp("participated_at").defaultNow(),
+  isActive: boolean("is_active").default(true),
+});
+
+// Seasonal achievements - special achievements available during campaigns
+export const seasonalAchievements = pgTable("seasonal_achievements", {
+  id: serial("id").primaryKey(),
+  campaignId: integer("campaign_id").references(() => seasonalCampaigns.id),
+  name: varchar("name", { length: 200 }).notNull(),
+  description: text("description"),
+  icon: varchar("icon", { length: 100 }),
+  category: varchar("category", { 
+    enum: ["Holiday", "Seasonal", "Special Event", "Challenge", "Milestone"] 
+  }).notNull(),
+  pointsReward: integer("points_reward").default(0),
+  requirement: jsonb("requirement"), // conditions to unlock achievement
+  isRepeatable: boolean("is_repeatable").default(false),
+  maxUnlocks: integer("max_unlocks").default(1),
+  unlockOrder: integer("unlock_order").default(1), // for sequential achievements
+  isActive: boolean("is_active").default(true),
+  validFrom: timestamp("valid_from").defaultNow(),
+  validUntil: timestamp("valid_until"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// User seasonal achievement unlocks
+export const userSeasonalAchievements = pgTable("user_seasonal_achievements", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  achievementId: integer("achievement_id").references(() => seasonalAchievements.id).notNull(),
+  campaignId: integer("campaign_id").references(() => seasonalCampaigns.id).notNull(),
+  pointsAwarded: integer("points_awarded").default(0),
+  unlockedAt: timestamp("unlocked_at").defaultNow(),
+  tier: varchar("tier", { 
+    enum: ["Bronze", "Silver", "Gold", "Platinum", "Diamond"] 
+  }),
+  progressData: jsonb("progress_data"), // additional progress information
+});
+
+// Seasonal campaigns types
+export type SeasonalCampaign = typeof seasonalCampaigns.$inferSelect;
+export type InsertSeasonalCampaign = typeof seasonalCampaigns.$inferInsert;
+export type CampaignParticipation = typeof campaignParticipations.$inferSelect;
+export type InsertCampaignParticipation = typeof campaignParticipations.$inferInsert;
+export type SeasonalAchievement = typeof seasonalAchievements.$inferSelect;
+export type InsertSeasonalAchievement = typeof seasonalAchievements.$inferInsert;
+export type UserSeasonalAchievement = typeof userSeasonalAchievements.$inferSelect;
+export type InsertUserSeasonalAchievement = typeof userSeasonalAchievements.$inferInsert;
+
 
 export type InsertInsuranceType = typeof insuranceTypes.$inferInsert;
 export type InsuranceType = typeof insuranceTypes.$inferSelect;

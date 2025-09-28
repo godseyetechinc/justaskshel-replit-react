@@ -14,6 +14,7 @@ import {
 } from "./websocketServer";
 import { pointsService } from "./services/pointsService";
 import { AchievementService } from "./services/achievementService";
+import { seasonalCampaignsService } from "./services/seasonalCampaignsService";
 import { NotificationService } from "./services/notificationService";
 import { ReferralService } from "./services/referralService";
 import { PointsRulesManagementService } from "./services/pointsRulesManagementService";
@@ -3185,6 +3186,219 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ===== END ANALYTICS ENDPOINTS =====
+
+  // ===== PHASE 5: SEASONAL CAMPAIGNS ENDPOINTS =====
+
+  // Admin - Create Seasonal Campaign
+  app.post("/api/admin/seasonal-campaigns", async (req: any, res) => {
+    try {
+      const userPrivilegeLevel = getPrivilegeLevelForRole(req.session?.user?.role || "Visitor");
+      if (userPrivilegeLevel > 1) {
+        return res.status(403).json({ message: "Access denied. Admin privileges required." });
+      }
+
+      const campaign = await seasonalCampaignsService.createCampaign(req.body);
+      res.status(201).json(campaign);
+    } catch (error) {
+      console.error("Error creating seasonal campaign:", error);
+      res.status(500).json({ message: "Failed to create seasonal campaign" });
+    }
+  });
+
+  // Admin - Get All Seasonal Campaigns
+  app.get("/api/admin/seasonal-campaigns", async (req: any, res) => {
+    try {
+      const userPrivilegeLevel = getPrivilegeLevelForRole(req.session?.user?.role || "Visitor");
+      if (userPrivilegeLevel > 1) {
+        return res.status(403).json({ message: "Access denied. Admin privileges required." });
+      }
+
+      const activeOnly = req.query.activeOnly === 'true';
+      const campaigns = await seasonalCampaignsService.getCampaigns(activeOnly);
+      res.json(campaigns);
+    } catch (error) {
+      console.error("Error fetching seasonal campaigns:", error);
+      res.status(500).json({ message: "Failed to fetch seasonal campaigns" });
+    }
+  });
+
+  // Admin - Get Seasonal Campaign by ID
+  app.get("/api/admin/seasonal-campaigns/:id", async (req: any, res) => {
+    try {
+      const userPrivilegeLevel = getPrivilegeLevelForRole(req.session?.user?.role || "Visitor");
+      if (userPrivilegeLevel > 1) {
+        return res.status(403).json({ message: "Access denied. Admin privileges required." });
+      }
+
+      const id = parseInt(req.params.id);
+      const campaign = await seasonalCampaignsService.getCampaign(id);
+      
+      if (!campaign) {
+        return res.status(404).json({ message: "Campaign not found" });
+      }
+
+      res.json(campaign);
+    } catch (error) {
+      console.error("Error fetching seasonal campaign:", error);
+      res.status(500).json({ message: "Failed to fetch seasonal campaign" });
+    }
+  });
+
+  // Admin - Update Seasonal Campaign
+  app.put("/api/admin/seasonal-campaigns/:id", async (req: any, res) => {
+    try {
+      const userPrivilegeLevel = getPrivilegeLevelForRole(req.session?.user?.role || "Visitor");
+      if (userPrivilegeLevel > 1) {
+        return res.status(403).json({ message: "Access denied. Admin privileges required." });
+      }
+
+      const id = parseInt(req.params.id);
+      const campaign = await seasonalCampaignsService.updateCampaign(id, req.body);
+      
+      if (!campaign) {
+        return res.status(404).json({ message: "Campaign not found" });
+      }
+
+      res.json(campaign);
+    } catch (error) {
+      console.error("Error updating seasonal campaign:", error);
+      res.status(500).json({ message: "Failed to update seasonal campaign" });
+    }
+  });
+
+  // Admin - Delete Seasonal Campaign
+  app.delete("/api/admin/seasonal-campaigns/:id", async (req: any, res) => {
+    try {
+      const userPrivilegeLevel = getPrivilegeLevelForRole(req.session?.user?.role || "Visitor");
+      if (userPrivilegeLevel > 1) {
+        return res.status(403).json({ message: "Access denied. Admin privileges required." });
+      }
+
+      const id = parseInt(req.params.id);
+      const deleted = await seasonalCampaignsService.deleteCampaign(id);
+      
+      if (!deleted) {
+        return res.status(404).json({ message: "Campaign not found" });
+      }
+
+      res.json({ message: "Campaign deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting seasonal campaign:", error);
+      res.status(500).json({ message: "Failed to delete seasonal campaign" });
+    }
+  });
+
+  // Admin - Activate/Deactivate Campaign
+  app.post("/api/admin/seasonal-campaigns/:id/:action", async (req: any, res) => {
+    try {
+      const userPrivilegeLevel = getPrivilegeLevelForRole(req.session?.user?.role || "Visitor");
+      if (userPrivilegeLevel > 1) {
+        return res.status(403).json({ message: "Access denied. Admin privileges required." });
+      }
+
+      const id = parseInt(req.params.id);
+      const action = req.params.action;
+      
+      let result;
+      if (action === 'activate') {
+        result = await seasonalCampaignsService.activateCampaign(id);
+      } else if (action === 'deactivate') {
+        result = await seasonalCampaignsService.deactivateCampaign(id);
+      } else {
+        return res.status(400).json({ message: "Invalid action. Use 'activate' or 'deactivate'" });
+      }
+
+      if (!result) {
+        return res.status(404).json({ message: "Campaign not found" });
+      }
+
+      res.json({ message: `Campaign ${action}d successfully` });
+    } catch (error) {
+      console.error(`Error ${req.params.action}ing seasonal campaign:`, error);
+      res.status(500).json({ message: `Failed to ${req.params.action} seasonal campaign` });
+    }
+  });
+
+  // Admin - Get Campaign Analytics
+  app.get("/api/admin/seasonal-campaigns/:id/analytics", async (req: any, res) => {
+    try {
+      const userPrivilegeLevel = getPrivilegeLevelForRole(req.session?.user?.role || "Visitor");
+      if (userPrivilegeLevel > 1) {
+        return res.status(403).json({ message: "Access denied. Admin privileges required." });
+      }
+
+      const id = parseInt(req.params.id);
+      const analytics = await seasonalCampaignsService.getCampaignAnalytics(id);
+      
+      if (!analytics) {
+        return res.status(404).json({ message: "Campaign not found" });
+      }
+
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching campaign analytics:", error);
+      res.status(500).json({ message: "Failed to fetch campaign analytics" });
+    }
+  });
+
+  // User - Get Active Campaigns
+  app.get("/api/user/seasonal-campaigns/active", async (req: any, res) => {
+    try {
+      if (!req.session?.user?.id) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const campaigns = await seasonalCampaignsService.getUserActiveCampaigns(req.session.user.id);
+      res.json(campaigns);
+    } catch (error) {
+      console.error("Error fetching user active campaigns:", error);
+      res.status(500).json({ message: "Failed to fetch active campaigns" });
+    }
+  });
+
+  // User - Join Campaign
+  app.post("/api/user/seasonal-campaigns/:id/join", async (req: any, res) => {
+    try {
+      if (!req.session?.user?.id) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const campaignId = parseInt(req.params.id);
+      const participation = await seasonalCampaignsService.joinCampaign(req.session.user.id, campaignId);
+      
+      if (!participation) {
+        return res.status(400).json({ message: "Unable to join campaign. Campaign may be inactive, full, or already joined." });
+      }
+
+      res.json(participation);
+    } catch (error) {
+      console.error("Error joining campaign:", error);
+      res.status(500).json({ message: "Failed to join campaign" });
+    }
+  });
+
+  // User - Get Campaign Participation
+  app.get("/api/user/seasonal-campaigns/:id/participation", async (req: any, res) => {
+    try {
+      if (!req.session?.user?.id) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const campaignId = parseInt(req.params.id);
+      const participation = await seasonalCampaignsService.getUserCampaignParticipation(req.session.user.id, campaignId);
+      
+      if (!participation) {
+        return res.status(404).json({ message: "No participation found for this campaign" });
+      }
+
+      res.json(participation);
+    } catch (error) {
+      console.error("Error fetching campaign participation:", error);
+      res.status(500).json({ message: "Failed to fetch campaign participation" });
+    }
+  });
+
+  // ===== END SEASONAL CAMPAIGNS ENDPOINTS =====
 
   // Seeding endpoint (for development only)
   app.post("/api/seed-users", async (req: any, res) => {
