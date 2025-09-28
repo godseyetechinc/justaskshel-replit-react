@@ -118,14 +118,12 @@ export class RedemptionManagementService {
           notes: rewardRedemptions.notes,
           createdAt: rewardRedemptions.createdAt,
           updatedAt: rewardRedemptions.updatedAt,
-          // User details
+          // User details - using correct field names
           userEmail: users.email,
-          userFirstName: users.firstName,
-          userLastName: users.lastName,
-          // Reward details
+          // Reward details - using correct field names
           rewardName: rewards.name,
           rewardDescription: rewards.description,
-          rewardType: rewards.type
+          rewardCategory: rewards.category
         })
         .from(rewardRedemptions)
         .leftJoin(users, eq(rewardRedemptions.userId, users.id))
@@ -164,16 +162,13 @@ export class RedemptionManagementService {
           notes: rewardRedemptions.notes,
           createdAt: rewardRedemptions.createdAt,
           updatedAt: rewardRedemptions.updatedAt,
-          // User details
+          // User details - using correct field names
           userEmail: users.email,
-          userFirstName: users.firstName,
-          userLastName: users.lastName,
-          userPhone: users.phone,
-          // Reward details
+          // Reward details - using correct field names
           rewardName: rewards.name,
           rewardDescription: rewards.description,
-          rewardType: rewards.type,
-          rewardPointsRequired: rewards.pointsRequired
+          rewardCategory: rewards.category,
+          rewardPointsCost: rewards.pointsCost
         })
         .from(rewardRedemptions)
         .leftJoin(users, eq(rewardRedemptions.userId, users.id))
@@ -387,14 +382,12 @@ export class RedemptionManagementService {
           status: rewardRedemptions.status,
           createdAt: rewardRedemptions.createdAt,
           expiresAt: rewardRedemptions.expiresAt,
-          // User details
+          // User details - using correct field names
           userEmail: users.email,
-          userFirstName: users.firstName,
-          userLastName: users.lastName,
-          // Reward details
+          // Reward details - using correct field names
           rewardName: rewards.name,
-          rewardType: rewards.type,
-          rewardPointsRequired: rewards.pointsRequired
+          rewardCategory: rewards.category,
+          rewardPointsCost: rewards.pointsCost
         })
         .from(rewardRedemptions)
         .leftJoin(users, eq(rewardRedemptions.userId, users.id))
@@ -432,11 +425,9 @@ export class RedemptionManagementService {
           status: rewardRedemptions.status,
           expiresAt: rewardRedemptions.expiresAt,
           createdAt: rewardRedemptions.createdAt,
-          // User details
+          // User details - using correct field names
           userEmail: users.email,
-          userFirstName: users.firstName,
-          userLastName: users.lastName,
-          // Reward details
+          // Reward details - using correct field names
           rewardName: rewards.name,
           pointsUsed: rewardRedemptions.pointsUsed
         })

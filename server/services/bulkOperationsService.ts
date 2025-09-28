@@ -1,6 +1,6 @@
 import { db } from "../db";
 import { pointsTransactions, pointsSummary, users, rewards, rewardRedemptions } from "../../shared/schema";
-import { eq, sql, inArray, and, gte, lte } from "drizzle-orm";
+import { eq, sql, inArray, and, gte, lte, desc } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
 export interface BulkAwardRequest {
@@ -514,27 +514,50 @@ export class BulkOperationsService {
         conditions.push(lte(pointsTransactions.createdAt, dateTo));
       }
 
+      // Simplified query to avoid Drizzle aggregation issues
       const operations = await db
         .select({
           reference: pointsTransactions.reference,
           reason: pointsTransactions.reason,
-          totalUsers: sql<number>`COUNT(DISTINCT ${pointsTransactions.userId})`,
-          totalPoints: sql<number>`SUM(${pointsTransactions.points})`,
-          operationType: sql<string>`CASE 
-            WHEN ${pointsTransactions.reference} LIKE 'CAMP-%' THEN 'campaign_distribution'
-            WHEN ${pointsTransactions.points} > 0 THEN 'bulk_award'
-            ELSE 'bulk_reward'
-          END`,
-          createdAt: sql<Date>`MIN(${pointsTransactions.createdAt})`
+          points: pointsTransactions.points,
+          userId: pointsTransactions.userId,
+          createdAt: pointsTransactions.createdAt
         })
         .from(pointsTransactions)
         .where(and(...conditions))
-        .groupBy(pointsTransactions.reference, pointsTransactions.reason)
-        .orderBy(sql`MIN(${pointsTransactions.createdAt}) DESC`)
-        .limit(limit)
+        .orderBy(desc(pointsTransactions.createdAt))
+        .limit(limit * 5) // Get more records to group manually
         .offset(offset);
 
-      return operations;
+      // Group results manually to avoid Drizzle aggregation issues
+      const grouped = operations.reduce((acc: any[], op) => {
+        const existing = acc.find(item => item.reference === op.reference);
+        if (existing) {
+          existing.totalUsers = new Set([...Array.from(existing.userSet), op.userId]).size;
+          existing.totalPoints += op.points || 0;
+          existing.userSet.add(op.userId);
+        } else {
+          acc.push({
+            reference: op.reference,
+            reason: op.reason,
+            totalUsers: 1,
+            totalPoints: op.points || 0,
+            operationType: op.reference?.startsWith('CAMP-') ? 'campaign_distribution' : 
+                          (op.points && op.points > 0) ? 'bulk_award' : 'bulk_reward',
+            createdAt: op.createdAt,
+            userSet: new Set([op.userId])
+          });
+        }
+        return acc;
+      }, []);
+
+      // Clean up and sort
+      const finalOperations = grouped
+        .map(op => ({ ...op, userSet: undefined })) // Remove userSet helper
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, limit);
+
+      return finalOperations;
     } catch (error) {
       console.error('Error fetching bulk operation history:', error);
       throw new Error('Failed to fetch bulk operation history');
