@@ -13,7 +13,7 @@ import {
 } from 'recharts';
 import { 
   TrendingUp, TrendingDown, Users, Trophy, DollarSign, Award, 
-  Calendar, RefreshCw, AlertCircle, BarChart3, PieChart, TrendingUpIcon
+  Calendar, RefreshCw, AlertCircle, BarChart3, PieChart as PieChartIcon, TrendingUpIcon
 } from 'lucide-react';
 
 // Color palettes for charts
@@ -172,7 +172,7 @@ const PointsAnalyticsDashboard = () => {
             Rewards
           </TabsTrigger>
           <TabsTrigger value="tiers" data-testid="tab-tiers">
-            <PieChart className="h-4 w-4 mr-2" />
+            <PieChartIcon className="h-4 w-4 mr-2" />
             Tiers
           </TabsTrigger>
           <TabsTrigger value="funnel" data-testid="tab-funnel">
