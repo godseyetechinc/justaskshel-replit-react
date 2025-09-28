@@ -489,6 +489,94 @@ export const pointsRules = pgTable("points_rules", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Achievement system - Phase 2 User Engagement Features
+export const achievements = pgTable("achievements", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 100 }).notNull(),
+  description: text("description"),
+  category: varchar("category", { 
+    enum: ["Milestone", "Streak", "Activity", "Special", "Referral", "Tier"] 
+  }).notNull(),
+  icon: varchar("icon", { length: 50 }), // lucide icon name
+  pointsReward: integer("points_reward").default(0),
+  requirements: jsonb("requirements"), // flexible requirements JSON
+  isActive: boolean("is_active").default(true),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// User achievements - tracks which achievements users have unlocked
+export const userAchievements = pgTable("user_achievements", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  achievementId: integer("achievement_id").references(() => achievements.id).notNull(),
+  unlockedAt: timestamp("unlocked_at").defaultNow(),
+  progress: jsonb("progress"), // track progress toward achievement
+  pointsAwarded: integer("points_awarded").default(0),
+  notificationSent: boolean("notification_sent").default(false),
+}, (table) => [
+  index("idx_user_achievements_user_id").on(table.userId),
+  index("idx_user_achievements_achievement_id").on(table.achievementId),
+]);
+
+// Referral system - Phase 2 User Engagement Features  
+export const referralCodes = pgTable("referral_codes", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  code: varchar("code", { length: 20 }).unique().notNull(),
+  isActive: boolean("is_active").default(true),
+  maxUses: integer("max_uses"), // null = unlimited
+  currentUses: integer("current_uses").default(0),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_referral_codes_code").on(table.code),
+  index("idx_referral_codes_user_id").on(table.userId),
+]);
+
+// Referral signups - track successful referrals
+export const referralSignups = pgTable("referral_signups", {
+  id: serial("id").primaryKey(),
+  referralCodeId: integer("referral_code_id").references(() => referralCodes.id).notNull(),
+  referrerId: varchar("referrer_id").references(() => users.id).notNull(),
+  refereeId: varchar("referee_id").references(() => users.id).notNull(),
+  referrerPoints: integer("referrer_points").default(200),
+  refereePoints: integer("referee_points").default(100),
+  status: varchar("status", { 
+    enum: ["Pending", "Completed", "Cancelled"] 
+  }).default("Completed"),
+  completedAt: timestamp("completed_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_referral_signups_referrer_id").on(table.referrerId),
+  index("idx_referral_signups_referee_id").on(table.refereeId),
+]);
+
+// Notifications system - Phase 2 User Engagement Features
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  type: varchar("type", { 
+    enum: ["Points", "TierUpgrade", "Achievement", "Referral", "Reward", "System"] 
+  }).notNull(),
+  title: varchar("title", { length: 200 }).notNull(),
+  message: text("message").notNull(),
+  data: jsonb("data"), // additional notification data
+  isRead: boolean("is_read").default(false),
+  priority: varchar("priority", { 
+    enum: ["Low", "Normal", "High", "Urgent"] 
+  }).default("Normal"),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  readAt: timestamp("read_at"),
+}, (table) => [
+  index("idx_notifications_user_id").on(table.userId),
+  index("idx_notifications_is_read").on(table.isRead),
+  index("idx_notifications_type").on(table.type),
+]);
+
 
 // ===== UNIFIED PERSON ENTITY MODEL =====
 // Central person identity table - single source of truth for individual identity
@@ -964,7 +1052,6 @@ export const insertWishlistSchema = createInsertSchema(wishlist).omit({
 export const insertPolicySchema = createInsertSchema(policies).omit({
   id: true,
   createdAt: true,
-  updatedAt: true,
 });
 
 export const insertPolicyDocumentSchema = createInsertSchema(policyDocuments).omit({

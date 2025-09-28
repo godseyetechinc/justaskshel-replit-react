@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { AchievementService } from "./services/achievementService";
 
 const app = express();
 app.use(express.json());
@@ -38,6 +39,16 @@ app.use((req, res, next) => {
 
 (async () => {
   const server = await registerRoutes(app);
+  
+  // Initialize Phase 2 features - default achievements
+  try {
+    const achievementService = new AchievementService();
+    await achievementService.initializeDefaultAchievements();
+    log("Phase 2 achievements initialized successfully");
+  } catch (error) {
+    console.error("Error initializing Phase 2 achievements:", error);
+    // Don't fail startup if achievements initialization fails
+  }
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;

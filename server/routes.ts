@@ -13,6 +13,9 @@ import {
   quoteWebSocketServer,
 } from "./websocketServer";
 import { pointsService } from "./services/pointsService";
+import { AchievementService } from "./services/achievementService";
+import { NotificationService } from "./services/notificationService";
+import { ReferralService } from "./services/referralService";
 import {
   insertInsuranceQuoteSchema,
   insertSelectedQuoteSchema,
@@ -69,6 +72,11 @@ function deobfuscateOrgId(obfuscated: string): number | null {
     return null;
   }
 }
+
+// Initialize Phase 2 services
+const achievementService = new AchievementService();
+const notificationService = new NotificationService();
+const referralService = new ReferralService();
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Session middleware (no Replit auth)
@@ -233,7 +241,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/signup", async (req, res) => {
     try {
       const validatedData = signupSchema.parse(req.body);
-      const { email, password, firstName, lastName, phone, role } =
+      const { email, password, firstName, lastName, phone, role, referralCode } =
         validatedData;
 
       // Check if user already exists
@@ -259,12 +267,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isActive: true,
       });
 
+      // Phase 2: Process referral if provided
+      if (referralCode) {
+        try {
+          await referralService.processReferralSignup(referralCode, newUser.id);
+        } catch (referralError) {
+          console.error("Error processing referral signup:", referralError);
+          // Don't fail registration if referral processing fails
+        }
+      }
+
       // Award welcome bonus for new user
       try {
         await pointsService.awardWelcomeBonus(newUser.id);
       } catch (pointsError) {
         console.error("Error awarding welcome bonus:", pointsError);
         // Don't fail user registration if points awarding fails
+      }
+
+      // Phase 2: Check for achievements after welcome bonus
+      try {
+        const newAchievements = await achievementService.checkUserAchievements(newUser.id);
+        
+        // Send notifications for any unlocked achievements
+        for (const achievement of newAchievements) {
+          await notificationService.notifyAchievementUnlocked(
+            newUser.id,
+            achievement.achievement.name,
+            achievement.pointsAwarded,
+            achievement.achievement.description
+          );
+        }
+      } catch (achievementError) {
+        console.error("Error checking initial achievements:", achievementError);
+        // Don't fail registration if achievement checking fails
       }
 
       // Set session
@@ -2530,6 +2566,181 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching provider stats:", error);
       res.status(500).json({ message: "Failed to fetch provider statistics" });
+    }
+  });
+
+  // ===== Phase 2: User Engagement Features API Routes =====
+
+  // Achievement routes
+  app.get("/api/achievements", async (req: any, res) => {
+    try {
+      const userId = req.session?.user?.id;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const achievements = await achievementService.getUserAchievements(userId);
+      res.json(achievements);
+    } catch (error) {
+      console.error("Error fetching achievements:", error);
+      res.status(500).json({ message: "Failed to fetch achievements" });
+    }
+  });
+
+  app.post("/api/achievements/check", async (req: any, res) => {
+    try {
+      const userId = req.session?.user?.id;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const newAchievements = await achievementService.checkUserAchievements(userId);
+      res.json({ newAchievements });
+    } catch (error) {
+      console.error("Error checking achievements:", error);
+      res.status(500).json({ message: "Failed to check achievements" });
+    }
+  });
+
+  // Notification routes
+  app.get("/api/notifications", async (req: any, res) => {
+    try {
+      const userId = req.session?.user?.id;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const limit = parseInt(req.query.limit as string) || 20;
+      const offset = parseInt(req.query.offset as string) || 0;
+      
+      const notifications = await notificationService.getUserNotifications(userId, limit, offset);
+      res.json(notifications);
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+      res.status(500).json({ message: "Failed to fetch notifications" });
+    }
+  });
+
+  app.post("/api/notifications/:id/read", async (req: any, res) => {
+    try {
+      const userId = req.session?.user?.id;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const notificationId = parseInt(req.params.id);
+      await notificationService.markAsRead(notificationId, userId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+      res.status(500).json({ message: "Failed to mark notification as read" });
+    }
+  });
+
+  app.post("/api/notifications/read-all", async (req: any, res) => {
+    try {
+      const userId = req.session?.user?.id;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      await notificationService.markAllAsRead(userId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error marking all notifications as read:", error);
+      res.status(500).json({ message: "Failed to mark all notifications as read" });
+    }
+  });
+
+  // Referral routes
+  app.get("/api/referrals/code", async (req: any, res) => {
+    try {
+      const userId = req.session?.user?.id;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const referralCode = await referralService.generateReferralCode(userId);
+      res.json({ referralCode });
+    } catch (error) {
+      console.error("Error generating referral code:", error);
+      res.status(500).json({ message: "Failed to generate referral code" });
+    }
+  });
+
+  app.get("/api/referrals/stats", async (req: any, res) => {
+    try {
+      const userId = req.session?.user?.id;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const stats = await referralService.getUserReferralStats(userId);
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching referral stats:", error);
+      res.status(500).json({ message: "Failed to fetch referral stats" });
+    }
+  });
+
+  app.post("/api/referrals/validate", async (req: any, res) => {
+    try {
+      const { code } = req.body;
+      if (!code) {
+        return res.status(400).json({ message: "Referral code is required" });
+      }
+
+      const validation = await referralService.validateReferralCode(code);
+      res.json(validation);
+    } catch (error) {
+      console.error("Error validating referral code:", error);
+      res.status(500).json({ message: "Failed to validate referral code" });
+    }
+  });
+
+  // Admin routes for Phase 2 features (SuperAdmin only)
+  app.get("/api/admin/achievements", async (req: any, res) => {
+    try {
+      if (req.session?.user?.role !== "SuperAdmin") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const achievements = await achievementService.getAllAchievements();
+      res.json(achievements);
+    } catch (error) {
+      console.error("Error fetching all achievements:", error);
+      res.status(500).json({ message: "Failed to fetch achievements" });
+    }
+  });
+
+  app.get("/api/admin/referrals", async (req: any, res) => {
+    try {
+      if (req.session?.user?.role !== "SuperAdmin") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = parseInt(req.query.offset as string) || 0;
+      
+      const referralActivity = await referralService.getAllReferralActivity(limit, offset);
+      res.json(referralActivity);
+    } catch (error) {
+      console.error("Error fetching referral activity:", error);
+      res.status(500).json({ message: "Failed to fetch referral activity" });
+    }
+  });
+
+  app.get("/api/admin/notifications/stats", async (req: any, res) => {
+    try {
+      if (req.session?.user?.role !== "SuperAdmin") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const stats = await notificationService.getNotificationStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching notification stats:", error);
+      res.status(500).json({ message: "Failed to fetch notification stats" });
     }
   });
 
