@@ -15,6 +15,7 @@ import {
 import { pointsService } from "./services/pointsService";
 import { AchievementService } from "./services/achievementService";
 import { seasonalCampaignsService } from "./services/seasonalCampaignsService";
+import { socialFeaturesService } from "./services/socialFeaturesService";
 import { NotificationService } from "./services/notificationService";
 import { ReferralService } from "./services/referralService";
 import { PointsRulesManagementService } from "./services/pointsRulesManagementService";
@@ -3399,6 +3400,333 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ===== END SEASONAL CAMPAIGNS ENDPOINTS =====
+
+  // ===== PHASE 5.2: SOCIAL FEATURES ENDPOINTS =====
+
+  // User - Update Leaderboard Settings
+  app.put("/api/user/leaderboard/settings", async (req: any, res) => {
+    try {
+      if (!req.session?.user?.id) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const settings = await socialFeaturesService.updateLeaderboardSettings(req.session.user.id, req.body);
+      res.json(settings);
+    } catch (error) {
+      console.error("Error updating leaderboard settings:", error);
+      res.status(500).json({ message: "Failed to update leaderboard settings" });
+    }
+  });
+
+  // User - Get Leaderboard Settings
+  app.get("/api/user/leaderboard/settings", async (req: any, res) => {
+    try {
+      if (!req.session?.user?.id) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const settings = await socialFeaturesService.getLeaderboardSettings(req.session.user.id);
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching leaderboard settings:", error);
+      res.status(500).json({ message: "Failed to fetch leaderboard settings" });
+    }
+  });
+
+  // Public - Get Leaderboard
+  app.get("/api/leaderboard", async (req: any, res) => {
+    try {
+      const period = req.query.period || 'Monthly';
+      const category = req.query.category || 'Points';
+      const limit = parseInt(req.query.limit) || 50;
+
+      const leaderboard = await socialFeaturesService.getLeaderboard(period, category, limit);
+      res.json(leaderboard);
+    } catch (error) {
+      console.error("Error fetching leaderboard:", error);
+      res.status(500).json({ message: "Failed to fetch leaderboard" });
+    }
+  });
+
+  // User - Share Achievement
+  app.post("/api/user/achievements/share", async (req: any, res) => {
+    try {
+      if (!req.session?.user?.id) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const shareData = { ...req.body, userId: req.session.user.id };
+      const share = await socialFeaturesService.shareAchievement(shareData);
+      res.status(201).json(share);
+    } catch (error) {
+      console.error("Error sharing achievement:", error);
+      res.status(500).json({ message: "Failed to share achievement" });
+    }
+  });
+
+  // User - Get Achievement Shares
+  app.get("/api/user/achievements/shares", async (req: any, res) => {
+    try {
+      if (!req.session?.user?.id) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const limit = parseInt(req.query.limit) || 20;
+      const shares = await socialFeaturesService.getAchievementShares(req.session.user.id, limit);
+      res.json(shares);
+    } catch (error) {
+      console.error("Error fetching achievement shares:", error);
+      res.status(500).json({ message: "Failed to fetch achievement shares" });
+    }
+  });
+
+  // Public - Get Public Achievement Shares
+  app.get("/api/achievements/shares/public", async (req: any, res) => {
+    try {
+      const limit = parseInt(req.query.limit) || 50;
+      const shares = await socialFeaturesService.getPublicAchievementShares(limit);
+      res.json(shares);
+    } catch (error) {
+      console.error("Error fetching public achievement shares:", error);
+      res.status(500).json({ message: "Failed to fetch public achievement shares" });
+    }
+  });
+
+  // User - Connect Social Media
+  app.post("/api/user/social-media/connect", async (req: any, res) => {
+    try {
+      if (!req.session?.user?.id) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const integrationData = { ...req.body, userId: req.session.user.id };
+      const integration = await socialFeaturesService.connectSocialMedia(integrationData);
+      res.status(201).json(integration);
+    } catch (error) {
+      console.error("Error connecting social media:", error);
+      res.status(500).json({ message: "Failed to connect social media" });
+    }
+  });
+
+  // User - Get Social Media Integrations
+  app.get("/api/user/social-media/integrations", async (req: any, res) => {
+    try {
+      if (!req.session?.user?.id) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const integrations = await socialFeaturesService.getUserSocialIntegrations(req.session.user.id);
+      res.json(integrations);
+    } catch (error) {
+      console.error("Error fetching social media integrations:", error);
+      res.status(500).json({ message: "Failed to fetch social media integrations" });
+    }
+  });
+
+  // User - Disconnect Social Media
+  app.post("/api/user/social-media/:platform/disconnect", async (req: any, res) => {
+    try {
+      if (!req.session?.user?.id) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const platform = req.params.platform;
+      const success = await socialFeaturesService.disconnectSocialMedia(req.session.user.id, platform);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Social media connection not found" });
+      }
+
+      res.json({ message: "Social media disconnected successfully" });
+    } catch (error) {
+      console.error("Error disconnecting social media:", error);
+      res.status(500).json({ message: "Failed to disconnect social media" });
+    }
+  });
+
+  // User - Send Friend Request
+  app.post("/api/user/friends/request", async (req: any, res) => {
+    try {
+      if (!req.session?.user?.id) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const { addresseeId, message } = req.body;
+      const friendship = await socialFeaturesService.sendFriendRequest(req.session.user.id, addresseeId, message);
+      
+      if (!friendship) {
+        return res.status(400).json({ message: "Friend request could not be sent. Relationship may already exist." });
+      }
+
+      res.status(201).json(friendship);
+    } catch (error) {
+      console.error("Error sending friend request:", error);
+      res.status(500).json({ message: "Failed to send friend request" });
+    }
+  });
+
+  // User - Respond to Friend Request
+  app.post("/api/user/friends/respond", async (req: any, res) => {
+    try {
+      if (!req.session?.user?.id) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const { friendshipId, response } = req.body;
+      const success = await socialFeaturesService.respondToFriendRequest(friendshipId, response);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Friend request not found" });
+      }
+
+      res.json({ message: `Friend request ${response.toLowerCase()} successfully` });
+    } catch (error) {
+      console.error("Error responding to friend request:", error);
+      res.status(500).json({ message: "Failed to respond to friend request" });
+    }
+  });
+
+  // User - Get Friends
+  app.get("/api/user/friends", async (req: any, res) => {
+    try {
+      if (!req.session?.user?.id) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const friends = await socialFeaturesService.getUserFriends(req.session.user.id);
+      res.json(friends);
+    } catch (error) {
+      console.error("Error fetching friends:", error);
+      res.status(500).json({ message: "Failed to fetch friends" });
+    }
+  });
+
+  // User - Get Pending Friend Requests
+  app.get("/api/user/friends/pending", async (req: any, res) => {
+    try {
+      if (!req.session?.user?.id) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const requests = await socialFeaturesService.getPendingFriendRequests(req.session.user.id);
+      res.json(requests);
+    } catch (error) {
+      console.error("Error fetching pending friend requests:", error);
+      res.status(500).json({ message: "Failed to fetch pending friend requests" });
+    }
+  });
+
+  // User - Create Social Referral
+  app.post("/api/user/referrals/create", async (req: any, res) => {
+    try {
+      if (!req.session?.user?.id) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const { inviteMethod, platformUsed } = req.body;
+      const referral = await socialFeaturesService.createSocialReferral(req.session.user.id, inviteMethod, platformUsed);
+      res.status(201).json(referral);
+    } catch (error) {
+      console.error("Error creating social referral:", error);
+      res.status(500).json({ message: "Failed to create social referral" });
+    }
+  });
+
+  // User - Get User Referrals
+  app.get("/api/user/referrals", async (req: any, res) => {
+    try {
+      if (!req.session?.user?.id) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const referrals = await socialFeaturesService.getUserReferrals(req.session.user.id);
+      res.json(referrals);
+    } catch (error) {
+      console.error("Error fetching user referrals:", error);
+      res.status(500).json({ message: "Failed to fetch user referrals" });
+    }
+  });
+
+  // Public - Complete Referral (for new user registration)
+  app.post("/api/referrals/complete", async (req: any, res) => {
+    try {
+      const { referralCode, referredUserId } = req.body;
+      const success = await socialFeaturesService.completeReferral(referralCode, referredUserId);
+      
+      if (!success) {
+        return res.status(400).json({ message: "Invalid or expired referral code" });
+      }
+
+      res.json({ message: "Referral completed successfully" });
+    } catch (error) {
+      console.error("Error completing referral:", error);
+      res.status(500).json({ message: "Failed to complete referral" });
+    }
+  });
+
+  // User - Get Social Activity Feed
+  app.get("/api/user/social/feed", async (req: any, res) => {
+    try {
+      if (!req.session?.user?.id) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const limit = parseInt(req.query.limit) || 20;
+      const feed = await socialFeaturesService.getSocialActivityFeed(req.session.user.id, limit);
+      res.json(feed);
+    } catch (error) {
+      console.error("Error fetching social activity feed:", error);
+      res.status(500).json({ message: "Failed to fetch social activity feed" });
+    }
+  });
+
+  // User - Like Social Activity
+  app.post("/api/user/social/activity/:id/like", async (req: any, res) => {
+    try {
+      if (!req.session?.user?.id) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const activityId = parseInt(req.params.id);
+      const { reactionType } = req.body;
+      const like = await socialFeaturesService.likeActivity(activityId, req.session.user.id, reactionType);
+      res.json(like);
+    } catch (error) {
+      console.error("Error liking activity:", error);
+      res.status(500).json({ message: "Failed to like activity" });
+    }
+  });
+
+  // User - Add Comment to Social Activity
+  app.post("/api/user/social/activity/:id/comment", async (req: any, res) => {
+    try {
+      if (!req.session?.user?.id) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const activityId = parseInt(req.params.id);
+      const { comment, parentCommentId } = req.body;
+      const newComment = await socialFeaturesService.addComment(activityId, req.session.user.id, comment, parentCommentId);
+      res.status(201).json(newComment);
+    } catch (error) {
+      console.error("Error adding comment:", error);
+      res.status(500).json({ message: "Failed to add comment" });
+    }
+  });
+
+  // Public - Get Activity Comments
+  app.get("/api/social/activity/:id/comments", async (req: any, res) => {
+    try {
+      const activityId = parseInt(req.params.id);
+      const comments = await socialFeaturesService.getActivityComments(activityId);
+      res.json(comments);
+    } catch (error) {
+      console.error("Error fetching activity comments:", error);
+      res.status(500).json({ message: "Failed to fetch activity comments" });
+    }
+  });
+
+  // ===== END SOCIAL FEATURES ENDPOINTS =====
 
   // Seeding endpoint (for development only)
   app.post("/api/seed-users", async (req: any, res) => {

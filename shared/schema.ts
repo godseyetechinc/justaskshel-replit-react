@@ -991,6 +991,173 @@ export type InsertSeasonalAchievement = typeof seasonalAchievements.$inferInsert
 export type UserSeasonalAchievement = typeof userSeasonalAchievements.$inferSelect;
 export type InsertUserSeasonalAchievement = typeof userSeasonalAchievements.$inferInsert;
 
+// ===== PHASE 5.2: SOCIAL FEATURES SCHEMA =====
+
+// Leaderboard opt-in settings and privacy controls
+export const leaderboardSettings = pgTable("leaderboard_settings", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).notNull().unique(),
+  isOptedIn: boolean("is_opted_in").default(false),
+  displayName: varchar("display_name", { length: 100 }), // Custom display name for leaderboard
+  showTierLevel: boolean("show_tier_level").default(true),
+  showTotalPoints: boolean("show_total_points").default(true),
+  showRecentActivity: boolean("show_recent_activity").default(false),
+  visibilityLevel: varchar("visibility_level", { 
+    enum: ["Public", "Friends", "Private"] 
+  }).default("Public"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Achievement sharing and social posts
+export const achievementShares = pgTable("achievement_shares", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  achievementId: integer("achievement_id").references(() => achievements.id),
+  seasonalAchievementId: integer("seasonal_achievement_id").references(() => seasonalAchievements.id),
+  shareType: varchar("share_type", { 
+    enum: ["Internal", "Facebook", "Twitter", "LinkedIn", "Instagram", "WhatsApp"] 
+  }).notNull(),
+  message: text("message"),
+  imageUrl: varchar("image_url", { length: 500 }),
+  hashtags: varchar("hashtags").array(),
+  isPublic: boolean("is_public").default(true),
+  likesCount: integer("likes_count").default(0),
+  commentsCount: integer("comments_count").default(0),
+  sharesCount: integer("shares_count").default(0),
+  sharedAt: timestamp("shared_at").defaultNow(),
+});
+
+// Social media connection bonuses and integration
+export const socialMediaIntegrations = pgTable("social_media_integrations", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  platform: varchar("platform", { 
+    enum: ["Facebook", "Twitter", "LinkedIn", "Instagram", "TikTok", "YouTube"] 
+  }).notNull(),
+  platformUserId: varchar("platform_user_id", { length: 200 }),
+  platformUsername: varchar("platform_username", { length: 100 }),
+  isConnected: boolean("is_connected").default(true),
+  bonusPointsEarned: integer("bonus_points_earned").default(0),
+  lastActivitySync: timestamp("last_activity_sync"),
+  connectionBonusAwarded: boolean("connection_bonus_awarded").default(false),
+  connectedAt: timestamp("connected_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Friend system with invite tracking
+export const friendships = pgTable("friendships", {
+  id: serial("id").primaryKey(),
+  requesterId: varchar("requester_id").references(() => users.id).notNull(),
+  addresseeId: varchar("addressee_id").references(() => users.id).notNull(),
+  status: varchar("status", { 
+    enum: ["Pending", "Accepted", "Declined", "Blocked"] 
+  }).default("Pending"),
+  requestMessage: text("request_message"),
+  createdAt: timestamp("created_at").defaultNow(),
+  respondedAt: timestamp("responded_at"),
+});
+
+// Enhanced referral system with social tracking
+export const socialReferrals = pgTable("social_referrals", {
+  id: serial("id").primaryKey(),
+  referrerId: varchar("referrer_id").references(() => users.id).notNull(),
+  referredUserId: varchar("referred_user_id").references(() => users.id),
+  referralCode: varchar("referral_code", { length: 20 }).notNull().unique(),
+  inviteMethod: varchar("invite_method", { 
+    enum: ["Email", "SMS", "Social Media", "Direct Link", "QR Code"] 
+  }).notNull(),
+  platformUsed: varchar("platform_used", { length: 50 }), // specific social platform if applicable
+  bonusTier: varchar("bonus_tier", { 
+    enum: ["Standard", "Premium", "Elite"] 
+  }).default("Standard"),
+  referrerReward: integer("referrer_reward").default(0),
+  referredReward: integer("referred_reward").default(0),
+  isCompleted: boolean("is_completed").default(false),
+  completedAt: timestamp("completed_at"),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Leaderboard periods and rankings cache
+export const leaderboardRankings = pgTable("leaderboard_rankings", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  period: varchar("period", { 
+    enum: ["Daily", "Weekly", "Monthly", "Quarterly", "Yearly", "All-Time"] 
+  }).notNull(),
+  category: varchar("category", { 
+    enum: ["Points", "Achievements", "Referrals", "Activity", "Redemptions"] 
+  }).notNull(),
+  rank: integer("rank").notNull(),
+  score: integer("score").notNull(),
+  previousRank: integer("previous_rank"),
+  rankChange: integer("rank_change").default(0), // positive = moved up, negative = moved down
+  periodStart: timestamp("period_start").notNull(),
+  periodEnd: timestamp("period_end").notNull(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Social activity feed and interactions
+export const socialActivities = pgTable("social_activities", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  activityType: varchar("activity_type", { 
+    enum: ["Achievement Unlocked", "Tier Promotion", "Points Milestone", "Referral Success", "Redemption", "Campaign Join", "Challenge Complete"] 
+  }).notNull(),
+  description: text("description").notNull(),
+  pointsInvolved: integer("points_involved"),
+  achievementId: integer("achievement_id").references(() => achievements.id),
+  isPublic: boolean("is_public").default(true),
+  likesCount: integer("likes_count").default(0),
+  commentsCount: integer("comments_count").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Likes and reactions to social activities
+export const activityLikes = pgTable("activity_likes", {
+  id: serial("id").primaryKey(),
+  activityId: integer("activity_id").references(() => socialActivities.id).notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  reactionType: varchar("reaction_type", { 
+    enum: ["Like", "Love", "Celebrate", "Inspire", "Congratulate"] 
+  }).default("Like"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Comments on social activities
+export const activityComments = pgTable("activity_comments", {
+  id: serial("id").primaryKey(),
+  activityId: integer("activity_id").references(() => socialActivities.id).notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  comment: text("comment").notNull(),
+  isReply: boolean("is_reply").default(false),
+  parentCommentId: integer("parent_comment_id").references(() => activityComments.id),
+  likesCount: integer("likes_count").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Social features types
+export type LeaderboardSettings = typeof leaderboardSettings.$inferSelect;
+export type InsertLeaderboardSettings = typeof leaderboardSettings.$inferInsert;
+export type AchievementShare = typeof achievementShares.$inferSelect;
+export type InsertAchievementShare = typeof achievementShares.$inferInsert;
+export type SocialMediaIntegration = typeof socialMediaIntegrations.$inferSelect;
+export type InsertSocialMediaIntegration = typeof socialMediaIntegrations.$inferInsert;
+export type Friendship = typeof friendships.$inferSelect;
+export type InsertFriendship = typeof friendships.$inferInsert;
+export type SocialReferral = typeof socialReferrals.$inferSelect;
+export type InsertSocialReferral = typeof socialReferrals.$inferInsert;
+export type LeaderboardRanking = typeof leaderboardRankings.$inferSelect;
+export type InsertLeaderboardRanking = typeof leaderboardRankings.$inferInsert;
+export type SocialActivity = typeof socialActivities.$inferSelect;
+export type InsertSocialActivity = typeof socialActivities.$inferInsert;
+export type ActivityLike = typeof activityLikes.$inferSelect;
+export type InsertActivityLike = typeof activityLikes.$inferInsert;
+export type ActivityComment = typeof activityComments.$inferSelect;
+export type InsertActivityComment = typeof activityComments.$inferInsert;
+
 
 export type InsertInsuranceType = typeof insuranceTypes.$inferInsert;
 export type InsuranceType = typeof insuranceTypes.$inferSelect;
