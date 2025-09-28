@@ -16,6 +16,7 @@ import { pointsService } from "./services/pointsService";
 import { AchievementService } from "./services/achievementService";
 import { seasonalCampaignsService } from "./services/seasonalCampaignsService";
 import { socialFeaturesService } from "./services/socialFeaturesService";
+import { advancedRedemptionService } from "./services/advancedRedemptionService";
 import { NotificationService } from "./services/notificationService";
 import { ReferralService } from "./services/referralService";
 import { PointsRulesManagementService } from "./services/pointsRulesManagementService";
@@ -3727,6 +3728,360 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ===== END SOCIAL FEATURES ENDPOINTS =====
+
+  // ===== PHASE 5.3: ADVANCED REDEMPTION OPTIONS ENDPOINTS =====
+
+  // User - Add to Wishlist
+  app.post("/api/user/wishlist", async (req: any, res) => {
+    try {
+      if (!req.session?.user?.id) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const wishlistItem = await advancedRedemptionService.addToWishlist(req.session.user.id, req.body);
+      res.status(201).json(wishlistItem);
+    } catch (error) {
+      console.error("Error adding to wishlist:", error);
+      res.status(500).json({ message: "Failed to add to wishlist" });
+    }
+  });
+
+  // User - Get Wishlist
+  app.get("/api/user/wishlist", async (req: any, res) => {
+    try {
+      if (!req.session?.user?.id) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const wishlist = await advancedRedemptionService.getUserWishlist(req.session.user.id);
+      res.json(wishlist);
+    } catch (error) {
+      console.error("Error fetching wishlist:", error);
+      res.status(500).json({ message: "Failed to fetch wishlist" });
+    }
+  });
+
+  // User - Remove from Wishlist
+  app.delete("/api/user/wishlist/:rewardId", async (req: any, res) => {
+    try {
+      if (!req.session?.user?.id) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const rewardId = parseInt(req.params.rewardId);
+      const success = await advancedRedemptionService.removeFromWishlist(req.session.user.id, rewardId);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Wishlist item not found" });
+      }
+
+      res.json({ message: "Removed from wishlist successfully" });
+    } catch (error) {
+      console.error("Error removing from wishlist:", error);
+      res.status(500).json({ message: "Failed to remove from wishlist" });
+    }
+  });
+
+  // User - Update Wishlist Item
+  app.put("/api/user/wishlist/:rewardId", async (req: any, res) => {
+    try {
+      if (!req.session?.user?.id) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const rewardId = parseInt(req.params.rewardId);
+      const updated = await advancedRedemptionService.updateWishlistItem(req.session.user.id, rewardId, req.body);
+      
+      if (!updated) {
+        return res.status(404).json({ message: "Wishlist item not found" });
+      }
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating wishlist item:", error);
+      res.status(500).json({ message: "Failed to update wishlist item" });
+    }
+  });
+
+  // User - Initiate Partial Redemption
+  app.post("/api/user/rewards/:id/partial-redeem", async (req: any, res) => {
+    try {
+      if (!req.session?.user?.id) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const rewardId = parseInt(req.params.id);
+      const { pointsToContribute } = req.body;
+      
+      const partialRedemption = await advancedRedemptionService.initiatePartialRedemption(
+        req.session.user.id,
+        rewardId,
+        pointsToContribute
+      );
+      
+      if (!partialRedemption) {
+        return res.status(400).json({ message: "Unable to initiate partial redemption. Check reward availability and point balance." });
+      }
+
+      res.status(201).json(partialRedemption);
+    } catch (error) {
+      console.error("Error initiating partial redemption:", error);
+      res.status(500).json({ message: "Failed to initiate partial redemption" });
+    }
+  });
+
+  // User - Get Partial Redemptions
+  app.get("/api/user/partial-redemptions", async (req: any, res) => {
+    try {
+      if (!req.session?.user?.id) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const partialRedemptions = await advancedRedemptionService.getUserPartialRedemptions(req.session.user.id);
+      res.json(partialRedemptions);
+    } catch (error) {
+      console.error("Error fetching partial redemptions:", error);
+      res.status(500).json({ message: "Failed to fetch partial redemptions" });
+    }
+  });
+
+  // User - Cancel Partial Redemption
+  app.post("/api/user/partial-redemptions/:id/cancel", async (req: any, res) => {
+    try {
+      if (!req.session?.user?.id) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const partialRedemptionId = parseInt(req.params.id);
+      const success = await advancedRedemptionService.cancelPartialRedemption(req.session.user.id, partialRedemptionId);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Partial redemption not found or cannot be cancelled" });
+      }
+
+      res.json({ message: "Partial redemption cancelled successfully" });
+    } catch (error) {
+      console.error("Error cancelling partial redemption:", error);
+      res.status(500).json({ message: "Failed to cancel partial redemption" });
+    }
+  });
+
+  // User - Get Reward Recommendations
+  app.get("/api/user/recommendations", async (req: any, res) => {
+    try {
+      if (!req.session?.user?.id) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const limit = parseInt(req.query.limit) || 10;
+      const recommendations = await advancedRedemptionService.getUserRecommendations(req.session.user.id, limit);
+      res.json(recommendations);
+    } catch (error) {
+      console.error("Error fetching recommendations:", error);
+      res.status(500).json({ message: "Failed to fetch recommendations" });
+    }
+  });
+
+  // User - Generate New Recommendations
+  app.post("/api/user/recommendations/generate", async (req: any, res) => {
+    try {
+      if (!req.session?.user?.id) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const limit = parseInt(req.body.limit) || 10;
+      const recommendations = await advancedRedemptionService.generateRecommendations(req.session.user.id, limit);
+      res.json(recommendations);
+    } catch (error) {
+      console.error("Error generating recommendations:", error);
+      res.status(500).json({ message: "Failed to generate recommendations" });
+    }
+  });
+
+  // User - Mark Recommendation Viewed
+  app.post("/api/user/recommendations/:id/viewed", async (req: any, res) => {
+    try {
+      if (!req.session?.user?.id) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const recommendationId = parseInt(req.params.id);
+      await advancedRedemptionService.markRecommendationViewed(req.session.user.id, recommendationId);
+      res.json({ message: "Recommendation marked as viewed" });
+    } catch (error) {
+      console.error("Error marking recommendation viewed:", error);
+      res.status(500).json({ message: "Failed to mark recommendation viewed" });
+    }
+  });
+
+  // User - Mark Recommendation Clicked
+  app.post("/api/user/recommendations/:id/clicked", async (req: any, res) => {
+    try {
+      if (!req.session?.user?.id) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const recommendationId = parseInt(req.params.id);
+      await advancedRedemptionService.markRecommendationClicked(req.session.user.id, recommendationId);
+      res.json({ message: "Recommendation marked as clicked" });
+    } catch (error) {
+      console.error("Error marking recommendation clicked:", error);
+      res.status(500).json({ message: "Failed to mark recommendation clicked" });
+    }
+  });
+
+  // User - Track Reward Interaction
+  app.post("/api/user/rewards/:id/interact", async (req: any, res) => {
+    try {
+      if (!req.session?.user?.id) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const rewardId = parseInt(req.params.id);
+      const { interactionType, metadata } = req.body;
+      
+      const interaction = await advancedRedemptionService.trackRewardInteraction(
+        req.session.user.id,
+        rewardId,
+        interactionType,
+        metadata
+      );
+      
+      res.json(interaction);
+    } catch (error) {
+      console.error("Error tracking reward interaction:", error);
+      res.status(500).json({ message: "Failed to track reward interaction" });
+    }
+  });
+
+  // User - Get Reward Interactions
+  app.get("/api/user/rewards/:id/interactions", async (req: any, res) => {
+    try {
+      if (!req.session?.user?.id) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const rewardId = parseInt(req.params.id);
+      const interactions = await advancedRedemptionService.getUserRewardInteractions(req.session.user.id, rewardId);
+      res.json(interactions);
+    } catch (error) {
+      console.error("Error fetching reward interactions:", error);
+      res.status(500).json({ message: "Failed to fetch reward interactions" });
+    }
+  });
+
+  // User - Get Reward Notifications
+  app.get("/api/user/notifications", async (req: any, res) => {
+    try {
+      if (!req.session?.user?.id) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const unreadOnly = req.query.unreadOnly === 'true';
+      const notifications = await advancedRedemptionService.getUserNotifications(req.session.user.id, unreadOnly);
+      res.json(notifications);
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+      res.status(500).json({ message: "Failed to fetch notifications" });
+    }
+  });
+
+  // User - Mark Notification Read
+  app.post("/api/user/notifications/:id/read", async (req: any, res) => {
+    try {
+      if (!req.session?.user?.id) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const notificationId = parseInt(req.params.id);
+      const success = await advancedRedemptionService.markNotificationRead(req.session.user.id, notificationId);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Notification not found" });
+      }
+
+      res.json({ message: "Notification marked as read" });
+    } catch (error) {
+      console.error("Error marking notification read:", error);
+      res.status(500).json({ message: "Failed to mark notification read" });
+    }
+  });
+
+  // Admin - Update Reward Pricing
+  app.post("/api/admin/rewards/:id/pricing", async (req: any, res) => {
+    try {
+      const userPrivilegeLevel = getPrivilegeLevelForRole(req.session?.user?.role || "Visitor");
+      if (userPrivilegeLevel > 1) {
+        return res.status(403).json({ message: "Access denied. Admin privileges required." });
+      }
+
+      const rewardId = parseInt(req.params.id);
+      const { demandLevel } = req.body;
+      
+      await advancedRedemptionService.updateRewardPricing(rewardId, demandLevel);
+      res.json({ message: "Reward pricing updated successfully" });
+    } catch (error) {
+      console.error("Error updating reward pricing:", error);
+      res.status(500).json({ message: "Failed to update reward pricing" });
+    }
+  });
+
+  // Admin - Get Reward Pricing History
+  app.get("/api/admin/rewards/:id/pricing-history", async (req: any, res) => {
+    try {
+      const userPrivilegeLevel = getPrivilegeLevelForRole(req.session?.user?.role || "Visitor");
+      if (userPrivilegeLevel > 1) {
+        return res.status(403).json({ message: "Access denied. Admin privileges required." });
+      }
+
+      const rewardId = parseInt(req.params.id);
+      const limit = parseInt(req.query.limit) || 30;
+      
+      const history = await advancedRedemptionService.getRewardPricingHistory(rewardId, limit);
+      res.json(history);
+    } catch (error) {
+      console.error("Error fetching pricing history:", error);
+      res.status(500).json({ message: "Failed to fetch pricing history" });
+    }
+  });
+
+  // Admin - Update Reward Inventory
+  app.post("/api/admin/rewards/:id/inventory", async (req: any, res) => {
+    try {
+      const userPrivilegeLevel = getPrivilegeLevelForRole(req.session?.user?.role || "Visitor");
+      if (userPrivilegeLevel > 1) {
+        return res.status(403).json({ message: "Access denied. Admin privileges required." });
+      }
+
+      const rewardId = parseInt(req.params.id);
+      const inventory = await advancedRedemptionService.updateRewardInventory(rewardId, req.body);
+      res.json(inventory);
+    } catch (error) {
+      console.error("Error updating reward inventory:", error);
+      res.status(500).json({ message: "Failed to update reward inventory" });
+    }
+  });
+
+  // Admin - Check Inventory Availability
+  app.get("/api/admin/rewards/:id/inventory/check", async (req: any, res) => {
+    try {
+      const userPrivilegeLevel = getPrivilegeLevelForRole(req.session?.user?.role || "Visitor");
+      if (userPrivilegeLevel > 1) {
+        return res.status(403).json({ message: "Access denied. Admin privileges required." });
+      }
+
+      const rewardId = parseInt(req.params.id);
+      const quantity = parseInt(req.query.quantity) || 1;
+      
+      const available = await advancedRedemptionService.checkInventoryAvailability(rewardId, quantity);
+      res.json({ available, rewardId, quantity });
+    } catch (error) {
+      console.error("Error checking inventory availability:", error);
+      res.status(500).json({ message: "Failed to check inventory availability" });
+    }
+  });
+
+  // ===== END ADVANCED REDEMPTION OPTIONS ENDPOINTS =====
 
   // Seeding endpoint (for development only)
   app.post("/api/seed-users", async (req: any, res) => {

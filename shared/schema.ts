@@ -1158,6 +1158,180 @@ export type InsertActivityLike = typeof activityLikes.$inferInsert;
 export type ActivityComment = typeof activityComments.$inferSelect;
 export type InsertActivityComment = typeof activityComments.$inferInsert;
 
+// ===== PHASE 5.3: ADVANCED REDEMPTION OPTIONS SCHEMA =====
+
+// Reward wishlists for users to save desired rewards
+export const rewardWishlists = pgTable("reward_wishlists", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  rewardId: integer("reward_id").references(() => rewards.id).notNull(),
+  priority: integer("priority").default(1), // 1=high, 2=medium, 3=low
+  targetPointsGoal: integer("target_points_goal"), // user's savings goal for this reward
+  isNotificationsEnabled: boolean("is_notifications_enabled").default(true),
+  priceAlertThreshold: decimal("price_alert_threshold", { precision: 5, scale: 2 }), // alert when price drops below this
+  addedAt: timestamp("added_at").defaultNow(),
+  lastNotified: timestamp("last_notified"),
+});
+
+// Dynamic pricing history and demand tracking
+export const rewardPricingHistory = pgTable("reward_pricing_history", {
+  id: serial("id").primaryKey(),
+  rewardId: integer("reward_id").references(() => rewards.id).notNull(),
+  originalPrice: integer("original_price").notNull(),
+  adjustedPrice: integer("adjusted_price").notNull(),
+  demandMultiplier: decimal("demand_multiplier", { precision: 3, scale: 2 }).default("1.00"),
+  redemptionCount: integer("redemption_count").default(0), // redemptions in current period
+  viewCount: integer("view_count").default(0), // views in current period
+  demandLevel: varchar("demand_level", { 
+    enum: ["Very Low", "Low", "Normal", "High", "Very High"] 
+  }).default("Normal"),
+  priceChangeReason: varchar("price_change_reason", { 
+    enum: ["Demand", "Seasonal", "Inventory", "Promotion", "Manual"] 
+  }),
+  validFrom: timestamp("valid_from").defaultNow(),
+  validUntil: timestamp("valid_until"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Partial redemption support for high-value rewards
+export const partialRedemptions = pgTable("partial_redemptions", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  rewardId: integer("reward_id").references(() => rewards.id).notNull(),
+  totalPointsRequired: integer("total_points_required").notNull(),
+  pointsContributed: integer("points_contributed").notNull(),
+  remainingPoints: integer("remaining_points").notNull(),
+  isCompleted: boolean("is_completed").default(false),
+  completedAt: timestamp("completed_at"),
+  expiresAt: timestamp("expires_at"), // partial redemption expiry
+  reservationId: varchar("reservation_id", { length: 50 }), // unique reservation identifier
+  status: varchar("status", { 
+    enum: ["Active", "Completed", "Expired", "Cancelled"] 
+  }).default("Active"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// User reward recommendations based on behavior and preferences
+export const rewardRecommendations = pgTable("reward_recommendations", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  rewardId: integer("reward_id").references(() => rewards.id).notNull(),
+  recommendationType: varchar("recommendation_type", { 
+    enum: ["Behavioral", "Collaborative", "Content-Based", "Trending", "Seasonal", "Personalized"] 
+  }).notNull(),
+  confidenceScore: decimal("confidence_score", { precision: 3, scale: 2 }), // 0.00-1.00
+  reasoning: text("reasoning"), // why this reward was recommended
+  userBehaviorData: jsonb("user_behavior_data"), // behavioral patterns used
+  isViewed: boolean("is_viewed").default(false),
+  isClicked: boolean("is_clicked").default(false),
+  isRedeemed: boolean("is_redeemed").default(false),
+  viewedAt: timestamp("viewed_at"),
+  clickedAt: timestamp("clicked_at"),
+  redeemedAt: timestamp("redeemed_at"),
+  rank: integer("rank"), // recommendation ranking for this user
+  generatedAt: timestamp("generated_at").defaultNow(),
+  expiresAt: timestamp("expires_at"), // recommendations expire to stay fresh
+});
+
+// Reward inventory and availability tracking
+export const rewardInventory = pgTable("reward_inventory", {
+  id: serial("id").primaryKey(),
+  rewardId: integer("reward_id").references(() => rewards.id).notNull().unique(),
+  totalStock: integer("total_stock"), // null = unlimited
+  availableStock: integer("available_stock"), // current available count
+  reservedStock: integer("reserved_stock").default(0), // temporarily reserved
+  lowStockThreshold: integer("low_stock_threshold").default(10),
+  isOutOfStock: boolean("is_out_of_stock").default(false),
+  autoRestock: boolean("auto_restock").default(false),
+  restockLevel: integer("restock_level"), // auto restock to this level
+  lastRestocked: timestamp("last_restocked"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Reward recommendation algorithms and ML model tracking
+export const recommendationModels = pgTable("recommendation_models", {
+  id: serial("id").primaryKey(),
+  modelName: varchar("model_name", { length: 100 }).notNull(),
+  modelType: varchar("model_type", { 
+    enum: ["Collaborative Filtering", "Content-Based", "Hybrid", "Deep Learning", "Matrix Factorization"] 
+  }).notNull(),
+  version: varchar("version", { length: 20 }).default("1.0"),
+  isActive: boolean("is_active").default(false),
+  accuracy: decimal("accuracy", { precision: 5, scale: 4 }), // model accuracy score
+  precision: decimal("precision", { precision: 5, scale: 4 }),
+  recall: decimal("recall", { precision: 5, scale: 4 }),
+  trainingData: jsonb("training_data"), // metadata about training dataset
+  hyperparameters: jsonb("hyperparameters"),
+  trainingStarted: timestamp("training_started"),
+  trainingCompleted: timestamp("training_completed"),
+  lastPrediction: timestamp("last_prediction"),
+  deployedAt: timestamp("deployed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// User reward interaction tracking for ML models
+export const rewardInteractions = pgTable("reward_interactions", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  rewardId: integer("reward_id").references(() => rewards.id).notNull(),
+  interactionType: varchar("interaction_type", { 
+    enum: ["View", "Click", "Add to Wishlist", "Share", "Compare", "Review", "Redeem", "Partial Redeem"] 
+  }).notNull(),
+  sessionId: varchar("session_id", { length: 100 }),
+  deviceType: varchar("device_type", { length: 50 }),
+  userAgent: varchar("user_agent", { length: 500 }),
+  referrerSource: varchar("referrer_source", { length: 200 }),
+  timeSpent: integer("time_spent"), // seconds spent on reward page
+  pageDepth: integer("page_depth"), // how many pages deep in session
+  interactionMetadata: jsonb("interaction_metadata"), // additional context
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Reward notifications and alerts system
+export const rewardNotifications = pgTable("reward_notifications", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  rewardId: integer("reward_id").references(() => rewards.id),
+  notificationType: varchar("notification_type", { 
+    enum: ["Price Drop", "Back in Stock", "Wishlist Goal Reached", "Limited Time Offer", "Recommendation", "Expiring Soon"] 
+  }).notNull(),
+  title: varchar("title", { length: 200 }).notNull(),
+  message: text("message").notNull(),
+  actionUrl: varchar("action_url", { length: 500 }),
+  priority: varchar("priority", { 
+    enum: ["Low", "Medium", "High", "Urgent"] 
+  }).default("Medium"),
+  isRead: boolean("is_read").default(false),
+  isActionTaken: boolean("is_action_taken").default(false),
+  deliveryMethod: varchar("delivery_method", { 
+    enum: ["In-App", "Email", "SMS", "Push"] 
+  }).default("In-App"),
+  sentAt: timestamp("sent_at"),
+  readAt: timestamp("read_at"),
+  actionTakenAt: timestamp("action_taken_at"),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Advanced redemption options types
+export type RewardWishlist = typeof rewardWishlists.$inferSelect;
+export type InsertRewardWishlist = typeof rewardWishlists.$inferInsert;
+export type RewardPricingHistory = typeof rewardPricingHistory.$inferSelect;
+export type InsertRewardPricingHistory = typeof rewardPricingHistory.$inferInsert;
+export type PartialRedemption = typeof partialRedemptions.$inferSelect;
+export type InsertPartialRedemption = typeof partialRedemptions.$inferInsert;
+export type RewardRecommendation = typeof rewardRecommendations.$inferSelect;
+export type InsertRewardRecommendation = typeof rewardRecommendations.$inferInsert;
+export type RewardInventory = typeof rewardInventory.$inferSelect;
+export type InsertRewardInventory = typeof rewardInventory.$inferInsert;
+export type RecommendationModel = typeof recommendationModels.$inferSelect;
+export type InsertRecommendationModel = typeof recommendationModels.$inferInsert;
+export type RewardInteraction = typeof rewardInteractions.$inferSelect;
+export type InsertRewardInteraction = typeof rewardInteractions.$inferInsert;
+export type RewardNotification = typeof rewardNotifications.$inferSelect;
+export type InsertRewardNotification = typeof rewardNotifications.$inferInsert;
+
 
 export type InsertInsuranceType = typeof insuranceTypes.$inferInsert;
 export type InsuranceType = typeof insuranceTypes.$inferSelect;
