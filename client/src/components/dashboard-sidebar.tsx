@@ -13,6 +13,7 @@ import {
   UserX,
   Settings,
   BarChart3,
+  TrendingUp,
   Menu,
   X,
   Home,
@@ -122,6 +123,20 @@ const menuItems: MenuItem[] = [
     icon: BarChart3,
     href: "/dashboard/analytics",
     roles: ["SuperAdmin", "TenantAdmin", "Agent"],
+  },
+  {
+    id: "points-analytics",
+    label: "Points Analytics",
+    icon: TrendingUp,
+    href: "/dashboard/points-analytics",
+    roles: ["SuperAdmin", "TenantAdmin"],
+  },
+  {
+    id: "user-insights",
+    label: "My Points Insights",
+    icon: Star,
+    href: "/dashboard/user-insights",
+    roles: ["SuperAdmin", "TenantAdmin", "Agent", "Member"],
   },
   {
     id: "user-management",

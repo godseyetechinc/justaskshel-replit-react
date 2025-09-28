@@ -43,6 +43,8 @@ import NeedsAnalysisPage from "@/pages/needs-analysis";
 import OrganizationsPage from "@/pages/dashboard/organizations";
 import OrganizationProfilePage from "@/pages/dashboard/organization-profile";
 import AdminProviderManagement from "@/pages/admin-provider-management";
+import PointsAnalyticsDashboard from "@/pages/dashboard/points-analytics";
+import UserPointsInsights from "@/pages/dashboard/user-points-insights";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -119,6 +121,8 @@ function Router() {
           <Route path="/dashboard/organization-profile" component={OrganizationProfilePage} />
           <Route path="/dashboard/password-management" component={PasswordManagementPage} />
           <Route path="/dashboard/analytics" component={AnalyticsPage} />
+          <Route path="/dashboard/points-analytics" component={PointsAnalyticsDashboard} />
+          <Route path="/dashboard/user-insights" component={UserPointsInsights} />
           {/* Main dashboard route comes last to avoid conflicts */}
           <Route path="/dashboard" component={Dashboard} />
           <Route path="/role-test" component={RoleTest} />
