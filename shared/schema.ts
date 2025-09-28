@@ -27,7 +27,7 @@ export const sessions = pgTable(
 );
 
 // User storage table with role-based authorization - mandatory for Replit Auth
-export const users = pgTable("users", {
+export const users: any = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   personId: integer("person_id").references(() => persons.id),
   email: varchar("email").unique(), // Keep for authentication
@@ -492,7 +492,7 @@ export const pointsRules = pgTable("points_rules", {
 
 // ===== UNIFIED PERSON ENTITY MODEL =====
 // Central person identity table - single source of truth for individual identity
-export const persons = pgTable("persons", {
+export const persons: any = pgTable("persons", {
   id: serial("id").primaryKey(),
   
   // Core Identity

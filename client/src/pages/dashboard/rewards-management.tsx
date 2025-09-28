@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -98,7 +98,7 @@ export default function RewardsManagementPage() {
 
   // Delete reward mutation
   const deleteMutation = useMutation({
-    mutationFn: async (id: number) => apiRequest(`/api/rewards/${id}`, "DELETE"),
+    mutationFn: async (id: number) => apiRequest(`/api/rewards/${id}`, "DELETE", {}),
     onSuccess: () => {
       toast({ title: "Success", description: "Reward deleted successfully" });
       queryClient.invalidateQueries({ queryKey: ["/api/rewards/all"] });
@@ -131,8 +131,8 @@ export default function RewardsManagementPage() {
   const onSubmit = (data: z.infer<typeof rewardFormSchema>) => {
     const formattedData = {
       ...data,
-      validFrom: data.validFrom ? new Date(data.validFrom).toISOString() : null,
-      validUntil: data.validUntil ? new Date(data.validUntil).toISOString() : null,
+      validFrom: data.validFrom ? new Date(data.validFrom).toISOString() : undefined,
+      validUntil: data.validUntil ? new Date(data.validUntil).toISOString() : undefined,
     };
     rewardMutation.mutate(formattedData);
   };

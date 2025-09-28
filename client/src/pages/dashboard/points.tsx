@@ -184,7 +184,7 @@ export default function PointsPage() {
   };
 
   // Filter transactions based on search and type
-  const filteredTransactions = transactions.filter((transaction: any) => {
+  const filteredTransactions = (transactions as any[]).filter((transaction: any) => {
     const matchesSearch = !searchTerm || 
       transaction.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       transaction.category?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -204,7 +204,7 @@ export default function PointsPage() {
   const hasPrev = currentPage > 1;
 
   // Get tier icon
-  const TierIcon = pointsSummary ? tierIcons[pointsSummary.tierLevel as keyof typeof tierIcons] : Trophy;
+  const TierIcon = (pointsSummary as any) ? tierIcons[(pointsSummary as any).tierLevel as keyof typeof tierIcons] : Trophy;
 
   if (summaryLoading || transactionsLoading) {
     return <DashboardLayout><div className="p-6">Loading...</div></DashboardLayout>;
