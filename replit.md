@@ -1,210 +1,35 @@
 # Overview
-
-JustAskShel is an insurance comparison and management platform designed to help users find, compare, and manage various types of insurance policies (life, health, dental, vision, hospital indemnity). It offers quote comparison tools, policy management dashboards, claims assistance, and wishlist functionality, aiming to simplify the insurance shopping and management experience. The platform supports multi-tenancy for agent organizations and provides comprehensive user and member management with robust role-based access control.
-
-# Recent Changes
-
-## Points & Rewards System Phase 1 Completion (September 28, 2025)
-Successfully completed Phase 1 (Core Automation) of the comprehensive points and rewards system transformation, implementing automatic points awarding, dynamic tier calculations, and user onboarding to create an engaging loyalty program:
-
-### Phase 1 Implementation Results
-- **Automatic Points Awarding**: Integrated into all key user activities (policy purchases +500pts, claim submissions +100pts, new user welcome bonus +1000pts)
-- **Dynamic Tier Calculation**: Implemented 5-tier progression system (Bronze → Silver → Gold → Platinum → Diamond) with automatic tier updates based on lifetime points
-- **PointsService Integration**: Core automation service deployed with comprehensive error handling and activity tracking
-- **Database Schema Synchronized**: Fixed missing columns and ensured all points APIs are functional
-- **Backend Integration Complete**: All endpoints (policy creation, claims submission, user registration) now automatically award points
-
-### Technical Implementation
-- Created `server/services/pointsService.ts` with comprehensive automation logic for point awarding and tier calculations
-- Modified `server/routes.ts` to integrate automatic point awarding for all key user activities
-- Synchronized database schema and resolved API functionality issues
-- Backend testing completed - all points APIs verified working (points summary, transactions, rewards all active)
-
-### Business Impact Ready
-Phase 1 automation enables target metrics: 80% users earning points monthly, 25% redemption rate, 20% retention improvement.
-
-## Points & Rewards System Phase 2 Completion (September 28, 2025)
-Successfully completed Phase 2 (User Engagement Features) of the comprehensive points and rewards system, implementing achievements, notification system, and referral system to drive user retention and engagement:
-
-### Phase 2 Implementation Results
-- **Achievement System**: Implemented comprehensive achievement tracking with 8 default achievements across milestone, streak, and activity categories
-- **Real-time Notification System**: Created WebSocket-based notifications for points earned, tier upgrades, achievement unlocks, and referral rewards
-- **Referral System**: Built complete referral code generation, validation, and reward processing with detailed tracking
-- **Database Schema Enhanced**: Added 5 new tables (achievements, user_achievements, referral_codes, referral_signups, notifications)
-- **API Integration Complete**: All Phase 2 endpoints deployed with user authentication and admin access controls
-
-### Technical Implementation
-- Created `AchievementService` with milestone tracking and automatic unlocking based on user activity
-- Implemented `NotificationService` supporting 6 notification types with real-time WebSocket delivery  
-- Built `ReferralService` with unique code generation, signup processing, and referral reward automation
-- Enhanced signup process with referral code support and achievement initialization
-- Integrated Phase 2 services into all user workflows with comprehensive error handling
-
-### Phase 2 Achievements Initialized
-**Milestone Achievements:**
-- Welcome to JustAskShel (1000 pts) - Join the platform
-- First Policy Purchase (500 pts) - Purchase first insurance policy
-- Silver/Gold Tier Achievement (100/250 pts) - Reach tier milestones
-
-**Streak Achievements:**
-- Login Streak Champion (200 pts) - Login 7 days in a row
-
-**Activity Achievements:**
-- Points Collector (150 pts) - Earn 5000 total points
-- Referral Master (300 pts) - Successfully refer 5 users
-- Claims Expert (100 pts) - Submit 3 insurance claims
-
-### Business Impact Ready
-Phase 2 user engagement features enable enhanced retention metrics through gamification, referral growth, and real-time user feedback systems.
-
-## Points & Rewards System Phase 3 Completion (September 28, 2025)
-Successfully completed Phase 3 (Administrative Tools) of the comprehensive points and rewards system, implementing advanced admin controls for points rules management, redemption processing, and bulk operations to provide complete administrative oversight:
-
-### Phase 3 Implementation Results
-- **Points Rules Management Interface**: Comprehensive CRUD operations for points rules with category-based organization, period limits, validation, and bulk activation/deactivation
-- **Redemption Management System**: Admin processing interface with status workflow (Pending → Approved → Delivered → Completed), redemption code generation, and delivery tracking
-- **Bulk Operations Interface**: Mass point awards, reward distribution, campaign-based targeting with user filtering, CSV upload support, and complete audit trail
-- **Administrative API Endpoints**: 15+ new admin-only endpoints with proper authentication and comprehensive functionality
-- **Security & Access Control**: All Phase 3 endpoints require privilegeLevel ≤ 1 (SuperAdmin/TenantAdmin) with role-based access controls
-
-### Technical Implementation
-- Created `PointsRulesManagementService` with comprehensive CRUD, validation, filtering, bulk operations, and usage analytics
-- Built `RedemptionManagementService` with status workflow management, code generation, queue processing, and expiration tracking  
-- Implemented `BulkOperationsService` for multi-user operations, CSV parsing, campaign targeting, and audit logging
-- Enhanced admin authentication and access controls across all administrative functions
-- Integrated all Phase 3 services into routes with comprehensive error handling and data validation
-
-### Administrative Tools Completed
-**Points Rules Management:**
-- Full CRUD operations for all points earning rules
-- Category-based organization and filtering
-- Bulk rule activation/deactivation capabilities
-- Rule usage statistics and analytics
-- Comprehensive validation to prevent conflicts
-
-**Redemption Management:**  
-- Pending redemptions processing queue
-- Complete status workflow management
-- Automatic redemption code generation
-- Multi-channel delivery tracking
-- Bulk redemption operations
-
-**Bulk Operations:**
-- Mass point awards to multiple users
-- Campaign-based point distribution with user filtering
-- CSV upload and parsing for bulk operations
-- Mass reward distribution capabilities
-- Complete audit trail and operation history
-
-### Business Impact Ready
-Phase 3 administrative tools enable complete operational control over the points & rewards system with streamlined admin workflows, quality controls, and scalable mass operations for promotional campaigns.
-
-### Phase 3 Testing & Production Verification
-Following implementation, comprehensive testing was conducted on all Phase 3 administrative endpoints:
-
-**✅ Production-Ready Components:**
-- **Points Rules Management**: 100% operational (CRUD operations, validation, bulk updates)
-- **Redemption Queue Processing**: 100% operational (queue management, status workflows)
-- **Bulk CSV Operations**: 100% operational (CSV parsing, validation, mass point distribution)
-
-**🔧 Issues Identified & Fixed:**
-- **Database Query Fixes**: Corrected Drizzle ORM field references to match actual schema
-- **Import Dependencies**: Added missing imports causing runtime errors
-- **Query Optimization**: Resolved complex JOIN query issues in redemption management
-
-**📊 Testing Results:**
-- **API Success Rate**: 85% of endpoints fully operational
-- **Core Admin Functions**: 95% of administrative features working
-- **Security Verification**: All endpoints properly secured with admin-only access
-- **Performance**: Sub-500ms response times for all operational endpoints
-
-### Phase 4 Analytics & Insights Completion (September 28, 2025)
-Successfully completed Phase 4 (Analytics & Insights) of the comprehensive points and rewards system, implementing advanced analytics dashboards, personal user insights, and data visualization to provide complete visibility into loyalty program performance:
-
-### Phase 4 Implementation Results
-- **Points Analytics Dashboard**: Admin-only comprehensive analytics interface with interactive visualizations
-- **User Points Insights**: Personal analytics dashboard with tier progress, recommendations, and earning tips
-- **Advanced Visualizations**: Line charts, bar charts, pie charts, and funnel analysis using Recharts library
-- **Real-time Metrics**: Live data tracking points trends, reward popularity, tier distribution, and conversion rates
-- **Performance-Optimized Queries**: Sub-500ms response times with advanced SQL analytics calculations
-- **Role-Based Access**: Proper authentication with admin-only and user-specific analytics interfaces
-
-### Technical Implementation  
-- Created `AnalyticsService` with comprehensive metrics calculations and time-series analysis
-- Implemented 7 new API endpoints with proper authentication and role-based access controls
-- Built responsive frontend analytics interfaces with loading states and error handling
-- Enhanced routing and navigation with proper role-based menu items and access controls
-- Fixed TypeScript integration issues and ensured proper chart rendering with real data
-
-### Analytics Features Completed
-**Admin Analytics Dashboard:**
-- Points metrics overview (total issued vs redeemed, redemption rates)
-- Reward popularity analysis with bar chart visualizations
-- Tier distribution with pie charts and detailed breakdowns
-- Points trends analysis with configurable time periods
-- Redemption funnel analytics showing conversion rates
-
-**User Points Insights:**
-- Current status overview (balance, lifetime points, earning rate)
-- Visual tier progress tracking with advancement goals
-- Personalized reward recommendations based on balance and popularity
-- Earning tips and optimization suggestions for maximizing points
-
-### Business Impact Ready
-Phase 4 analytics provide complete visibility into loyalty program performance, enabling data-driven decision making, user engagement optimization, and strategic program improvements through comprehensive real-time insights.
-
-**System Status:** All Phases Complete (1: Core Automation, 2: User Engagement, 3: Administrative Tools, 4: Analytics & Insights) - comprehensive points & rewards loyalty program with advanced administrative controls and complete analytics visibility fully operational and production-ready
-
-## Comprehensive Claims Workflow Enhancement (September 27, 2025)
-Successfully implemented comprehensive claims workflow improvements with sophisticated data infrastructure and modal-based functionality:
-
-### Implementation Results
-- **157 claims created** with complete comprehensive data
-- **Modal-based interface** with ViewClaimModal and EditClaimModal components
-- **Enhanced claims schema** with comprehensive fields (policyNumber, providerName, providerAddress, contactPhone, emergencyContact, emergencyPhone, additionalNotes)
-- **Sophisticated data seeding** with realistic data for all claim types (medical, dental, vision, life, disability)
-- **Enhanced workflow processing** with realistic status distribution and proper date ordering
-- **Proper data relationships** between claims, policies, and users with foreign key constraints
-- **Standardized claim types** with consistent values and realistic provider information
-
-### Technical Implementation
-- Enhanced claims database schema with comprehensive field coverage
-- Created sophisticated seeding function with realistic data generation
-- Implemented proper workflow status progression (draft → submitted → under_review → approved/denied → paid/closed)
-- Established proper foreign key relationships and data integrity constraints
-- Modal popup system for improved user experience over inline display
+JustAskShel is an insurance comparison and management platform that simplifies finding, comparing, and managing various insurance policies (life, health, dental, vision, hospital indemnity). It provides quote comparison tools, policy management dashboards, claims assistance, and wishlist functionality. The platform supports multi-tenancy for agent organizations, offering comprehensive user and member management with robust role-based access control. It also features a comprehensive points and rewards loyalty program with advanced administrative controls and analytics.
 
 # User Preferences
-
 Preferred communication style: Simple, everyday language.
 
 # System Architecture
 
 ## Frontend Architecture
-The client-side is built with React and TypeScript, using Vite as the build tool. It employs Wouter for routing and TanStack Query for server state management. The UI is constructed with shadcn/ui components (built on Radix UI primitives) and styled using Tailwind CSS for consistent and responsive designs.
+The client-side is built with React and TypeScript, using Vite, Wouter for routing, and TanStack Query for server state management. UI components are built with shadcn/ui (based on Radix UI primitives) and styled using Tailwind CSS for consistent and responsive designs.
 
 ## Backend Architecture
 The server-side uses Express.js with TypeScript, following a RESTful API design. It features modular separation for routing, authentication, database operations, and storage. Middleware handles request logging, error handling, and session management, utilizing a PostgreSQL-backed session store.
 
 ## Authentication System
-The application utilizes a dual authentication system supporting both traditional username/password login and Replit OAuth/OpenID Connect. It includes secure session management, user profile storage, and role-based route protection. A 6-tier role system is implemented: SuperAdmin (0), TenantAdmin (1), Agent (2), Member (3), Guest (4), Visitor (5), with hierarchical privilege levels and a JSON permissions structure.
+The application uses a dual authentication system supporting traditional username/password login and Replit OAuth/OpenID Connect. It includes secure session management, user profile storage, and role-based route protection with a 6-tier role system: SuperAdmin (0), TenantAdmin (1), Agent (2), Member (3), Guest (4), Visitor (5).
 
 ## Database Design
-The data layer uses Drizzle ORM with PostgreSQL. Key features include:
-
-### Unified Person Entity Model
-A central `persons` table acts as the single source of truth for individual identity data, eliminating data duplication. Association tables (`person_users`, `person_members`, `person_contacts`) link person entities to role-specific data. This model consolidated records and removed redundant columns, enhancing data integrity.
-
-### Multi-Tenant Agent Organization System
-The database supports multi-tenancy by agent organization, allowing for organization-specific user and member assignment, and tenant isolation for data access control. SuperAdmins have cross-tenant access, while TenantAdmins are restricted to their associated organization.
-
-The database design ensures complex relationships, robust role-based security, and performance optimization through indexing.
+The data layer uses Drizzle ORM with PostgreSQL. It features a unified `persons` entity model as a single source of truth for identity data, linked to role-specific tables (`person_users`, `person_members`, `person_contacts`). It supports multi-tenancy by agent organization, ensuring data isolation and role-based access control.
 
 ## State Management
-Client-side state is managed by TanStack Query for server state, offering caching, background refetching, and optimistic updates. Local component state is handled with React hooks, and form state uses React Hook Form with Zod for shared client/server validation.
+Client-side server state is managed by TanStack Query for caching, background refetching, and optimistic updates. Local component state uses React hooks, and form state uses React Hook Form with Zod for shared client/server validation.
 
 ## UI Component System
-The frontend uses a design system based on shadcn/ui components, themed with CSS custom properties. The component library provides reusable, accessible, and responsive elements for forms, data display, navigation, and feedback.
+The frontend uses a design system based on shadcn/ui components, themed with CSS custom properties, providing reusable, accessible, and responsive elements.
+
+## Points & Rewards System
+The loyalty program includes:
+- **Core Automation**: Automatic points awarding for key activities and dynamic 5-tier progression (Bronze to Diamond) based on lifetime points.
+- **User Engagement**: Achievement system with milestone, streak, and activity categories; real-time WebSocket notifications; and a referral system with code generation and reward processing.
+- **Administrative Tools**: CRUD operations for points rules, redemption management with status workflows, and bulk operations for mass point awards and reward distribution.
+- **Analytics & Insights**: Admin dashboard with interactive visualizations for points metrics, reward popularity, and tier distribution; personal user insights for balance, tier progress, and recommendations.
 
 # External Dependencies
 
