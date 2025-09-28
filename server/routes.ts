@@ -19,6 +19,7 @@ import { ReferralService } from "./services/referralService";
 import { PointsRulesManagementService } from "./services/pointsRulesManagementService";
 import { RedemptionManagementService } from "./services/redemptionManagementService";
 import { BulkOperationsService } from "./services/bulkOperationsService";
+import { AnalyticsService } from "./services/analyticsService";
 import {
   insertInsuranceQuoteSchema,
   insertSelectedQuoteSchema,
@@ -3043,6 +3044,144 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch notification stats" });
     }
   });
+
+  // Initialize services
+  const analyticsService = new AnalyticsService();
+
+  // ===== ANALYTICS ENDPOINTS =====
+  
+  // Admin Analytics Dashboard - Points Metrics
+  app.get("/api/admin/analytics/points-metrics", async (req: any, res) => {
+    try {
+      const userPrivilegeLevel = getPrivilegeLevelForRole(req.session?.user?.role || "Visitor");
+      if (userPrivilegeLevel > 1) {
+        return res.status(403).json({ message: "Access denied. Admin privileges required." });
+      }
+
+      const { from, to } = req.query;
+      const dateRange = from && to ? { from: new Date(from), to: new Date(to) } : undefined;
+      
+      const metrics = await analyticsService.getPointsMetrics(dateRange);
+      res.json(metrics);
+    } catch (error) {
+      console.error("Error fetching points metrics:", error);
+      res.status(500).json({ message: "Failed to fetch points metrics" });
+    }
+  });
+
+  // Admin Analytics Dashboard - Reward Popularity
+  app.get("/api/admin/analytics/reward-popularity", async (req: any, res) => {
+    try {
+      const userPrivilegeLevel = getPrivilegeLevelForRole(req.session?.user?.role || "Visitor");
+      if (userPrivilegeLevel > 1) {
+        return res.status(403).json({ message: "Access denied. Admin privileges required." });
+      }
+
+      const limit = parseInt(req.query.limit as string) || 10;
+      const popularity = await analyticsService.getRewardPopularity(limit);
+      res.json(popularity);
+    } catch (error) {
+      console.error("Error fetching reward popularity:", error);
+      res.status(500).json({ message: "Failed to fetch reward popularity" });
+    }
+  });
+
+  // Admin Analytics Dashboard - Tier Distribution
+  app.get("/api/admin/analytics/tier-distribution", async (req: any, res) => {
+    try {
+      const userPrivilegeLevel = getPrivilegeLevelForRole(req.session?.user?.role || "Visitor");
+      if (userPrivilegeLevel > 1) {
+        return res.status(403).json({ message: "Access denied. Admin privileges required." });
+      }
+
+      const distribution = await analyticsService.getTierDistribution();
+      res.json(distribution);
+    } catch (error) {
+      console.error("Error fetching tier distribution:", error);
+      res.status(500).json({ message: "Failed to fetch tier distribution" });
+    }
+  });
+
+  // Admin Analytics Dashboard - Points Trends
+  app.get("/api/admin/analytics/points-trends", async (req: any, res) => {
+    try {
+      const userPrivilegeLevel = getPrivilegeLevelForRole(req.session?.user?.role || "Visitor");
+      if (userPrivilegeLevel > 1) {
+        return res.status(403).json({ message: "Access denied. Admin privileges required." });
+      }
+
+      const days = parseInt(req.query.days as string) || 30;
+      const trends = await analyticsService.getPointsTrends(days);
+      res.json(trends);
+    } catch (error) {
+      console.error("Error fetching points trends:", error);
+      res.status(500).json({ message: "Failed to fetch points trends" });
+    }
+  });
+
+  // Admin Analytics Dashboard - Redemption Funnel
+  app.get("/api/admin/analytics/redemption-funnel", async (req: any, res) => {
+    try {
+      const userPrivilegeLevel = getPrivilegeLevelForRole(req.session?.user?.role || "Visitor");
+      if (userPrivilegeLevel > 1) {
+        return res.status(403).json({ message: "Access denied. Admin privileges required." });
+      }
+
+      const funnel = await analyticsService.getRedemptionFunnel();
+      res.json(funnel);
+    } catch (error) {
+      console.error("Error fetching redemption funnel:", error);
+      res.status(500).json({ message: "Failed to fetch redemption funnel" });
+    }
+  });
+
+  // User Points Insights - Personal Analytics
+  app.get("/api/user/insights", async (req: any, res) => {
+    try {
+      if (!req.session?.user?.id) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const insights = await analyticsService.getUserInsights(req.session.user.id);
+      if (!insights) {
+        return res.status(404).json({ message: "User insights not found" });
+      }
+
+      res.json(insights);
+    } catch (error) {
+      console.error("Error fetching user insights:", error);
+      res.status(500).json({ message: "Failed to fetch user insights" });
+    }
+  });
+
+  // Combined Analytics Overview - For Admin Dashboard Summary
+  app.get("/api/admin/analytics/overview", async (req: any, res) => {
+    try {
+      const userPrivilegeLevel = getPrivilegeLevelForRole(req.session?.user?.role || "Visitor");
+      if (userPrivilegeLevel > 1) {
+        return res.status(403).json({ message: "Access denied. Admin privileges required." });
+      }
+
+      const [metrics, popularRewards, tierDistribution, funnel] = await Promise.all([
+        analyticsService.getPointsMetrics(),
+        analyticsService.getRewardPopularity(5),
+        analyticsService.getTierDistribution(),
+        analyticsService.getRedemptionFunnel()
+      ]);
+
+      res.json({
+        pointsMetrics: metrics,
+        popularRewards,
+        tierDistribution,
+        redemptionFunnel: funnel
+      });
+    } catch (error) {
+      console.error("Error fetching analytics overview:", error);
+      res.status(500).json({ message: "Failed to fetch analytics overview" });
+    }
+  });
+
+  // ===== END ANALYTICS ENDPOINTS =====
 
   // Seeding endpoint (for development only)
   app.post("/api/seed-users", async (req: any, res) => {
