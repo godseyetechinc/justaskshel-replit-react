@@ -12,6 +12,7 @@ import {
   initializeQuoteWebSocket,
   quoteWebSocketServer,
 } from "./websocketServer";
+import { pointsService } from "./services/pointsService";
 import {
   insertInsuranceQuoteSchema,
   insertSelectedQuoteSchema,
@@ -240,6 +241,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         privilegeLevel: role === "Admin" ? 1 : role === "Agent" ? 2 : 3,
         isActive: true,
       });
+
+      // Award welcome bonus for new user
+      try {
+        await pointsService.awardWelcomeBonus(newUser.id);
+      } catch (pointsError) {
+        console.error("Error awarding welcome bonus:", pointsError);
+        // Don't fail user registration if points awarding fails
+      }
 
       // Set session
       (req.session as any).userId = newUser.id;
@@ -738,6 +747,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId,
       });
       const policy = await storage.createPolicy(validatedData);
+      
+      // Award points for policy purchase
+      try {
+        await pointsService.awardPointsForActivity(
+          userId, 
+          "POLICY_PURCHASE", 
+          policy.id?.toString(), 
+          "policy"
+        );
+      } catch (pointsError) {
+        console.error("Error awarding points for policy purchase:", pointsError);
+        // Don't fail the policy creation if points awarding fails
+      }
+      
       res.status(201).json(policy);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -1095,6 +1118,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Initialize workflow steps for the claim
       if (claim.claimType) {
         await storage.initializeClaimWorkflow(claim.id, claim.claimType);
+      }
+
+      // Award points for claim submission
+      try {
+        await pointsService.awardPointsForActivity(
+          userId, 
+          "CLAIM_SUBMISSION", 
+          claim.id?.toString(), 
+          "claim"
+        );
+      } catch (pointsError) {
+        console.error("Error awarding points for claim submission:", pointsError);
+        // Don't fail the claim creation if points awarding fails
       }
 
       res.status(201).json(claim);
