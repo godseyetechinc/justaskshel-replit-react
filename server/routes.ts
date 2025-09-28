@@ -16,6 +16,9 @@ import { pointsService } from "./services/pointsService";
 import { AchievementService } from "./services/achievementService";
 import { NotificationService } from "./services/notificationService";
 import { ReferralService } from "./services/referralService";
+import { PointsRulesManagementService } from "./services/pointsRulesManagementService";
+import { RedemptionManagementService } from "./services/redemptionManagementService";
+import { BulkOperationsService } from "./services/bulkOperationsService";
 import {
   insertInsuranceQuoteSchema,
   insertSelectedQuoteSchema,
@@ -77,6 +80,11 @@ function deobfuscateOrgId(obfuscated: string): number | null {
 const achievementService = new AchievementService();
 const notificationService = new NotificationService();
 const referralService = new ReferralService();
+
+// Initialize Phase 3 services
+const pointsRulesManagementService = new PointsRulesManagementService();
+const redemptionManagementService = new RedemptionManagementService();
+const bulkOperationsService = new BulkOperationsService();
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Session middleware (no Replit auth)
@@ -2695,6 +2703,298 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error validating referral code:", error);
       res.status(500).json({ message: "Failed to validate referral code" });
+    }
+  });
+
+  // ===== Phase 3: Administrative Tools API Routes =====
+
+  // Points Rules Management (Admin only)
+  app.get("/api/admin/points-rules", async (req: any, res) => {
+    try {
+      if (req.session?.user?.privilegeLevel > 1) {
+        return res.status(403).json({ message: "Access denied. Admin privileges required." });
+      }
+
+      const { category, isActive, search, sortBy, sortOrder, limit, offset } = req.query;
+      const result = await pointsRulesManagementService.getAllPointsRules({
+        category,
+        isActive: isActive === 'true' ? true : isActive === 'false' ? false : undefined,
+        search,
+        sortBy,
+        sortOrder,
+        limit: limit ? parseInt(limit as string) : undefined,
+        offset: offset ? parseInt(offset as string) : undefined
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error fetching points rules:", error);
+      res.status(500).json({ message: "Failed to fetch points rules" });
+    }
+  });
+
+  app.get("/api/admin/points-rules/:id", async (req: any, res) => {
+    try {
+      if (req.session?.user?.privilegeLevel > 1) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const rule = await pointsRulesManagementService.getPointsRuleById(parseInt(req.params.id));
+      if (!rule) {
+        return res.status(404).json({ message: "Points rule not found" });
+      }
+
+      res.json(rule);
+    } catch (error) {
+      console.error("Error fetching points rule:", error);
+      res.status(500).json({ message: "Failed to fetch points rule" });
+    }
+  });
+
+  app.post("/api/admin/points-rules", async (req: any, res) => {
+    try {
+      if (req.session?.user?.privilegeLevel > 1) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const validation = await pointsRulesManagementService.validateRule(req.body);
+      if (!validation.isValid) {
+        return res.status(400).json({ message: "Validation failed", errors: validation.errors });
+      }
+
+      const newRule = await pointsRulesManagementService.createPointsRule(req.body);
+      res.status(201).json(newRule);
+    } catch (error) {
+      console.error("Error creating points rule:", error);
+      res.status(500).json({ message: "Failed to create points rule" });
+    }
+  });
+
+  app.put("/api/admin/points-rules/:id", async (req: any, res) => {
+    try {
+      if (req.session?.user?.privilegeLevel > 1) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const validation = await pointsRulesManagementService.validateRule(req.body, parseInt(req.params.id));
+      if (!validation.isValid) {
+        return res.status(400).json({ message: "Validation failed", errors: validation.errors });
+      }
+
+      const updatedRule = await pointsRulesManagementService.updatePointsRule(parseInt(req.params.id), req.body);
+      res.json(updatedRule);
+    } catch (error) {
+      console.error("Error updating points rule:", error);
+      res.status(500).json({ message: "Failed to update points rule" });
+    }
+  });
+
+  app.delete("/api/admin/points-rules/:id", async (req: any, res) => {
+    try {
+      if (req.session?.user?.privilegeLevel > 1) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      await pointsRulesManagementService.deletePointsRule(parseInt(req.params.id));
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting points rule:", error);
+      res.status(500).json({ message: "Failed to delete points rule" });
+    }
+  });
+
+  app.post("/api/admin/points-rules/bulk-update", async (req: any, res) => {
+    try {
+      if (req.session?.user?.privilegeLevel > 1) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const { ids, isActive } = req.body;
+      const updatedCount = await pointsRulesManagementService.bulkUpdateRuleStatus(ids, isActive);
+      res.json({ updatedCount });
+    } catch (error) {
+      console.error("Error bulk updating points rules:", error);
+      res.status(500).json({ message: "Failed to bulk update points rules" });
+    }
+  });
+
+  // Redemption Management (Admin only)
+  app.get("/api/admin/redemptions", async (req: any, res) => {
+    try {
+      if (req.session?.user?.privilegeLevel > 1) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const filters = {
+        status: req.query.status,
+        userId: req.query.userId,
+        rewardId: req.query.rewardId ? parseInt(req.query.rewardId as string) : undefined,
+        deliveryMethod: req.query.deliveryMethod,
+        dateFrom: req.query.dateFrom ? new Date(req.query.dateFrom as string) : undefined,
+        dateTo: req.query.dateTo ? new Date(req.query.dateTo as string) : undefined,
+        search: req.query.search,
+        sortBy: req.query.sortBy,
+        sortOrder: req.query.sortOrder,
+        limit: req.query.limit ? parseInt(req.query.limit as string) : undefined,
+        offset: req.query.offset ? parseInt(req.query.offset as string) : undefined
+      };
+
+      const result = await redemptionManagementService.getAllRedemptions(filters);
+      res.json(result);
+    } catch (error) {
+      console.error("Error fetching redemptions:", error);
+      res.status(500).json({ message: "Failed to fetch redemptions" });
+    }
+  });
+
+  app.get("/api/admin/redemptions/:id", async (req: any, res) => {
+    try {
+      if (req.session?.user?.privilegeLevel > 1) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const redemption = await redemptionManagementService.getRedemptionById(parseInt(req.params.id));
+      if (!redemption) {
+        return res.status(404).json({ message: "Redemption not found" });
+      }
+
+      res.json(redemption);
+    } catch (error) {
+      console.error("Error fetching redemption:", error);
+      res.status(500).json({ message: "Failed to fetch redemption" });
+    }
+  });
+
+  app.put("/api/admin/redemptions/:id/status", async (req: any, res) => {
+    try {
+      if (req.session?.user?.privilegeLevel > 1) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const { status, adminNotes, deliveryData } = req.body;
+      const updatedRedemption = await redemptionManagementService.updateRedemptionStatus(
+        parseInt(req.params.id), 
+        status, 
+        adminNotes, 
+        deliveryData
+      );
+
+      res.json(updatedRedemption);
+    } catch (error) {
+      console.error("Error updating redemption status:", error);
+      res.status(500).json({ message: "Failed to update redemption status" });
+    }
+  });
+
+  app.post("/api/admin/redemptions/:id/generate-code", async (req: any, res) => {
+    try {
+      if (req.session?.user?.privilegeLevel > 1) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const redemptionCode = await redemptionManagementService.generateAndAssignRedemptionCode(parseInt(req.params.id));
+      res.json({ redemptionCode });
+    } catch (error) {
+      console.error("Error generating redemption code:", error);
+      res.status(500).json({ message: "Failed to generate redemption code" });
+    }
+  });
+
+  app.get("/api/admin/redemptions-queue", async (req: any, res) => {
+    try {
+      if (req.session?.user?.privilegeLevel > 1) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
+      const offset = req.query.offset ? parseInt(req.query.offset as string) : 0;
+
+      const result = await redemptionManagementService.getPendingRedemptionsQueue(limit, offset);
+      res.json(result);
+    } catch (error) {
+      console.error("Error fetching redemptions queue:", error);
+      res.status(500).json({ message: "Failed to fetch redemptions queue" });
+    }
+  });
+
+  // Bulk Operations (Admin only)
+  app.post("/api/admin/bulk/award-points", async (req: any, res) => {
+    try {
+      if (req.session?.user?.privilegeLevel > 1) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const result = await bulkOperationsService.bulkAwardPoints(req.body, req.session.user.id);
+      res.json(result);
+    } catch (error) {
+      console.error("Error executing bulk points award:", error);
+      res.status(500).json({ message: "Failed to execute bulk points award" });
+    }
+  });
+
+  app.post("/api/admin/bulk/distribute-rewards", async (req: any, res) => {
+    try {
+      if (req.session?.user?.privilegeLevel > 1) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const result = await bulkOperationsService.bulkDistributeRewards(req.body, req.session.user.id);
+      res.json(result);
+    } catch (error) {
+      console.error("Error executing bulk reward distribution:", error);
+      res.status(500).json({ message: "Failed to execute bulk reward distribution" });
+    }
+  });
+
+  app.post("/api/admin/bulk/campaign-distribution", async (req: any, res) => {
+    try {
+      if (req.session?.user?.privilegeLevel > 1) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const result = await bulkOperationsService.distributeCampaignPoints(req.body, req.session.user.id);
+      res.json(result);
+    } catch (error) {
+      console.error("Error executing campaign distribution:", error);
+      res.status(500).json({ message: "Failed to execute campaign distribution" });
+    }
+  });
+
+  app.post("/api/admin/bulk/parse-csv", async (req: any, res) => {
+    try {
+      if (req.session?.user?.privilegeLevel > 1) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const { csvData } = req.body;
+      const result = await bulkOperationsService.parseBulkAwardCSV(csvData);
+      res.json(result);
+    } catch (error) {
+      console.error("Error parsing bulk CSV:", error);
+      res.status(500).json({ message: "Failed to parse CSV data" });
+    }
+  });
+
+  app.get("/api/admin/bulk/operations-history", async (req: any, res) => {
+    try {
+      if (req.session?.user?.privilegeLevel > 1) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const filters = {
+        adminUserId: req.query.adminUserId,
+        operationType: req.query.operationType,
+        dateFrom: req.query.dateFrom ? new Date(req.query.dateFrom as string) : undefined,
+        dateTo: req.query.dateTo ? new Date(req.query.dateTo as string) : undefined,
+        limit: req.query.limit ? parseInt(req.query.limit as string) : undefined,
+        offset: req.query.offset ? parseInt(req.query.offset as string) : undefined
+      };
+
+      const result = await bulkOperationsService.getBulkOperationHistory(filters);
+      res.json(result);
+    } catch (error) {
+      console.error("Error fetching bulk operations history:", error);
+      res.status(500).json({ message: "Failed to fetch operations history" });
     }
   });
 
