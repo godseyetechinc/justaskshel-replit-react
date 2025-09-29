@@ -2949,6 +2949,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get agents with automatic scope resolution and pagination
       const result = await storage.getAgents(userContext, { limit, offset });
       
+      // Add cache headers for performance optimization
+      // Phase 4: Response caching considerations
+      res.setHeader('Cache-Control', 'private, max-age=300'); // 5 minutes cache
+      res.setHeader('Vary', 'Cookie'); // Vary by authentication
+      
       // Return paginated response
       res.json({
         data: result.agents,
