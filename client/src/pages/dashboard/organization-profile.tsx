@@ -44,7 +44,15 @@ import {
   Shield,
   Plus,
   Trash2,
-  Send
+  Send,
+  BarChart3,
+  TrendingUp,
+  UserCheck,
+  Activity,
+  Clock,
+  Award,
+  Target,
+  Zap
 } from "lucide-react";
 import { useRoleAuth } from "@/hooks/useRoleAuth";
 
@@ -108,6 +116,44 @@ export default function OrganizationProfile() {
   // Fetch organization invitations
   const { data: invitations, isLoading: invitationsLoading } = useQuery({
     queryKey: [`/api/organizations/${organization?.id}/invitations`],
+    enabled: !authLoading && isTenantAdmin && !!organization?.id,
+  });
+
+  // ===== PHASE 2: ANALYTICS QUERIES =====
+  
+  // Organization analytics dashboard data
+  const { data: analytics, isLoading: analyticsLoading } = useQuery({
+    queryKey: [`/api/organizations/${organization?.id}/analytics`],
+    enabled: !authLoading && isTenantAdmin && !!organization?.id,
+  });
+
+  // Member growth analytics (last 6 months)
+  const { data: memberGrowth, isLoading: memberGrowthLoading } = useQuery({
+    queryKey: [`/api/organizations/${organization?.id}/member-growth`],
+    enabled: !authLoading && isTenantAdmin && !!organization?.id,
+  });
+
+  // Top performing agents
+  const { data: topAgents, isLoading: topAgentsLoading } = useQuery({
+    queryKey: [`/api/organizations/${organization?.id}/top-agents`],
+    enabled: !authLoading && isTenantAdmin && !!organization?.id,
+  });
+
+  // Enhanced team overview
+  const { data: teamOverview, isLoading: teamOverviewLoading } = useQuery({
+    queryKey: [`/api/organizations/${organization?.id}/team-overview`],
+    enabled: !authLoading && isTenantAdmin && !!organization?.id,
+  });
+
+  // Organization activity feed
+  const { data: activityFeed, isLoading: activityFeedLoading } = useQuery({
+    queryKey: [`/api/organizations/${organization?.id}/activity-feed`],
+    enabled: !authLoading && isTenantAdmin && !!organization?.id,
+  });
+
+  // Organization insights
+  const { data: insights, isLoading: insightsLoading } = useQuery({
+    queryKey: [`/api/organizations/${organization?.id}/insights`],
     enabled: !authLoading && isTenantAdmin && !!organization?.id,
   });
 
@@ -323,7 +369,7 @@ export default function OrganizationProfile() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="profile" className="flex items-center space-x-2">
             <Building2 className="h-4 w-4" />
             <span>Profile</span>
@@ -335,6 +381,10 @@ export default function OrganizationProfile() {
           <TabsTrigger value="team" className="flex items-center space-x-2">
             <Users className="h-4 w-4" />
             <span>Team</span>
+          </TabsTrigger>
+          <TabsTrigger value="analytics" className="flex items-center space-x-2">
+            <BarChart3 className="h-4 w-4" />
+            <span>Analytics</span>
           </TabsTrigger>
           <TabsTrigger value="subscription" className="flex items-center space-x-2">
             <CreditCard className="h-4 w-4" />
@@ -767,6 +817,330 @@ export default function OrganizationProfile() {
                   </Card>
                 </>
               )}
+            </TabsContent>
+
+            <TabsContent value="analytics" className="space-y-6">
+              <div className="grid gap-6">
+                {/* Analytics Overview Header */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <BarChart3 className="h-5 w-5" />
+                      <span>Organization Analytics Dashboard</span>
+                    </CardTitle>
+                    <CardDescription>
+                      Comprehensive insights into your organization's performance and growth
+                    </CardDescription>
+                  </CardHeader>
+                </Card>
+
+                {/* Quick Analytics Overview */}
+                {analyticsLoading ? (
+                  <Card>
+                    <CardContent className="flex items-center justify-center py-8">
+                      <div className="text-sm text-gray-500">Loading analytics...</div>
+                    </CardContent>
+                  </Card>
+                ) : analytics ? (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <Card className="p-4">
+                      <div className="flex items-center space-x-3">
+                        <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
+                          <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div>
+                          <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                            {analytics.totalAgents || 0}
+                          </p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Total Agents</p>
+                        </div>
+                      </div>
+                    </Card>
+                    
+                    <Card className="p-4">
+                      <div className="flex items-center space-x-3">
+                        <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg">
+                          <UserCheck className="h-5 w-5 text-green-600 dark:text-green-400" />
+                        </div>
+                        <div>
+                          <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                            {analytics.totalMembers || 0}
+                          </p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Total Members</p>
+                        </div>
+                      </div>
+                    </Card>
+
+                    <Card className="p-4">
+                      <div className="flex items-center space-x-3">
+                        <div className="p-2 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
+                          <Shield className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                        </div>
+                        <div>
+                          <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                            {analytics.totalPolicies || 0}
+                          </p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Active Policies</p>
+                        </div>
+                      </div>
+                    </Card>
+
+                    <Card className="p-4">
+                      <div className="flex items-center space-x-3">
+                        <div className="p-2 bg-orange-100 dark:bg-orange-900/20 rounded-lg">
+                          <Target className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                        </div>
+                        <div>
+                          <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+                            {analytics.totalQuotes || 0}
+                          </p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Total Quotes</p>
+                        </div>
+                      </div>
+                    </Card>
+                  </div>
+                ) : (
+                  <Alert>
+                    <Info className="h-4 w-4" />
+                    <AlertDescription>
+                      Analytics data is currently unavailable. Please try again later.
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {/* Member Growth and Top Agents Row */}
+                <div className="grid lg:grid-cols-2 gap-6">
+                  {/* Member Growth Chart */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center space-x-2">
+                        <TrendingUp className="h-5 w-5 text-green-600" />
+                        <span>Member Growth (Last 6 Months)</span>
+                      </CardTitle>
+                      <CardDescription>
+                        Track member acquisition trends over time
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {memberGrowthLoading ? (
+                        <div className="flex items-center justify-center py-8">
+                          <div className="text-sm text-gray-500">Loading growth data...</div>
+                        </div>
+                      ) : memberGrowth && memberGrowth.length > 0 ? (
+                        <div className="space-y-4">
+                          {memberGrowth.slice(0, 6).map((month: any, index: number) => (
+                            <div key={index} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                              <div>
+                                <p className="font-medium">{month.month} {month.year}</p>
+                                <p className="text-sm text-gray-600 dark:text-gray-400">
+                                  {month.newMembers} new members
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-lg font-bold text-green-600 dark:text-green-400">
+                                  {month.totalMembers}
+                                </p>
+                                <p className="text-sm text-gray-600 dark:text-gray-400">Total</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center py-8">
+                          <div className="text-sm text-gray-500">No growth data available</div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Top Performing Agents */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center space-x-2">
+                        <Award className="h-5 w-5 text-yellow-600" />
+                        <span>Top Performing Agents</span>
+                      </CardTitle>
+                      <CardDescription>
+                        Leading agents by performance metrics
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {topAgentsLoading ? (
+                        <div className="flex items-center justify-center py-8">
+                          <div className="text-sm text-gray-500">Loading agent data...</div>
+                        </div>
+                      ) : topAgents && topAgents.length > 0 ? (
+                        <div className="space-y-3">
+                          {topAgents.map((agent: any, index: number) => (
+                            <div key={agent.id} className="flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                              <div className="flex-shrink-0">
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold ${
+                                  index === 0 ? 'bg-yellow-500' : 
+                                  index === 1 ? 'bg-gray-400' : 
+                                  index === 2 ? 'bg-orange-600' : 'bg-blue-500'
+                                }`}>
+                                  {index + 1}
+                                </div>
+                              </div>
+                              <div className="flex-1">
+                                <p className="font-medium">{agent.name || agent.email}</p>
+                                <p className="text-sm text-gray-600 dark:text-gray-400">
+                                  {agent.totalClients || 0} clients • {agent.performanceScore || 0} score
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <Badge variant="secondary">
+                                  #{index + 1}
+                                </Badge>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center py-8">
+                          <div className="text-sm text-gray-500">No agent performance data available</div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Organization Insights and Activity Feed Row */}
+                <div className="grid lg:grid-cols-2 gap-6">
+                  {/* Organization Insights */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center space-x-2">
+                        <Zap className="h-5 w-5 text-purple-600" />
+                        <span>Organization Insights</span>
+                      </CardTitle>
+                      <CardDescription>
+                        AI-powered insights and recommendations
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {insightsLoading ? (
+                        <div className="flex items-center justify-center py-8">
+                          <div className="text-sm text-gray-500">Loading insights...</div>
+                        </div>
+                      ) : insights ? (
+                        <div className="space-y-4">
+                          <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border-l-4 border-blue-500">
+                            <h4 className="font-medium text-blue-900 dark:text-blue-100">Growth Opportunity</h4>
+                            <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                              {insights.growthRecommendation || "Consider expanding your agent team to handle increased member volume."}
+                            </p>
+                          </div>
+                          <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border-l-4 border-green-500">
+                            <h4 className="font-medium text-green-900 dark:text-green-100">Performance Highlight</h4>
+                            <p className="text-sm text-green-700 dark:text-green-300 mt-1">
+                              {insights.performanceHighlight || "Your team is performing exceptionally well with strong client satisfaction scores."}
+                            </p>
+                          </div>
+                          <div className="p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg border-l-4 border-orange-500">
+                            <h4 className="font-medium text-orange-900 dark:text-orange-100">Action Item</h4>
+                            <p className="text-sm text-orange-700 dark:text-orange-300 mt-1">
+                              {insights.actionRecommendation || "Review agent workload distribution to optimize efficiency."}
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center py-8">
+                          <div className="text-sm text-gray-500">No insights available</div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Recent Activity Feed */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center space-x-2">
+                        <Activity className="h-5 w-5 text-blue-600" />
+                        <span>Recent Activity</span>
+                      </CardTitle>
+                      <CardDescription>
+                        Latest organization activities and updates
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {activityFeedLoading ? (
+                        <div className="flex items-center justify-center py-8">
+                          <div className="text-sm text-gray-500">Loading activity...</div>
+                        </div>
+                      ) : activityFeed && activityFeed.length > 0 ? (
+                        <div className="space-y-3 max-h-80 overflow-y-auto">
+                          {activityFeed.slice(0, 10).map((activity: any, index: number) => (
+                            <div key={index} className="flex items-start space-x-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                              <div className="flex-shrink-0">
+                                <Clock className="h-4 w-4 text-gray-400 mt-1" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate">
+                                  {activity.title || activity.action || "Activity"}
+                                </p>
+                                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                  {activity.description || "Activity description"}
+                                </p>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  {activity.createdAt ? new Date(activity.createdAt).toLocaleDateString() : "Recently"}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center py-8">
+                          <div className="text-sm text-gray-500">No recent activity</div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Team Overview */}
+                {teamOverview && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center space-x-2">
+                        <Users className="h-5 w-5 text-indigo-600" />
+                        <span>Team Overview</span>
+                      </CardTitle>
+                      <CardDescription>
+                        Comprehensive team statistics and distribution
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="text-center p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
+                          <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
+                            {teamOverview.activeAgents || 0}
+                          </p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Active Agents</p>
+                        </div>
+                        <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                          <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                            {teamOverview.averageClientLoad || 0}
+                          </p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Avg Client Load</p>
+                        </div>
+                        <div className="text-center p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+                          <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
+                            {teamOverview.teamEfficiency || 0}%
+                          </p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Team Efficiency</p>
+                        </div>
+                        <div className="text-center p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                          <p className="text-2xl font-bold text-red-600 dark:text-red-400">
+                            {teamOverview.activeProjects || 0}
+                          </p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Active Projects</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
             </TabsContent>
 
             <TabsContent value="subscription" className="space-y-6">

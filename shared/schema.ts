@@ -1761,7 +1761,7 @@ export const clientActivities = pgTable("client_activities", {
   tags: jsonb("tags"), // Array of tags for categorization
   attachments: jsonb("attachments"), // Array of attachment URLs/references
   isPrivate: boolean("is_private").default(false),
-  relatedQuoteId: integer("related_quote_id").references(() => quotes.id),
+  relatedQuoteId: integer("related_quote_id").references(() => insuranceQuotes.id),
   relatedPolicyId: integer("related_policy_id").references(() => policies.id),
   relatedClaimId: integer("related_claim_id").references(() => claims.id),
   createdAt: timestamp("created_at").defaultNow(),

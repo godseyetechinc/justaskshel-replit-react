@@ -2550,6 +2550,255 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== PHASE 2: ADVANCED ORGANIZATION MANAGEMENT ROUTES =====
+
+  // Organization Analytics Dashboard
+  app.get("/api/organizations/:id/analytics", auth, async (req: any, res) => {
+    try {
+      const organizationId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Check if user has access to this organization (TenantAdmin or SuperAdmin)
+      if (currentUser.privilegeLevel > 1 && currentUser.organizationId !== organizationId) {
+        return res.status(403).json({ message: "Access denied. Cannot view analytics for different organizations." });
+      }
+
+      const analytics = await storage.getOrganizationAnalytics(organizationId);
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching organization analytics:", error);
+      res.status(500).json({ message: "Failed to fetch analytics" });
+    }
+  });
+
+  // Organization Member Growth Analytics
+  app.get("/api/organizations/:id/member-growth", auth, async (req: any, res) => {
+    try {
+      const organizationId = parseInt(req.params.id);
+      const months = parseInt(req.query.months as string) || 6;
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Check access permissions
+      if (currentUser.privilegeLevel > 1 && currentUser.organizationId !== organizationId) {
+        return res.status(403).json({ message: "Access denied." });
+      }
+
+      const growth = await storage.getOrganizationMemberGrowth(organizationId, months);
+      res.json(growth);
+    } catch (error) {
+      console.error("Error fetching member growth:", error);
+      res.status(500).json({ message: "Failed to fetch member growth data" });
+    }
+  });
+
+  // Agent Performance Metrics
+  app.get("/api/organizations/:id/agent-performance", auth, async (req: any, res) => {
+    try {
+      const organizationId = parseInt(req.params.id);
+      const agentId = req.query.agentId as string;
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Check access permissions
+      if (currentUser.privilegeLevel > 1 && currentUser.organizationId !== organizationId) {
+        return res.status(403).json({ message: "Access denied." });
+      }
+
+      const performance = await storage.getAgentPerformanceMetrics(organizationId, agentId);
+      res.json(performance);
+    } catch (error) {
+      console.error("Error fetching agent performance:", error);
+      res.status(500).json({ message: "Failed to fetch agent performance metrics" });
+    }
+  });
+
+  // Top Performing Agents
+  app.get("/api/organizations/:id/top-agents", auth, async (req: any, res) => {
+    try {
+      const organizationId = parseInt(req.params.id);
+      const limit = parseInt(req.query.limit as string) || 5;
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Check access permissions
+      if (currentUser.privilegeLevel > 1 && currentUser.organizationId !== organizationId) {
+        return res.status(403).json({ message: "Access denied." });
+      }
+
+      const topAgents = await storage.getTopPerformingAgents(organizationId, limit);
+      res.json(topAgents);
+    } catch (error) {
+      console.error("Error fetching top agents:", error);
+      res.status(500).json({ message: "Failed to fetch top performing agents" });
+    }
+  });
+
+  // Enhanced Team Overview
+  app.get("/api/organizations/:id/team-overview", auth, async (req: any, res) => {
+    try {
+      const organizationId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Check access permissions (TenantAdmin or SuperAdmin)
+      if (currentUser.privilegeLevel > 1 && currentUser.organizationId !== organizationId) {
+        return res.status(403).json({ message: "Access denied." });
+      }
+
+      const teamOverview = await storage.getOrganizationTeamOverview(organizationId);
+      res.json(teamOverview);
+    } catch (error) {
+      console.error("Error fetching team overview:", error);
+      res.status(500).json({ message: "Failed to fetch team overview" });
+    }
+  });
+
+  // Client Assignment Management
+  app.get("/api/organizations/:id/client-assignments", auth, async (req: any, res) => {
+    try {
+      const organizationId = parseInt(req.params.id);
+      const agentId = req.query.agentId as string;
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Check access permissions
+      if (currentUser.privilegeLevel > 2 && currentUser.organizationId !== organizationId) {
+        return res.status(403).json({ message: "Access denied." });
+      }
+
+      const assignments = await storage.getAgentClientAssignments(organizationId, agentId);
+      res.json(assignments);
+    } catch (error) {
+      console.error("Error fetching client assignments:", error);
+      res.status(500).json({ message: "Failed to fetch client assignments" });
+    }
+  });
+
+  // Assign Client to Agent
+  app.post("/api/organizations/:id/assign-client", auth, async (req: any, res) => {
+    try {
+      const organizationId = parseInt(req.params.id);
+      const { clientId, agentId } = req.body;
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Check access permissions (TenantAdmin or Agent)
+      if (currentUser.privilegeLevel > 2 && currentUser.organizationId !== organizationId) {
+        return res.status(403).json({ message: "Access denied." });
+      }
+
+      await storage.assignClientToAgent(clientId, agentId, userId);
+      res.json({ message: "Client assigned successfully" });
+    } catch (error) {
+      console.error("Error assigning client:", error);
+      res.status(500).json({ message: "Failed to assign client" });
+    }
+  });
+
+  // Transfer Client Between Agents
+  app.post("/api/organizations/:id/transfer-client", auth, async (req: any, res) => {
+    try {
+      const organizationId = parseInt(req.params.id);
+      const { clientId, fromAgentId, toAgentId, reason } = req.body;
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Check access permissions (TenantAdmin only)
+      if (currentUser.privilegeLevel > 1 && currentUser.organizationId !== organizationId) {
+        return res.status(403).json({ message: "Access denied. TenantAdmin role required." });
+      }
+
+      await storage.transferClientToAgent(clientId, fromAgentId, toAgentId, reason);
+      res.json({ message: "Client transferred successfully" });
+    } catch (error) {
+      console.error("Error transferring client:", error);
+      res.status(500).json({ message: "Failed to transfer client" });
+    }
+  });
+
+  // Organization Activity Feed
+  app.get("/api/organizations/:id/activity-feed", auth, async (req: any, res) => {
+    try {
+      const organizationId = parseInt(req.params.id);
+      const limit = parseInt(req.query.limit as string) || 20;
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Check access permissions
+      if (currentUser.privilegeLevel > 2 && currentUser.organizationId !== organizationId) {
+        return res.status(403).json({ message: "Access denied." });
+      }
+
+      const activityFeed = await storage.getOrganizationActivityFeed(organizationId, limit);
+      res.json(activityFeed);
+    } catch (error) {
+      console.error("Error fetching activity feed:", error);
+      res.status(500).json({ message: "Failed to fetch activity feed" });
+    }
+  });
+
+  // Organization Insights
+  app.get("/api/organizations/:id/insights", auth, async (req: any, res) => {
+    try {
+      const organizationId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Check access permissions (TenantAdmin or SuperAdmin)
+      if (currentUser.privilegeLevel > 1 && currentUser.organizationId !== organizationId) {
+        return res.status(403).json({ message: "Access denied." });
+      }
+
+      const insights = await storage.getOrganizationInsights(organizationId);
+      res.json(insights);
+    } catch (error) {
+      console.error("Error fetching organization insights:", error);
+      res.status(500).json({ message: "Failed to fetch organization insights" });
+    }
+  });
+
   // Get agent information for current member
   app.get("/api/my-agent", auth, async (req: any, res) => {
     try {

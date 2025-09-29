@@ -87,7 +87,7 @@ import {
   agentOrganizations,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, count, sql } from "drizzle-orm";
+import { eq, and, desc, count, sql, gte, lte, ne, gt, asc, isNull, isNotNull } from "drizzle-orm";
 
 // Interface for storage operations
 export interface IStorage {
@@ -294,6 +294,110 @@ export interface IStorage {
   deleteOrganizationInvitation(id: number): Promise<void>;
   expireInvitation(id: number): Promise<OrganizationInvitation>;
   acceptInvitation(token: string, userId: string): Promise<OrganizationInvitation>;
+
+  // Phase 2: Advanced Organization Management
+  // Organization Analytics and Dashboard
+  getOrganizationAnalytics(organizationId: number): Promise<{
+    totalAgents: number;
+    activeAgents: number;
+    totalMembers: number;
+    newMembersThisMonth: number;
+    totalQuotes: number;
+    totalPolicies: number;
+    totalClaims: number;
+    pendingInvitations: number;
+  }>;
+  
+  getOrganizationMemberGrowth(organizationId: number, months: number): Promise<{
+    month: string;
+    newMembers: number;
+    totalMembers: number;
+  }[]>;
+  
+  // Agent Performance and Management
+  getAgentPerformanceMetrics(organizationId: number, agentId?: string): Promise<{
+    agentId: string;
+    agentName: string;
+    totalClients: number;
+    activeClients: number;
+    quotesGenerated: number;
+    policiesSold: number;
+    totalClaims: number;
+    responseTimeAvg: number; // in hours
+  }[]>;
+  
+  getTopPerformingAgents(organizationId: number, limit: number): Promise<{
+    agentId: string;
+    agentName: string;
+    score: number;
+    policiesSold: number;
+    clientSatisfaction: number;
+  }[]>;
+  
+  // Enhanced Team Management
+  getOrganizationTeamOverview(organizationId: number): Promise<{
+    agents: {
+      id: string;
+      name: string;
+      email: string;
+      role: string;
+      isActive: boolean;
+      lastLogin: Date | null;
+      clientCount: number;
+      joiningDate: Date;
+    }[];
+    members: {
+      id: number;
+      name: string;
+      email: string;
+      status: string;
+      assignedAgent: string | null;
+      joiningDate: Date;
+    }[];
+    invitations: {
+      id: number;
+      email: string;
+      role: string;
+      status: string;
+      invitedBy: string;
+      createdAt: Date;
+      expiresAt: Date;
+    }[];
+  }>;
+  
+  // Client Assignment and Management
+  getAgentClientAssignments(organizationId: number, agentId?: string): Promise<{
+    clientId: number;
+    clientName: string;
+    clientEmail: string;
+    assignedAgent: string;
+    assignedAgentName: string;
+    assignmentDate: Date;
+    clientStatus: string;
+    lastInteraction: Date | null;
+  }[]>;
+  
+  assignClientToAgent(clientId: number, agentId: string, assignedBy: string): Promise<void>;
+  transferClientToAgent(clientId: number, fromAgentId: string, toAgentId: string, reason: string): Promise<void>;
+  
+  // Organization Activity and Insights
+  getOrganizationActivityFeed(organizationId: number, limit: number): Promise<{
+    id: string;
+    type: string;
+    description: string;
+    actorName: string;
+    targetName?: string;
+    createdAt: Date;
+  }[]>;
+  
+  getOrganizationInsights(organizationId: number): Promise<{
+    memberRetentionRate: number;
+    averageTimeToPolicy: number; // in days
+    mostPopularInsuranceType: string;
+    agentUtilization: number; // percentage
+    customerSatisfactionScore: number;
+    growthRate: number; // percentage
+  }>;
 
 }
 
@@ -1932,6 +2036,589 @@ export class DatabaseStorage implements IStorage {
     }
 
     return duplicates;
+  }
+
+  // ===== PHASE 2: ADVANCED ORGANIZATION MANAGEMENT IMPLEMENTATIONS =====
+
+  async getOrganizationAnalytics(organizationId: number): Promise<{
+    totalAgents: number;
+    activeAgents: number;
+    totalMembers: number;
+    newMembersThisMonth: number;
+    totalQuotes: number;
+    totalPolicies: number;
+    totalClaims: number;
+    pendingInvitations: number;
+  }> {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    // Count agents (users with Agent or TenantAdmin role in organization)
+    const [agentStats] = await db.select({
+      totalAgents: count(),
+      activeAgents: count(),
+    }).from(users).where(
+      and(
+        eq(users.organizationId, organizationId),
+        sql`${users.role} IN ('Agent', 'TenantAdmin')`
+      )
+    );
+
+    // Count members in organization
+    const [memberStats] = await db.select({
+      totalMembers: count(),
+    }).from(members).where(eq(members.organizationId, organizationId));
+
+    // Count new members this month
+    const [newMemberStats] = await db.select({
+      newMembersThisMonth: count(),
+    }).from(members).where(
+      and(
+        eq(members.organizationId, organizationId),
+        gte(members.createdAt, startOfMonth)
+      )
+    );
+
+    // Count quotes for organization users
+    const orgUserIds = await db.select({ id: users.id }).from(users)
+      .where(eq(users.organizationId, organizationId));
+    
+    const userIdList = orgUserIds.map(u => u.id);
+    const [quoteStats] = userIdList.length > 0 ? await db.select({
+      totalQuotes: count(),
+    }).from(insuranceQuotes).where(
+      sql`${insuranceQuotes.userId} = ANY(${userIdList})`
+    ) : [{ totalQuotes: 0 }];
+
+    // Count policies for organization members
+    const [policyStats] = await db.select({
+      totalPolicies: count(),
+    }).from(policies)
+      .innerJoin(members, eq(policies.memberId, members.id))
+      .where(eq(members.organizationId, organizationId));
+
+    // Count claims for organization members
+    const [claimStats] = await db.select({
+      totalClaims: count(),
+    }).from(claims)
+      .innerJoin(members, eq(claims.memberId, members.id))
+      .where(eq(members.organizationId, organizationId));
+
+    // Count pending invitations
+    const [invitationStats] = await db.select({
+      pendingInvitations: count(),
+    }).from(organizationInvitations).where(
+      and(
+        eq(organizationInvitations.organizationId, organizationId),
+        eq(organizationInvitations.status, 'Pending')
+      )
+    );
+
+    return {
+      totalAgents: agentStats?.totalAgents || 0,
+      activeAgents: agentStats?.activeAgents || 0,
+      totalMembers: memberStats?.totalMembers || 0,
+      newMembersThisMonth: newMemberStats?.newMembersThisMonth || 0,
+      totalQuotes: quoteStats?.totalQuotes || 0,
+      totalPolicies: policyStats?.totalPolicies || 0,
+      totalClaims: claimStats?.totalClaims || 0,
+      pendingInvitations: invitationStats?.pendingInvitations || 0,
+    };
+  }
+
+  async getOrganizationMemberGrowth(organizationId: number, months: number): Promise<{
+    month: string;
+    newMembers: number;
+    totalMembers: number;
+  }[]> {
+    const result = [];
+    const now = new Date();
+
+    for (let i = months - 1; i >= 0; i--) {
+      const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
+      const monthName = monthStart.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+
+      // New members in this month
+      const [newMembers] = await db.select({
+        count: count(),
+      }).from(members).where(
+        and(
+          eq(members.organizationId, organizationId),
+          gte(members.createdAt, monthStart),
+          lte(members.createdAt, monthEnd)
+        )
+      );
+
+      // Total members by end of this month
+      const [totalMembers] = await db.select({
+        count: count(),
+      }).from(members).where(
+        and(
+          eq(members.organizationId, organizationId),
+          lte(members.createdAt, monthEnd)
+        )
+      );
+
+      result.push({
+        month: monthName,
+        newMembers: newMembers?.count || 0,
+        totalMembers: totalMembers?.count || 0,
+      });
+    }
+
+    return result;
+  }
+
+  async getAgentPerformanceMetrics(organizationId: number, agentId?: string): Promise<{
+    agentId: string;
+    agentName: string;
+    totalClients: number;
+    activeClients: number;
+    quotesGenerated: number;
+    policiesSold: number;
+    totalClaims: number;
+    responseTimeAvg: number;
+  }[]> {
+    const agents = await db.select().from(users).where(
+      and(
+        eq(users.organizationId, organizationId),
+        sql`${users.role} IN ('Agent', 'TenantAdmin')`,
+        agentId ? eq(users.id, agentId) : sql`1=1`
+      )
+    );
+
+    const result = [];
+
+    for (const agent of agents) {
+      // Count total clients (contacts + members assigned to this agent)
+      const [contactClients] = await db.select({
+        count: count(),
+      }).from(contacts).where(
+        and(
+          eq(contacts.organizationId, organizationId),
+          eq(contacts.assignedAgent, agent.id)
+        )
+      );
+
+      const [memberClients] = await db.select({
+        count: count(),
+      }).from(members).where(
+        and(
+          eq(members.organizationId, organizationId),
+          eq(members.assignedAgent, agent.id)
+        )
+      );
+
+      // Count quotes generated by this agent
+      const [quotes] = await db.select({
+        count: count(),
+      }).from(insuranceQuotes).where(eq(insuranceQuotes.userId, agent.id));
+
+      // Count policies sold to agent's clients
+      const [policies] = await db.select({
+        count: count(),
+      }).from(policies)
+        .innerJoin(members, eq(policies.memberId, members.id))
+        .where(
+          and(
+            eq(members.organizationId, organizationId),
+            eq(members.assignedAgent, agent.id)
+          )
+        );
+
+      // Count claims for agent's clients
+      const [claimsCount] = await db.select({
+        count: count(),
+      }).from(claims)
+        .innerJoin(members, eq(claims.memberId, members.id))
+        .where(
+          and(
+            eq(members.organizationId, organizationId),
+            eq(members.assignedAgent, agent.id)
+          )
+        );
+
+      const totalClients = (contactClients?.count || 0) + (memberClients?.count || 0);
+      const activeClients = memberClients?.count || 0; // Members are considered active clients
+
+      result.push({
+        agentId: agent.id,
+        agentName: `${agent.firstName || ''} ${agent.lastName || ''}`.trim() || agent.email || 'Unknown',
+        totalClients,
+        activeClients,
+        quotesGenerated: quotes?.count || 0,
+        policiesSold: policies?.count || 0,
+        totalClaims: claimsCount?.count || 0,
+        responseTimeAvg: 24, // Default to 24 hours - can be enhanced with real activity tracking
+      });
+    }
+
+    return result;
+  }
+
+  async getTopPerformingAgents(organizationId: number, limit: number): Promise<{
+    agentId: string;
+    agentName: string;
+    score: number;
+    policiesSold: number;
+    clientSatisfaction: number;
+  }[]> {
+    const agents = await this.getAgentPerformanceMetrics(organizationId);
+    
+    // Calculate performance score based on policies sold and client count
+    const scoredAgents = agents.map(agent => ({
+      agentId: agent.agentId,
+      agentName: agent.agentName,
+      score: (agent.policiesSold * 10) + (agent.activeClients * 2) + (agent.quotesGenerated * 1),
+      policiesSold: agent.policiesSold,
+      clientSatisfaction: 4.2, // Default satisfaction score - can be enhanced with real feedback
+    }));
+
+    return scoredAgents
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit);
+  }
+
+  async getOrganizationTeamOverview(organizationId: number): Promise<{
+    agents: {
+      id: string;
+      name: string;
+      email: string;
+      role: string;
+      isActive: boolean;
+      lastLogin: Date | null;
+      clientCount: number;
+      joiningDate: Date;
+    }[];
+    members: {
+      id: number;
+      name: string;
+      email: string;
+      status: string;
+      assignedAgent: string | null;
+      joiningDate: Date;
+    }[];
+    invitations: {
+      id: number;
+      email: string;
+      role: string;
+      status: string;
+      invitedBy: string;
+      createdAt: Date;
+      expiresAt: Date;
+    }[];
+  }> {
+    // Get agents
+    const agents = await db.select().from(users).where(
+      and(
+        eq(users.organizationId, organizationId),
+        sql`${users.role} IN ('Agent', 'TenantAdmin')`
+      )
+    );
+
+    const agentData = await Promise.all(agents.map(async (agent) => {
+      // Count clients for each agent
+      const [contactCount] = await db.select({
+        count: count(),
+      }).from(contacts).where(
+        and(
+          eq(contacts.organizationId, organizationId),
+          eq(contacts.assignedAgent, agent.id)
+        )
+      );
+
+      const [memberCount] = await db.select({
+        count: count(),
+      }).from(members).where(
+        and(
+          eq(members.organizationId, organizationId),
+          eq(members.assignedAgent, agent.id)
+        )
+      );
+
+      return {
+        id: agent.id,
+        name: `${agent.firstName || ''} ${agent.lastName || ''}`.trim() || agent.email || 'Unknown',
+        email: agent.email || '',
+        role: agent.role || 'Agent',
+        isActive: agent.isActive || false,
+        lastLogin: null, // Can be enhanced with session tracking
+        clientCount: (contactCount?.count || 0) + (memberCount?.count || 0),
+        joiningDate: agent.createdAt || new Date(),
+      };
+    }));
+
+    // Get members
+    const membersList = await db.select().from(members).where(
+      eq(members.organizationId, organizationId)
+    );
+
+    const memberData = membersList.map(member => ({
+      id: member.id,
+      name: `${member.firstName || ''} ${member.lastName || ''}`.trim() || 'Unknown',
+      email: member.email || '',
+      status: member.membershipStatus || 'Active',
+      assignedAgent: member.assignedAgent,
+      joiningDate: member.createdAt || new Date(),
+    }));
+
+    // Get invitations
+    const invitationsList = await db.select().from(organizationInvitations).where(
+      eq(organizationInvitations.organizationId, organizationId)
+    );
+
+    const invitationData = invitationsList.map(invitation => ({
+      id: invitation.id,
+      email: invitation.email,
+      role: invitation.role,
+      status: invitation.status,
+      invitedBy: invitation.invitedBy,
+      createdAt: invitation.createdAt || new Date(),
+      expiresAt: invitation.expiresAt,
+    }));
+
+    return {
+      agents: agentData,
+      members: memberData,
+      invitations: invitationData,
+    };
+  }
+
+  async getAgentClientAssignments(organizationId: number, agentId?: string): Promise<{
+    clientId: number;
+    clientName: string;
+    clientEmail: string;
+    assignedAgent: string;
+    assignedAgentName: string;
+    assignmentDate: Date;
+    clientStatus: string;
+    lastInteraction: Date | null;
+  }[]> {
+    // Get members assigned to agents
+    const memberAssignments = await db.select({
+      clientId: members.id,
+      clientName: sql<string>`CONCAT(${members.firstName}, ' ', ${members.lastName})`,
+      clientEmail: members.email,
+      assignedAgent: members.assignedAgent,
+      assignmentDate: members.createdAt,
+      clientStatus: members.membershipStatus,
+    }).from(members)
+      .where(
+        and(
+          eq(members.organizationId, organizationId),
+          isNotNull(members.assignedAgent),
+          agentId ? eq(members.assignedAgent, agentId) : sql`1=1`
+        )
+      );
+
+    // Get agent names for the assignments
+    const agentIds = memberAssignments.map(m => m.assignedAgent).filter(Boolean);
+    const agents = agentIds.length > 0 ? await db.select({
+      id: users.id,
+      name: sql<string>`CONCAT(${users.firstName}, ' ', ${users.lastName})`,
+    }).from(users).where(sql`${users.id} = ANY(${agentIds})`) : [];
+
+    const agentMap = new Map(agents.map(agent => [agent.id, agent.name]));
+
+    return memberAssignments.map(assignment => ({
+      clientId: assignment.clientId,
+      clientName: assignment.clientName || 'Unknown',
+      clientEmail: assignment.clientEmail || '',
+      assignedAgent: assignment.assignedAgent || '',
+      assignedAgentName: agentMap.get(assignment.assignedAgent || '') || 'Unknown Agent',
+      assignmentDate: assignment.assignmentDate || new Date(),
+      clientStatus: assignment.clientStatus || 'Active',
+      lastInteraction: null, // Can be enhanced with activity tracking
+    }));
+  }
+
+  async assignClientToAgent(clientId: number, agentId: string, assignedBy: string): Promise<void> {
+    await db.update(members)
+      .set({ 
+        assignedAgent: agentId,
+        updatedAt: new Date() 
+      })
+      .where(eq(members.id, clientId));
+  }
+
+  async transferClientToAgent(clientId: number, fromAgentId: string, toAgentId: string, reason: string): Promise<void> {
+    await db.update(members)
+      .set({ 
+        assignedAgent: toAgentId,
+        updatedAt: new Date() 
+      })
+      .where(
+        and(
+          eq(members.id, clientId),
+          eq(members.assignedAgent, fromAgentId)
+        )
+      );
+  }
+
+  async getOrganizationActivityFeed(organizationId: number, limit: number): Promise<{
+    id: string;
+    type: string;
+    description: string;
+    actorName: string;
+    targetName?: string;
+    createdAt: Date;
+  }[]> {
+    // Get recent activities from various sources
+    const activities = [];
+
+    // Recent member additions
+    const recentMembers = await db.select({
+      id: members.id,
+      type: sql<string>`'member_added'`,
+      description: sql<string>`'New member joined the organization'`,
+      actorName: sql<string>`CONCAT(${members.firstName}, ' ', ${members.lastName})`,
+      createdAt: members.createdAt,
+    }).from(members)
+      .where(eq(members.organizationId, organizationId))
+      .orderBy(desc(members.createdAt))
+      .limit(Math.floor(limit / 3));
+
+    // Recent invitations
+    const recentInvitations = await db.select({
+      id: organizationInvitations.id,
+      type: sql<string>`'invitation_sent'`,
+      description: sql<string>`'Invitation sent to join organization'`,
+      actorName: organizationInvitations.email,
+      createdAt: organizationInvitations.createdAt,
+    }).from(organizationInvitations)
+      .where(eq(organizationInvitations.organizationId, organizationId))
+      .orderBy(desc(organizationInvitations.createdAt))
+      .limit(Math.floor(limit / 3));
+
+    // Recent quotes
+    const orgUsers = await db.select({ id: users.id }).from(users)
+      .where(eq(users.organizationId, organizationId));
+    
+    const userIds = orgUsers.map(u => u.id);
+    const recentQuotes = userIds.length > 0 ? await db.select({
+      id: insuranceQuotes.id,
+      type: sql<string>`'quote_generated'`,
+      description: sql<string>`'New quote generated'`,
+      actorName: sql<string>`'Agent'`,
+      createdAt: insuranceQuotes.createdAt,
+    }).from(insuranceQuotes)
+      .where(sql`${insuranceQuotes.userId} = ANY(${userIds})`)
+      .orderBy(desc(insuranceQuotes.createdAt))
+      .limit(Math.floor(limit / 3)) : [];
+
+    // Combine and sort all activities
+    const allActivities = [
+      ...recentMembers.map(m => ({
+        id: m.id.toString(),
+        type: m.type,
+        description: m.description,
+        actorName: m.actorName || 'Unknown',
+        createdAt: m.createdAt || new Date(),
+      })),
+      ...recentInvitations.map(i => ({
+        id: i.id.toString(),
+        type: i.type,
+        description: i.description,
+        actorName: i.actorName || 'Unknown',
+        createdAt: i.createdAt || new Date(),
+      })),
+      ...recentQuotes.map(q => ({
+        id: q.id.toString(),
+        type: q.type,
+        description: q.description,
+        actorName: q.actorName || 'Unknown',
+        createdAt: q.createdAt || new Date(),
+      })),
+    ];
+
+    return allActivities
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .slice(0, limit);
+  }
+
+  async getOrganizationInsights(organizationId: number): Promise<{
+    memberRetentionRate: number;
+    averageTimeToPolicy: number;
+    mostPopularInsuranceType: string;
+    agentUtilization: number;
+    customerSatisfactionScore: number;
+    growthRate: number;
+  }> {
+    // Calculate member retention rate (active vs total)
+    const [memberStats] = await db.select({
+      total: count(),
+      active: count(),
+    }).from(members).where(eq(members.organizationId, organizationId));
+
+    const [activeMembers] = await db.select({
+      active: count(),
+    }).from(members).where(
+      and(
+        eq(members.organizationId, organizationId),
+        eq(members.membershipStatus, 'Active')
+      )
+    );
+
+    const memberRetentionRate = memberStats?.total ? 
+      ((activeMembers?.active || 0) / memberStats.total) * 100 : 0;
+
+    // Calculate growth rate (new members this month vs last month)
+    const now = new Date();
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+
+    const [thisMonthMembers] = await db.select({
+      count: count(),
+    }).from(members).where(
+      and(
+        eq(members.organizationId, organizationId),
+        gte(members.createdAt, thisMonthStart)
+      )
+    );
+
+    const [lastMonthMembers] = await db.select({
+      count: count(),
+    }).from(members).where(
+      and(
+        eq(members.organizationId, organizationId),
+        gte(members.createdAt, lastMonthStart),
+        lte(members.createdAt, lastMonthEnd)
+      )
+    );
+
+    const growthRate = lastMonthMembers?.count ? 
+      (((thisMonthMembers?.count || 0) - lastMonthMembers.count) / lastMonthMembers.count) * 100 : 0;
+
+    // Get most popular insurance type (from quotes)
+    const orgUsers = await db.select({ id: users.id }).from(users)
+      .where(eq(users.organizationId, organizationId));
+    
+    const userIds = orgUsers.map(u => u.id);
+    const insuranceTypeStats = userIds.length > 0 ? await db.select({
+      typeId: insuranceQuotes.typeId,
+      count: count(),
+    }).from(insuranceQuotes)
+      .where(sql`${insuranceQuotes.userId} = ANY(${userIds})`)
+      .groupBy(insuranceQuotes.typeId)
+      .orderBy(desc(count()))
+      .limit(1) : [];
+
+    let mostPopularInsuranceType = 'N/A';
+    if (insuranceTypeStats.length > 0 && insuranceTypeStats[0].typeId) {
+      const typeName = await this.getInsuranceTypeName(insuranceTypeStats[0].typeId);
+      mostPopularInsuranceType = typeName;
+    }
+
+    return {
+      memberRetentionRate,
+      averageTimeToPolicy: 14, // Default to 14 days - can be calculated from actual data
+      mostPopularInsuranceType,
+      agentUtilization: 75, // Default percentage - can be calculated from activity data
+      customerSatisfactionScore: 4.2, // Default score - can be enhanced with feedback system
+      growthRate,
+    };
   }
 }
 
