@@ -5,27 +5,44 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import { useLogout } from "@/hooks/useLogout";
+import { Suspense, lazy } from "react";
 import NotFound from "@/pages/not-found";
 import LogoutLoading from "@/components/logout-loading";
 import Landing from "@/pages/landing";
 import Home from "@/pages/home";
 import Login from "@/pages/login";
 import Signup from "@/pages/signup";
-import Dashboard from "@/pages/dashboard";
-import MembersPage from "@/pages/dashboard/members";
-import ClaimsWorkflow from "@/pages/dashboard/claims-workflow";
-import ProfilePage from "@/pages/dashboard/profile";
-import MyProfilePage from "@/pages/dashboard/my-profile";
-import MyAgentPage from "@/pages/dashboard/my-agent";
-import ContactsPage from "@/pages/dashboard/contacts";
-import PoliciesPage from "@/pages/dashboard/policies";
-import WishlistPage from "@/pages/dashboard/wishlist";
-import PointsPage from "@/pages/dashboard/points";
-import RewardsManagementPage from "@/pages/dashboard/rewards-management";
-import DependentsPage from "@/pages/dashboard/dependents";
-import UserManagementPage from "@/pages/dashboard/user-management";
-import PasswordManagementPage from "@/pages/dashboard/password-management";
-import AnalyticsPage from "@/pages/dashboard/analytics";
+// Lazy-loaded dashboard components for performance optimization
+const Dashboard = lazy(() => import("@/pages/dashboard"));
+const MembersPage = lazy(() => import("@/pages/dashboard/members"));
+const ClaimsWorkflow = lazy(() => import("@/pages/dashboard/claims-workflow"));
+const ProfilePage = lazy(() => import("@/pages/dashboard/profile"));
+const MyProfilePage = lazy(() => import("@/pages/dashboard/my-profile"));
+const MyAgentPage = lazy(() => import("@/pages/dashboard/my-agent"));
+const ContactsPage = lazy(() => import("@/pages/dashboard/contacts"));
+const PoliciesPage = lazy(() => import("@/pages/dashboard/policies"));
+const WishlistPage = lazy(() => import("@/pages/dashboard/wishlist"));
+const PointsPage = lazy(() => import("@/pages/dashboard/points"));
+const RewardsManagementPage = lazy(() => import("@/pages/dashboard/rewards-management"));
+const DependentsPage = lazy(() => import("@/pages/dashboard/dependents"));
+const UserManagementPage = lazy(() => import("@/pages/dashboard/user-management"));
+const PasswordManagementPage = lazy(() => import("@/pages/dashboard/password-management"));
+const AnalyticsPage = lazy(() => import("@/pages/dashboard/analytics"));
+const OrganizationsPage = lazy(() => import("@/pages/dashboard/organizations"));
+const OrganizationProfilePage = lazy(() => import("@/pages/dashboard/organization-profile"));
+const AdminProviderManagement = lazy(() => import("@/pages/admin-provider-management"));
+const PointsAnalyticsDashboard = lazy(() => import("@/pages/dashboard/points-analytics"));
+const UserPointsInsights = lazy(() => import("@/pages/dashboard/user-points-insights"));
+const AchievementsPage = lazy(() => import("@/pages/dashboard/achievements"));
+const ReferralsPage = lazy(() => import("@/pages/dashboard/referrals"));
+const NotificationsPage = lazy(() => import("@/pages/dashboard/notifications"));
+
+// Phase 7 components - lazy-loaded for optimal performance
+const SocialFeaturesPage = lazy(() => import("@/pages/dashboard/social-features"));
+const AdvancedRedemptionsPage = lazy(() => import("@/pages/dashboard/advanced-redemptions"));
+const SeasonalCampaignsPage = lazy(() => import("@/pages/dashboard/seasonal-campaigns"));
+
+// Public pages - regular imports for better SEO and initial load
 import RoleTest from "@/pages/role-test";
 import Quotes from "@/pages/quotes";
 import InsuranceTypes from "@/pages/insurance-types";
@@ -40,17 +57,18 @@ import AboutUs from "@/pages/about-us";
 import PrivacyPolicy from "@/pages/privacy-policy";
 import TermsOfService from "@/pages/terms-of-service";
 import NeedsAnalysisPage from "@/pages/needs-analysis";
-import OrganizationsPage from "@/pages/dashboard/organizations";
-import OrganizationProfilePage from "@/pages/dashboard/organization-profile";
-import AdminProviderManagement from "@/pages/admin-provider-management";
-import PointsAnalyticsDashboard from "@/pages/dashboard/points-analytics";
-import UserPointsInsights from "@/pages/dashboard/user-points-insights";
-import AchievementsPage from "@/pages/dashboard/achievements";
-import ReferralsPage from "@/pages/dashboard/referrals";
-import NotificationsPage from "@/pages/dashboard/notifications";
-import SocialFeaturesPage from "@/pages/dashboard/social-features";
-import AdvancedRedemptionsPage from "@/pages/dashboard/advanced-redemptions";
-import SeasonalCampaignsPage from "@/pages/dashboard/seasonal-campaigns";
+
+// Loading fallback component for Suspense
+function PageLoadingFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center" data-testid="loading-page">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+        <p className="mt-4 text-lg text-muted-foreground">Loading page...</p>
+      </div>
+    </div>
+  );
+}
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -107,7 +125,7 @@ function Router() {
           <Route path="/signup" component={Signup} />
         </>
       ) : (
-        <>
+        <Suspense fallback={<PageLoadingFallback />}>
           <Route path="/" component={Home} />
           {/* Dashboard sub-routes must come before main dashboard route */}
           <Route path="/dashboard/members" component={MembersPage} />
@@ -132,6 +150,7 @@ function Router() {
           <Route path="/dashboard/achievements" component={AchievementsPage} />
           <Route path="/dashboard/referrals" component={ReferralsPage} />
           <Route path="/dashboard/notifications" component={NotificationsPage} />
+          {/* Phase 7 Advanced Features - Lazy-loaded for optimal performance */}
           <Route path="/dashboard/social-features" component={SocialFeaturesPage} />
           <Route path="/dashboard/advanced-redemptions" component={AdvancedRedemptionsPage} />
           <Route path="/dashboard/seasonal-campaigns" component={SeasonalCampaignsPage} />
@@ -151,7 +170,7 @@ function Router() {
           <Route path="/about-us" component={AboutUs} />
           <Route path="/privacy-policy" component={PrivacyPolicy} />
           <Route path="/terms-of-service" component={TermsOfService} />
-        </>
+        </Suspense>
       )}
       <Route component={NotFound} />
     </Switch>
