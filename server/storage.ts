@@ -464,6 +464,11 @@ export interface IStorage {
   getAgents(userContext: UserContext, pagination?: { limit: number; offset: number }): Promise<{ agents: any[]; total: number }>;
   searchAgentsWithContext(userContext: UserContext, filters: any): Promise<any[]>;
 
+  // Phase 5: Extended Cross-Organization Access
+  getMembersWithScope(userContext: UserContext, pagination?: { limit: number; offset: number }): Promise<{ members: any[]; total: number }>;
+  getAnalyticsWithScope(userContext: UserContext): Promise<any>;
+  getClientAssignmentsWithScope(userContext: UserContext, pagination?: { limit: number; offset: number }): Promise<{ assignments: any[]; total: number }>;
+
 }
 
 /**
@@ -4112,6 +4117,205 @@ export class DatabaseStorage implements IStorage {
         : 0,
       totalAgents: rankedAgents.length,
     };
+  }
+
+  /**
+   * Phase 5: Extended Cross-Organization Access - Members
+   */
+  async getMembersWithScope(userContext: UserContext, pagination?: { limit: number; offset: number }): Promise<{ members: any[]; total: number }> {
+    const scope = resolveDataScope(userContext);
+    const limit = pagination?.limit || 50;
+    const offset = pagination?.offset || 0;
+
+    // Build WHERE conditions
+    const conditions = [];
+    if (!scope.isGlobal && scope.organizationId) {
+      conditions.push(eq(members.organizationId, scope.organizationId));
+    }
+
+    // Get total count
+    const [countResult] = await db
+      .select({ count: count() })
+      .from(members)
+      .where(conditions.length > 0 ? and(...conditions) : undefined);
+    
+    const totalCount = countResult.count;
+
+    // Get members with organization metadata
+    const membersList = await db
+      .select({
+        id: members.id,
+        userId: members.userId,
+        organizationId: members.organizationId,
+        memberNumber: members.memberNumber,
+        profileImageUrl: members.profileImageUrl,
+        avatarType: members.avatarType,
+        avatarColor: members.avatarColor,
+        bio: members.bio,
+        emergencyContact: members.emergencyContact,
+        preferences: members.preferences,
+        membershipStatus: members.membershipStatus,
+        membershipDate: members.membershipDate,
+        createdAt: members.createdAt,
+        updatedAt: members.updatedAt,
+      })
+      .from(members)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .limit(limit)
+      .offset(offset)
+      .orderBy(desc(members.createdAt));
+
+    // Add organization metadata
+    const membersWithOrgs = await Promise.all(membersList.map(async (member) => {
+      const [org] = await db.select({
+        id: agentOrganizations.id,
+        name: agentOrganizations.name,
+        displayName: agentOrganizations.displayName,
+      })
+      .from(agentOrganizations)
+      .where(eq(agentOrganizations.id, member.organizationId));
+
+      return {
+        ...member,
+        organization: org || { id: member.organizationId, name: 'Unknown', displayName: 'Unknown' }
+      };
+    }));
+
+    return { members: membersWithOrgs, total: totalCount };
+  }
+
+  /**
+   * Phase 5: Extended Cross-Organization Access - Analytics
+   */
+  async getAnalyticsWithScope(userContext: UserContext): Promise<any> {
+    const scope = resolveDataScope(userContext);
+
+    if (scope.isGlobal) {
+      // SuperAdmin sees aggregated analytics across all organizations
+      const organizations = await this.getOrganizations();
+      
+      const orgAnalytics = await Promise.all(organizations.map(async (org) => {
+        const analytics = await this.getOrganizationAnalytics(org.id);
+        return {
+          organizationId: org.id,
+          organizationName: org.displayName,
+          ...analytics,
+        };
+      }));
+
+      // Calculate system-wide totals
+      const systemTotals = orgAnalytics.reduce((acc, org) => ({
+        totalAgents: acc.totalAgents + org.totalAgents,
+        activeAgents: acc.activeAgents + org.activeAgents,
+        totalMembers: acc.totalMembers + org.totalMembers,
+        totalQuotes: acc.totalQuotes + org.totalQuotes,
+        totalPolicies: acc.totalPolicies + org.totalPolicies,
+        totalClaims: acc.totalClaims + org.totalClaims,
+        pendingInvitations: acc.pendingInvitations + org.pendingInvitations,
+      }), {
+        totalAgents: 0,
+        activeAgents: 0,
+        totalMembers: 0,
+        totalQuotes: 0,
+        totalPolicies: 0,
+        totalClaims: 0,
+        pendingInvitations: 0,
+      });
+
+      return {
+        scope: 'global',
+        systemTotals,
+        organizationBreakdown: orgAnalytics,
+        totalOrganizations: organizations.length,
+      };
+    } else {
+      // Regular users see only their organization analytics
+      const analytics = await this.getOrganizationAnalytics(scope.organizationId!);
+      return {
+        scope: 'organization',
+        organizationId: scope.organizationId,
+        ...analytics,
+      };
+    }
+  }
+
+  /**
+   * Phase 5: Extended Cross-Organization Access - Client Assignments
+   */
+  async getClientAssignmentsWithScope(userContext: UserContext, pagination?: { limit: number; offset: number }): Promise<{ assignments: any[]; total: number }> {
+    const scope = resolveDataScope(userContext);
+    const limit = pagination?.limit || 50;
+    const offset = pagination?.offset || 0;
+
+    // Build WHERE conditions
+    const conditions = [];
+    if (!scope.isGlobal && scope.organizationId) {
+      conditions.push(eq(members.organizationId, scope.organizationId));
+    }
+
+    // Get total count of assigned clients
+    const [countResult] = await db
+      .select({ count: count() })
+      .from(members)
+      .where(
+        conditions.length > 0 
+          ? and(...conditions, isNotNull(members.assignedAgent))
+          : isNotNull(members.assignedAgent)
+      );
+    
+    const totalCount = countResult.count;
+
+    // Get client assignments with agent and organization details
+    const assignments = await db
+      .select({
+        clientId: members.id,
+        clientUserId: members.userId,
+        organizationId: members.organizationId,
+        assignedAgent: members.assignedAgent,
+        assignmentDate: members.assignmentDate,
+        membershipStatus: members.membershipStatus,
+        memberNumber: members.memberNumber,
+      })
+      .from(members)
+      .where(
+        conditions.length > 0 
+          ? and(...conditions, isNotNull(members.assignedAgent))
+          : isNotNull(members.assignedAgent)
+      )
+      .limit(limit)
+      .offset(offset)
+      .orderBy(desc(members.assignmentDate));
+
+    // Enrich with agent and organization details
+    const enrichedAssignments = await Promise.all(assignments.map(async (assignment) => {
+      // Get agent details
+      const [agent] = assignment.assignedAgent 
+        ? await db.select({
+            id: users.id,
+            email: users.email,
+            role: users.role,
+          })
+          .from(users)
+          .where(eq(users.id, assignment.assignedAgent))
+        : [null];
+
+      // Get organization details
+      const [org] = await db.select({
+        id: agentOrganizations.id,
+        name: agentOrganizations.name,
+        displayName: agentOrganizations.displayName,
+      })
+      .from(agentOrganizations)
+      .where(eq(agentOrganizations.id, assignment.organizationId));
+
+      return {
+        ...assignment,
+        agent: agent || null,
+        organization: org || { id: assignment.organizationId, name: 'Unknown', displayName: 'Unknown' }
+      };
+    }));
+
+    return { assignments: enrichedAssignments, total: totalCount };
   }
 }
 
