@@ -65,6 +65,7 @@ export const queryClient = new QueryClient({
       refetchOnWindowFocus: false,
       staleTime: Infinity,
       retry: false,
+      gcTime: 1000 * 60 * 5, // 5 minutes garbage collection time for inactive queries
     },
     mutations: {
       retry: false,
