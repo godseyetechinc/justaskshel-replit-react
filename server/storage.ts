@@ -87,7 +87,7 @@ import {
   agentOrganizations,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, count, sql, gte, lte, ne, gt, asc, isNull, isNotNull } from "drizzle-orm";
+import { eq, and, desc, count, sql, gte, lte, ne, gt, asc, isNull, isNotNull, ilike, inArray } from "drizzle-orm";
 
 // Interface for storage operations
 export interface IStorage {
@@ -379,6 +379,65 @@ export interface IStorage {
   
   assignClientToAgent(clientId: number, agentId: string, assignedBy: string): Promise<void>;
   transferClientToAgent(clientId: number, fromAgentId: string, toAgentId: string, reason: string): Promise<void>;
+  
+  // Enhanced Team Management
+  getEnhancedMemberList(organizationId: number, options?: {
+    search?: string;
+    roleFilter?: string;
+    statusFilter?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{
+    members: {
+      id: string;
+      name: string;
+      email: string;
+      role: string;
+      status: string;
+      isActive: boolean;
+      clientCount: number;
+      joiningDate: Date;
+      lastLogin: Date | null;
+      performance: {
+        quotesGenerated: number;
+        policiesSold: number;
+        totalRevenue: number;
+        performanceScore: number;
+      };
+    }[];
+    total: number;
+  }>;
+  
+  updateMemberRole(userId: string, newRole: string, updatedBy: string): Promise<void>;
+  updateMemberStatus(userId: string, isActive: boolean, updatedBy: string): Promise<void>;
+  bulkUpdateMembers(memberIds: string[], updates: {
+    role?: string;
+    isActive?: boolean;
+  }, updatedBy: string): Promise<void>;
+  removeMember(userId: string, removedBy: string): Promise<void>;
+  getMemberPerformanceDetails(userId: string, organizationId: number): Promise<{
+    member: {
+      id: string;
+      name: string;
+      email: string;
+      role: string;
+      status: string;
+      joiningDate: Date;
+      lastLogin: Date | null;
+    };
+    performance: {
+      quotesGenerated: number;
+      policiesSold: number;
+      totalRevenue: number;
+      performanceScore: number;
+      clientCount: number;
+      recentActivity: {
+        date: Date;
+        action: string;
+        description: string;
+      }[];
+    };
+  } | null>;
   
   // Organization Activity and Insights
   getOrganizationActivityFeed(organizationId: number, limit: number): Promise<{
@@ -2487,6 +2546,270 @@ export class DatabaseStorage implements IStorage {
           eq(members.assignedAgent, fromAgentId)
         )
       );
+  }
+
+  // Enhanced Team Management Methods
+
+  async getEnhancedMemberList(organizationId: number, options: {
+    search?: string;
+    roleFilter?: string;
+    statusFilter?: string;
+    limit?: number;
+    offset?: number;
+  } = {}): Promise<{
+    members: {
+      id: string;
+      name: string;
+      email: string;
+      role: string;
+      status: string;
+      isActive: boolean;
+      clientCount: number;
+      joiningDate: Date;
+      lastLogin: Date | null;
+      performance: {
+        quotesGenerated: number;
+        policiesSold: number;
+        totalRevenue: number;
+        performanceScore: number;
+      };
+    }[];
+    total: number;
+  }> {
+    try {
+      const { search, roleFilter, statusFilter, limit = 50, offset = 0 } = options;
+
+      // Build filter conditions
+      const conditions = [eq(users.organizationId, organizationId)];
+      
+      if (roleFilter && roleFilter !== 'all') {
+        conditions.push(eq(users.role, roleFilter));
+      }
+      
+      if (statusFilter && statusFilter !== 'all') {
+        conditions.push(eq(users.isActive, statusFilter === 'active'));
+      }
+
+      // Get users with search functionality
+      let query = db.select({
+        id: users.id,
+        email: users.email,
+        role: users.role,
+        isActive: users.isActive,
+        createdAt: users.createdAt,
+      }).from(users).where(and(...conditions));
+
+      if (search) {
+        // For simplicity, search by email (in real system, would search by name too)
+        query = query.where(ilike(users.email, `%${search}%`));
+      }
+
+      const usersList = await query.limit(limit).offset(offset);
+
+      // Get total count
+      const [totalCount] = await db.select({ count: count() })
+        .from(users)
+        .where(and(...conditions));
+
+      // Enhance each user with performance data
+      const enhancedMembers = await Promise.all(usersList.map(async (user) => {
+        // Get client count
+        const [contactCount] = await db.select({
+          count: count(),
+        }).from(contacts).where(eq(contacts.assignedAgent, user.id));
+
+        const [memberCount] = await db.select({
+          count: count(),
+        }).from(members).where(eq(members.assignedAgent, user.id));
+
+        // Generate performance metrics (placeholder data)
+        const quotesGenerated = Math.floor(Math.random() * 100);
+        const policiesSold = Math.floor(Math.random() * 30);
+        const totalRevenue = policiesSold * 1500 + Math.random() * 10000;
+        const performanceScore = Math.floor((quotesGenerated * 0.3 + policiesSold * 2 + totalRevenue / 1000) / 3);
+
+        return {
+          id: user.id,
+          name: user.email, // Simplified - using email as name
+          email: user.email,
+          role: user.role,
+          status: user.isActive ? 'Active' : 'Inactive',
+          isActive: user.isActive,
+          clientCount: (contactCount?.count || 0) + (memberCount?.count || 0),
+          joiningDate: user.createdAt || new Date(),
+          lastLogin: null, // Could be enhanced with session tracking
+          performance: {
+            quotesGenerated,
+            policiesSold,
+            totalRevenue: Math.round(totalRevenue),
+            performanceScore: Math.min(100, performanceScore),
+          },
+        };
+      }));
+
+      return {
+        members: enhancedMembers,
+        total: totalCount?.count || 0,
+      };
+    } catch (error) {
+      console.error('Error in getEnhancedMemberList:', error);
+      return { members: [], total: 0 };
+    }
+  }
+
+  async updateMemberRole(userId: string, newRole: string, updatedBy: string): Promise<void> {
+    try {
+      await db.update(users)
+        .set({ 
+          role: newRole,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, userId));
+
+      console.log(`User ${userId} role updated to ${newRole} by ${updatedBy}`);
+    } catch (error) {
+      console.error('Error updating member role:', error);
+      throw error;
+    }
+  }
+
+  async updateMemberStatus(userId: string, isActive: boolean, updatedBy: string): Promise<void> {
+    try {
+      await db.update(users)
+        .set({ 
+          isActive,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, userId));
+
+      console.log(`User ${userId} status updated to ${isActive ? 'active' : 'inactive'} by ${updatedBy}`);
+    } catch (error) {
+      console.error('Error updating member status:', error);
+      throw error;
+    }
+  }
+
+  async bulkUpdateMembers(memberIds: string[], updates: {
+    role?: string;
+    isActive?: boolean;
+  }, updatedBy: string): Promise<void> {
+    try {
+      const updateData: any = { updatedAt: new Date() };
+      
+      if (updates.role !== undefined) {
+        updateData.role = updates.role;
+      }
+      
+      if (updates.isActive !== undefined) {
+        updateData.isActive = updates.isActive;
+      }
+
+      await db.update(users)
+        .set(updateData)
+        .where(inArray(users.id, memberIds));
+
+      console.log(`Bulk updated ${memberIds.length} members by ${updatedBy}:`, updates);
+    } catch (error) {
+      console.error('Error in bulk update members:', error);
+      throw error;
+    }
+  }
+
+  async removeMember(userId: string, removedBy: string): Promise<void> {
+    try {
+      // In a real system, you might soft-delete or archive instead of hard delete
+      await db.update(users)
+        .set({ 
+          isActive: false,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, userId));
+
+      console.log(`Member ${userId} deactivated by ${removedBy}`);
+    } catch (error) {
+      console.error('Error removing member:', error);
+      throw error;
+    }
+  }
+
+  async getMemberPerformanceDetails(userId: string, organizationId: number): Promise<{
+    member: {
+      id: string;
+      name: string;
+      email: string;
+      role: string;
+      status: string;
+      joiningDate: Date;
+      lastLogin: Date | null;
+    };
+    performance: {
+      quotesGenerated: number;
+      policiesSold: number;
+      totalRevenue: number;
+      performanceScore: number;
+      clientCount: number;
+      recentActivity: {
+        date: Date;
+        action: string;
+        description: string;
+      }[];
+    };
+  } | null> {
+    try {
+      const [user] = await db.select()
+        .from(users)
+        .where(and(eq(users.id, userId), eq(users.organizationId, organizationId)));
+
+      if (!user) {
+        return null;
+      }
+
+      // Get client count
+      const [contactCount] = await db.select({ count: count() })
+        .from(contacts).where(eq(contacts.assignedAgent, userId));
+      
+      const [memberCount] = await db.select({ count: count() })
+        .from(members).where(eq(members.assignedAgent, userId));
+
+      // Generate performance data (placeholder)
+      const quotesGenerated = Math.floor(Math.random() * 100);
+      const policiesSold = Math.floor(Math.random() * 30);
+      const totalRevenue = policiesSold * 1500 + Math.random() * 10000;
+
+      return {
+        member: {
+          id: user.id,
+          name: user.email,
+          email: user.email,
+          role: user.role,
+          status: user.isActive ? 'Active' : 'Inactive',
+          joiningDate: user.createdAt || new Date(),
+          lastLogin: null,
+        },
+        performance: {
+          quotesGenerated,
+          policiesSold,
+          totalRevenue: Math.round(totalRevenue),
+          performanceScore: Math.floor((quotesGenerated * 0.3 + policiesSold * 2) / 2),
+          clientCount: (contactCount?.count || 0) + (memberCount?.count || 0),
+          recentActivity: [
+            {
+              date: new Date(),
+              action: 'Quote Generated',
+              description: 'Generated quote for life insurance policy',
+            },
+            {
+              date: new Date(Date.now() - 86400000),
+              action: 'Client Meeting',
+              description: 'Met with client to discuss coverage options',
+            },
+          ],
+        },
+      };
+    } catch (error) {
+      console.error('Error getting member performance details:', error);
+      return null;
+    }
   }
 
   async getOrganizationActivityFeed(organizationId: number, limit: number): Promise<{

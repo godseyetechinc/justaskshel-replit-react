@@ -2821,6 +2821,175 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Enhanced Team Management Routes
+
+  // Get Enhanced Member List with Search and Filtering
+  app.get("/api/organizations/:id/enhanced-members", auth, async (req: any, res) => {
+    try {
+      const organizationId = parseInt(req.params.id);
+      const search = req.query.search as string;
+      const roleFilter = req.query.roleFilter as string;
+      const statusFilter = req.query.statusFilter as string;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = parseInt(req.query.offset as string) || 0;
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Check access permissions (TenantAdmin or SuperAdmin)
+      if (currentUser.privilegeLevel > 1 && currentUser.organizationId !== organizationId) {
+        return res.status(403).json({ message: "Access denied. Admin privileges required." });
+      }
+
+      const result = await storage.getEnhancedMemberList(organizationId, {
+        search,
+        roleFilter,
+        statusFilter,
+        limit,
+        offset,
+      });
+      
+      res.json(result);
+    } catch (error) {
+      console.error("Error fetching enhanced member list:", error);
+      res.status(500).json({ message: "Failed to fetch enhanced member list" });
+    }
+  });
+
+  // Update Member Role
+  app.patch("/api/organizations/:id/members/:memberId/role", auth, async (req: any, res) => {
+    try {
+      const organizationId = parseInt(req.params.id);
+      const memberId = req.params.memberId;
+      const { newRole } = req.body;
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Check access permissions (TenantAdmin only)
+      if (currentUser.privilegeLevel > 1 && currentUser.organizationId !== organizationId) {
+        return res.status(403).json({ message: "Access denied. TenantAdmin role required." });
+      }
+
+      await storage.updateMemberRole(memberId, newRole, userId);
+      res.json({ message: "Member role updated successfully" });
+    } catch (error) {
+      console.error("Error updating member role:", error);
+      res.status(500).json({ message: "Failed to update member role" });
+    }
+  });
+
+  // Update Member Status
+  app.patch("/api/organizations/:id/members/:memberId/status", auth, async (req: any, res) => {
+    try {
+      const organizationId = parseInt(req.params.id);
+      const memberId = req.params.memberId;
+      const { isActive } = req.body;
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Check access permissions (TenantAdmin only)
+      if (currentUser.privilegeLevel > 1 && currentUser.organizationId !== organizationId) {
+        return res.status(403).json({ message: "Access denied. TenantAdmin role required." });
+      }
+
+      await storage.updateMemberStatus(memberId, isActive, userId);
+      res.json({ message: "Member status updated successfully" });
+    } catch (error) {
+      console.error("Error updating member status:", error);
+      res.status(500).json({ message: "Failed to update member status" });
+    }
+  });
+
+  // Bulk Update Members
+  app.patch("/api/organizations/:id/members/bulk", auth, async (req: any, res) => {
+    try {
+      const organizationId = parseInt(req.params.id);
+      const { memberIds, updates } = req.body;
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Check access permissions (TenantAdmin only)
+      if (currentUser.privilegeLevel > 1 && currentUser.organizationId !== organizationId) {
+        return res.status(403).json({ message: "Access denied. TenantAdmin role required." });
+      }
+
+      await storage.bulkUpdateMembers(memberIds, updates, userId);
+      res.json({ message: `Successfully updated ${memberIds.length} members` });
+    } catch (error) {
+      console.error("Error bulk updating members:", error);
+      res.status(500).json({ message: "Failed to bulk update members" });
+    }
+  });
+
+  // Remove Member
+  app.delete("/api/organizations/:id/members/:memberId", auth, async (req: any, res) => {
+    try {
+      const organizationId = parseInt(req.params.id);
+      const memberId = req.params.memberId;
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Check access permissions (TenantAdmin only)
+      if (currentUser.privilegeLevel > 1 && currentUser.organizationId !== organizationId) {
+        return res.status(403).json({ message: "Access denied. TenantAdmin role required." });
+      }
+
+      await storage.removeMember(memberId, userId);
+      res.json({ message: "Member removed successfully" });
+    } catch (error) {
+      console.error("Error removing member:", error);
+      res.status(500).json({ message: "Failed to remove member" });
+    }
+  });
+
+  // Get Member Performance Details
+  app.get("/api/organizations/:id/members/:memberId/performance", auth, async (req: any, res) => {
+    try {
+      const organizationId = parseInt(req.params.id);
+      const memberId = req.params.memberId;
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Check access permissions
+      if (currentUser.privilegeLevel > 2 && currentUser.organizationId !== organizationId) {
+        return res.status(403).json({ message: "Access denied." });
+      }
+
+      const performance = await storage.getMemberPerformanceDetails(memberId, organizationId);
+      if (!performance) {
+        return res.status(404).json({ message: "Member not found" });
+      }
+
+      res.json(performance);
+    } catch (error) {
+      console.error("Error fetching member performance details:", error);
+      res.status(500).json({ message: "Failed to fetch member performance details" });
+    }
+  });
+
   // Get agent information for current member
   app.get("/api/my-agent", auth, async (req: any, res) => {
     try {
