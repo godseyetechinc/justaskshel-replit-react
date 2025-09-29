@@ -53,7 +53,11 @@ import {
   Clock,
   Award,
   Target,
-  Zap
+  Zap,
+  Search,
+  Download,
+  Eye,
+  Edit
 } from "lucide-react";
 import { useRoleAuth } from "@/hooks/useRoleAuth";
 
