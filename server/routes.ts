@@ -2920,7 +2920,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ===== AGENT DIRECTORY AND COLLABORATION ENDPOINTS =====
   
-  // Get all agents in organization
+  /**
+   * Phase 1: SuperAdmin Cross-Organization Access
+   * Scope-aware agent query endpoint - SuperAdmin sees all orgs, others see their org
+   */
+  app.get("/api/agents", auth, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Create user context for scope resolution
+      const userContext = {
+        userId: currentUser.id,
+        privilegeLevel: currentUser.privilegeLevel,
+        organizationId: currentUser.organizationId,
+      };
+
+      // Get agents with automatic scope resolution
+      const agents = await storage.getAgents(userContext);
+      res.json(agents);
+    } catch (error) {
+      console.error("Error fetching agents:", error);
+      res.status(500).json({ message: "Failed to fetch agents" });
+    }
+  });
+
+  // Get all agents in organization (legacy endpoint for backward compatibility)
   app.get("/api/organizations/:id/agents", auth, async (req: any, res) => {
     try {
       const organizationId = parseInt(req.params.id);
