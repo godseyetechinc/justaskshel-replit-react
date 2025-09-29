@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useRoleAuth } from "@/hooks/useRoleAuth";
@@ -305,10 +305,72 @@ export default function DashboardSidebar() {
   const { userRole, hasAnyRole } = useRoleAuth();
   const { logout, isLoggingOut } = useLogout();
 
+  // Initialize expanded groups from localStorage or defaults
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('sidebar-expanded-groups');
+      if (stored) {
+        try {
+          return new Set(JSON.parse(stored));
+        } catch {
+          // Fallback to defaults if parsing fails
+        }
+      }
+    }
+    // Default expanded groups
+    return new Set(menuGroups.filter(group => group.defaultExpanded).map(group => group.id));
+  });
+
   // Type-safe user object
   const typedUser = user as any;
 
-  const filteredMenuItems = menuItems.filter((item) => hasAnyRole(item.roles));
+  // Filter groups and their items based on user roles
+  const filteredMenuGroups = menuGroups
+    .filter((group) => hasAnyRole(group.roles))
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => hasAnyRole(item.roles)),
+    }))
+    .filter((group) => group.items.length > 0); // Only show groups with accessible items
+
+  // Persist expanded state to localStorage
+  const toggleGroupExpansion = (groupId: string) => {
+    const newExpanded = new Set(expandedGroups);
+    if (newExpanded.has(groupId)) {
+      newExpanded.delete(groupId);
+    } else {
+      newExpanded.add(groupId);
+    }
+    setExpandedGroups(newExpanded);
+    
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('sidebar-expanded-groups', JSON.stringify([...newExpanded]));
+    }
+  };
+
+  // Auto-expand group containing current active page
+  const autoExpandActiveGroup = () => {
+    for (const group of filteredMenuGroups) {
+      for (const item of group.items) {
+        if (isActive(item.href)) {
+          if (!expandedGroups.has(group.id)) {
+            const newExpanded = new Set(expandedGroups);
+            newExpanded.add(group.id);
+            setExpandedGroups(newExpanded);
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('sidebar-expanded-groups', JSON.stringify([...newExpanded]));
+            }
+          }
+          return;
+        }
+      }
+    }
+  };
+
+  // Auto-expand on location change
+  useEffect(() => {
+    autoExpandActiveGroup();
+  }, [location, filteredMenuGroups, expandedGroups]);
 
   const isActive = (href: string) => {
     if (href === "/dashboard") {
@@ -372,38 +434,98 @@ export default function DashboardSidebar() {
       </div>
 
       {/* Navigation Menu */}
-      <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-        {filteredMenuItems.map((item) => {
-          const Icon = item.icon;
-          const active = isActive(item.href);
+      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+        {filteredMenuGroups.map((group) => {
+          const GroupIcon = group.icon;
+          const isExpanded = expandedGroups.has(group.id);
+          const hasActiveItem = group.items.some(item => isActive(item.href));
 
           return (
-            <Link key={item.id} href={item.href}>
-              <div
+            <div key={group.id} className="space-y-1">
+              {/* Group Header */}
+              <button
+                onClick={() => toggleGroupExpansion(group.id)}
                 className={cn(
-                  "flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors cursor-pointer",
-                  active
-                    ? "bg-primary text-white"
+                  "w-full flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors text-left",
+                  hasActiveItem
+                    ? "bg-primary/10 text-primary"
                     : "text-gray-700 hover:bg-gray-100",
                   isCollapsed && "justify-center px-2",
                 )}
-                onClick={() => setIsMobileOpen(false)}
+                aria-expanded={isExpanded}
+                data-testid={`group-header-${group.id}`}
               >
-                <Icon className={cn("h-5 w-5 flex-shrink-0")} />
+                <GroupIcon className={cn("h-5 w-5 flex-shrink-0")} />
                 {!isCollapsed && (
                   <>
-                    <span className="flex-1 text-sm font-medium truncate">
-                      {item.label}
+                    <span className="flex-1 text-sm font-semibold truncate">
+                      {group.label}
                     </span>
-                    {item.badge && (
-                      <Badge variant="secondary" className="text-xs">
-                        {item.badge}
-                      </Badge>
-                    )}
+                    <div className="flex items-center space-x-1">
+                      {/* Badge for number of items (optional) */}
+                      {group.items.length > 0 && (
+                        <Badge variant="outline" className="text-xs h-5 px-1.5">
+                          {group.items.length}
+                        </Badge>
+                      )}
+                      {/* Expand/collapse chevron */}
+                      {isExpanded ? (
+                        <ChevronDown className="h-4 w-4 text-gray-400" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 text-gray-400" />
+                      )}
+                    </div>
                   </>
                 )}
-              </div>
-            </Link>
+              </button>
+
+              {/* Group Items */}
+              {!isCollapsed && isExpanded && (
+                <div 
+                  className="ml-6 space-y-1 overflow-hidden transition-all duration-300 ease-in-out"
+                  data-testid={`group-items-${group.id}`}
+                >
+                  {group.items.map((item) => {
+                    const ItemIcon = item.icon;
+                    const active = isActive(item.href);
+
+                    return (
+                      <Link key={item.id} href={item.href}>
+                        <div
+                          className={cn(
+                            "flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors cursor-pointer",
+                            active
+                              ? "bg-primary text-white"
+                              : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
+                          )}
+                          onClick={() => setIsMobileOpen(false)}
+                          data-testid={`menu-item-${item.id}`}
+                        >
+                          <ItemIcon className="h-4 w-4 flex-shrink-0" />
+                          <span className="flex-1 text-sm font-medium truncate">
+                            {item.label}
+                          </span>
+                          {item.badge && (
+                            <Badge variant="secondary" className="text-xs">
+                              {item.badge}
+                            </Badge>
+                          )}
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Collapsed state: show tooltip on hover */}
+              {isCollapsed && (
+                <div className="relative group">
+                  <div className="invisible group-hover:visible absolute left-full top-0 ml-2 px-2 py-1 bg-gray-900 text-white text-sm rounded shadow-lg whitespace-nowrap z-50">
+                    {group.label}
+                  </div>
+                </div>
+              )}
+            </div>
           );
         })}
       </nav>
