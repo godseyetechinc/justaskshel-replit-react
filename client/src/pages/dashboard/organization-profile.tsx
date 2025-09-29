@@ -161,7 +161,25 @@ export default function OrganizationProfile() {
 
   // Enhanced member list query
   const { data: enhancedMembers, isLoading: enhancedMembersLoading, refetch: refetchMembers } = useQuery({
-    queryKey: [`/api/organizations/${organization?.id}/enhanced-members`, { search: searchQuery, roleFilter, statusFilter }],
+    queryKey: [`/api/organizations/${organization?.id}/enhanced-members`, searchQuery, roleFilter, statusFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (searchQuery) params.append('search', searchQuery);
+      if (roleFilter && roleFilter !== 'all') params.append('roleFilter', roleFilter);
+      if (statusFilter && statusFilter !== 'all') params.append('statusFilter', statusFilter);
+      
+      const url = `/api/organizations/${organization?.id}/enhanced-members${params.toString() ? '?' + params.toString() : ''}`;
+      const response = await fetch(url, {
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      return response.json();
+    },
     enabled: !authLoading && hasOrganizationAccess && !!organization?.id,
   });
 
