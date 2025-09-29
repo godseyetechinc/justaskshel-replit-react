@@ -372,6 +372,21 @@ export default function DashboardSidebar() {
     autoExpandActiveGroup();
   }, [location, filteredMenuGroups, expandedGroups]);
 
+  // Keyboard navigation support
+  const handleKeyDown = (event: React.KeyboardEvent, groupId: string) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      toggleGroupExpansion(groupId);
+    }
+  };
+
+  const handleItemKeyDown = (event: React.KeyboardEvent, href: string) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      window.location.href = href;
+    }
+  };
+
   const isActive = (href: string) => {
     if (href === "/dashboard") {
       return location === "/dashboard" || location === "/";
@@ -434,45 +449,58 @@ export default function DashboardSidebar() {
       </div>
 
       {/* Navigation Menu */}
-      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+      <nav 
+        className="flex-1 p-4 space-y-1 overflow-y-auto"
+        role="navigation"
+        aria-label="Main navigation"
+      >
         {filteredMenuGroups.map((group) => {
           const GroupIcon = group.icon;
           const isExpanded = expandedGroups.has(group.id);
           const hasActiveItem = group.items.some(item => isActive(item.href));
 
           return (
-            <div key={group.id} className="space-y-1">
+            <div key={group.id} className="space-y-1" role="group" aria-labelledby={`group-${group.id}`}>
               {/* Group Header */}
               <button
+                id={`group-${group.id}`}
                 onClick={() => toggleGroupExpansion(group.id)}
+                onKeyDown={(e) => handleKeyDown(e, group.id)}
                 className={cn(
-                  "w-full flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors text-left",
+                  "w-full flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors text-left focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1",
                   hasActiveItem
                     ? "bg-primary/10 text-primary"
-                    : "text-gray-700 hover:bg-gray-100",
+                    : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800",
                   isCollapsed && "justify-center px-2",
                 )}
                 aria-expanded={isExpanded}
+                aria-controls={`group-items-${group.id}`}
+                aria-label={`${group.label} group, ${group.items.length} items${isExpanded ? ', expanded' : ', collapsed'}`}
                 data-testid={`group-header-${group.id}`}
+                type="button"
               >
-                <GroupIcon className={cn("h-5 w-5 flex-shrink-0")} />
+                <GroupIcon className={cn("h-5 w-5 flex-shrink-0")} aria-hidden="true" />
                 {!isCollapsed && (
                   <>
                     <span className="flex-1 text-sm font-semibold truncate">
                       {group.label}
                     </span>
                     <div className="flex items-center space-x-1">
-                      {/* Badge for number of items (optional) */}
+                      {/* Badge for number of items */}
                       {group.items.length > 0 && (
-                        <Badge variant="outline" className="text-xs h-5 px-1.5">
+                        <Badge 
+                          variant="outline" 
+                          className="text-xs h-5 px-1.5"
+                          aria-label={`${group.items.length} items`}
+                        >
                           {group.items.length}
                         </Badge>
                       )}
                       {/* Expand/collapse chevron */}
                       {isExpanded ? (
-                        <ChevronDown className="h-4 w-4 text-gray-400" />
+                        <ChevronDown className="h-4 w-4 text-gray-400" aria-hidden="true" />
                       ) : (
-                        <ChevronRight className="h-4 w-4 text-gray-400" />
+                        <ChevronRight className="h-4 w-4 text-gray-400" aria-hidden="true" />
                       )}
                     </div>
                   </>
@@ -482,10 +510,13 @@ export default function DashboardSidebar() {
               {/* Group Items */}
               {!isCollapsed && isExpanded && (
                 <div 
+                  id={`group-items-${group.id}`}
                   className="ml-6 space-y-1 overflow-hidden transition-all duration-300 ease-in-out"
                   data-testid={`group-items-${group.id}`}
+                  role="group"
+                  aria-labelledby={`group-${group.id}`}
                 >
-                  {group.items.map((item) => {
+                  {group.items.map((item, index) => {
                     const ItemIcon = item.icon;
                     const active = isActive(item.href);
 
@@ -493,22 +524,33 @@ export default function DashboardSidebar() {
                       <Link key={item.id} href={item.href}>
                         <div
                           className={cn(
-                            "flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors cursor-pointer",
+                            "flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1",
                             active
                               ? "bg-primary text-white"
-                              : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
+                              : "text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100",
                           )}
                           onClick={() => setIsMobileOpen(false)}
+                          onKeyDown={(e) => handleItemKeyDown(e, item.href)}
                           data-testid={`menu-item-${item.id}`}
+                          role="menuitem"
+                          tabIndex={0}
+                          aria-label={`${item.label}${active ? ' (current page)' : ''}${item.badge ? `, ${item.badge} notifications` : ''}`}
                         >
-                          <ItemIcon className="h-4 w-4 flex-shrink-0" />
+                          <ItemIcon className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
                           <span className="flex-1 text-sm font-medium truncate">
                             {item.label}
                           </span>
                           {item.badge && (
-                            <Badge variant="secondary" className="text-xs">
+                            <Badge 
+                              variant="secondary" 
+                              className="text-xs"
+                              aria-label={`${item.badge} notifications`}
+                            >
                               {item.badge}
                             </Badge>
+                          )}
+                          {active && (
+                            <span className="sr-only">(current page)</span>
                           )}
                         </div>
                       </Link>
@@ -520,7 +562,11 @@ export default function DashboardSidebar() {
               {/* Collapsed state: show tooltip on hover */}
               {isCollapsed && (
                 <div className="relative group">
-                  <div className="invisible group-hover:visible absolute left-full top-0 ml-2 px-2 py-1 bg-gray-900 text-white text-sm rounded shadow-lg whitespace-nowrap z-50">
+                  <div 
+                    className="invisible group-hover:visible absolute left-full top-0 ml-2 px-2 py-1 bg-gray-900 text-white text-sm rounded shadow-lg whitespace-nowrap z-50 dark:bg-gray-100 dark:text-gray-900"
+                    role="tooltip"
+                    aria-label={group.label}
+                  >
                     {group.label}
                   </div>
                 </div>
