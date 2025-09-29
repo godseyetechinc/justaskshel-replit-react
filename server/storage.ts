@@ -2828,10 +2828,9 @@ export class DatabaseStorage implements IStorage {
       id: members.id,
       type: sql<string>`'member_added'`,
       description: sql<string>`'New member joined the organization'`,
-      actorName: sql<string>`CONCAT(${persons.firstName}, ' ', ${persons.lastName})`,
+      actorName: members.email, // Simplified - use email instead of firstName/lastName
       createdAt: members.createdAt,
     }).from(members)
-      .leftJoin(persons, eq(members.personId, persons.id))
       .where(eq(members.organizationId, organizationId))
       .orderBy(desc(members.createdAt))
       .limit(Math.floor(limit / 3));
