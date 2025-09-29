@@ -105,18 +105,21 @@ export default function OrganizationProfile() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("Agent");
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
-  const { isTenantAdmin, isLoading: authLoading } = useRoleAuth();
+  const { isTenantAdmin, isSuperAdmin, isLoading: authLoading } = useRoleAuth();
+
+  // Allow both TenantAdmin and SuperAdmin access
+  const hasOrganizationAccess = isTenantAdmin || isSuperAdmin;
 
   // Fetch current organization profile
   const { data: organization, isLoading } = useQuery<Organization>({
     queryKey: ["/api/organization-profile"],
-    enabled: !authLoading && isTenantAdmin,
+    enabled: !authLoading && hasOrganizationAccess,
   });
 
   // Fetch organization invitations
   const { data: invitations, isLoading: invitationsLoading } = useQuery({
     queryKey: [`/api/organizations/${organization?.id}/invitations`],
-    enabled: !authLoading && isTenantAdmin && !!organization?.id,
+    enabled: !authLoading && hasOrganizationAccess && !!organization?.id,
   });
 
   // ===== PHASE 2: ANALYTICS QUERIES =====
@@ -124,37 +127,37 @@ export default function OrganizationProfile() {
   // Organization analytics dashboard data
   const { data: analytics, isLoading: analyticsLoading } = useQuery({
     queryKey: [`/api/organizations/${organization?.id}/analytics`],
-    enabled: !authLoading && isTenantAdmin && !!organization?.id,
+    enabled: !authLoading && hasOrganizationAccess && !!organization?.id,
   });
 
   // Member growth analytics (last 6 months)
   const { data: memberGrowth, isLoading: memberGrowthLoading } = useQuery({
     queryKey: [`/api/organizations/${organization?.id}/member-growth`],
-    enabled: !authLoading && isTenantAdmin && !!organization?.id,
+    enabled: !authLoading && hasOrganizationAccess && !!organization?.id,
   });
 
   // Top performing agents
   const { data: topAgents, isLoading: topAgentsLoading } = useQuery({
     queryKey: [`/api/organizations/${organization?.id}/top-agents`],
-    enabled: !authLoading && isTenantAdmin && !!organization?.id,
+    enabled: !authLoading && hasOrganizationAccess && !!organization?.id,
   });
 
   // Enhanced team overview
   const { data: teamOverview, isLoading: teamOverviewLoading } = useQuery({
     queryKey: [`/api/organizations/${organization?.id}/team-overview`],
-    enabled: !authLoading && isTenantAdmin && !!organization?.id,
+    enabled: !authLoading && hasOrganizationAccess && !!organization?.id,
   });
 
   // Organization activity feed
   const { data: activityFeed, isLoading: activityFeedLoading } = useQuery({
     queryKey: [`/api/organizations/${organization?.id}/activity-feed`],
-    enabled: !authLoading && isTenantAdmin && !!organization?.id,
+    enabled: !authLoading && hasOrganizationAccess && !!organization?.id,
   });
 
   // Organization insights
   const { data: insights, isLoading: insightsLoading } = useQuery({
     queryKey: [`/api/organizations/${organization?.id}/insights`],
-    enabled: !authLoading && isTenantAdmin && !!organization?.id,
+    enabled: !authLoading && hasOrganizationAccess && !!organization?.id,
   });
 
   const form = useForm<OrganizationProfileData>({
@@ -308,13 +311,13 @@ export default function OrganizationProfile() {
     );
   }
 
-  if (!isTenantAdmin) {
+  if (!hasOrganizationAccess) {
     return (
       <div className="p-6">
         <Alert>
           <Shield className="h-4 w-4" />
           <AlertDescription>
-            You don't have permission to access organization profile management.
+            You don't have permission to access organization profile management. TenantAdmin or SuperAdmin privileges required.
           </AlertDescription>
         </Alert>
       </div>
