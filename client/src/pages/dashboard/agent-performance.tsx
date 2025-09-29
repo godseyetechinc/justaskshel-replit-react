@@ -39,6 +39,7 @@ import {
 } from "lucide-react";
 import DashboardLayout from "@/components/dashboard-layout";
 import { useRoleAuth } from "@/hooks/useRoleAuth";
+import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
 
 interface AgentPerformanceMetrics {
@@ -111,11 +112,12 @@ export default function AgentPerformancePage() {
   const [selectedAgent, setSelectedAgent] = useState<string>("all");
   const [timeRange, setTimeRange] = useState("6");
   const { hasMinimumPrivilegeLevel, isSuperAdmin } = useRoleAuth();
+  const { user } = useAuth();
 
   // Fetch agent performance metrics
   const { data: performanceMetrics, isLoading: metricsLoading } = useQuery({
-    queryKey: ["/api/organizations/1/agent-performance"],
-    enabled: hasMinimumPrivilegeLevel(1), // TenantAdmin or higher
+    queryKey: ["/api/organizations", user?.organizationId, "agent-performance"],
+    enabled: hasMinimumPrivilegeLevel(1) && !!user?.organizationId, // TenantAdmin or higher
   }) as { data: AgentPerformanceMetrics[] | undefined; isLoading: boolean };
 
   // Fetch performance history for selected agent
@@ -138,8 +140,8 @@ export default function AgentPerformancePage() {
 
   // Fetch agent rankings
   const { data: agentRankings } = useQuery({
-    queryKey: ["/api/organizations/1/agent-rankings"],
-    enabled: hasMinimumPrivilegeLevel(1),
+    queryKey: ["/api/organizations", user?.organizationId, "agent-rankings"],
+    enabled: hasMinimumPrivilegeLevel(1) && !!user?.organizationId,
   }) as { data: AgentRankings | undefined };
 
   const renderStarRating = (rating: number) => {

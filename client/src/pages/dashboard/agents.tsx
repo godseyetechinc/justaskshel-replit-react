@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import DashboardLayout from "@/components/dashboard-layout";
 import { useRoleAuth } from "@/hooks/useRoleAuth";
+import { useAuth } from "@/hooks/useAuth";
 
 interface AgentProfile {
   id: string;
@@ -50,11 +51,12 @@ export default function AgentsPage() {
   const [availabilityFilter, setAvailabilityFilter] = useState("all");
   const [experienceFilter, setExperienceFilter] = useState("all");
   const { hasMinimumPrivilegeLevel } = useRoleAuth();
+  const { user } = useAuth();
 
   // Fetch agents in organization
   const { data: agents, isLoading } = useQuery({
-    queryKey: ["/api/agents"],
-    enabled: hasMinimumPrivilegeLevel(2), // Agent level or higher
+    queryKey: ["/api/organizations", user?.organizationId, "agents"],
+    enabled: hasMinimumPrivilegeLevel(2) && !!user?.organizationId, // Agent level or higher and organization ID available
   }) as { data: AgentProfile[] | undefined; isLoading: boolean };
 
   const filteredAgents = agents?.filter(agent => {

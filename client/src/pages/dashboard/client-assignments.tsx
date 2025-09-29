@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import DashboardLayout from "@/components/dashboard-layout";
 import { useRoleAuth } from "@/hooks/useRoleAuth";
+import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { format } from "date-fns";
@@ -82,25 +83,26 @@ export default function ClientAssignmentsPage() {
   const [statusFilter, setStatusFilter] = useState("active");
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const { hasMinimumPrivilegeLevel } = useRoleAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch client assignments
+  // Fetch client assignments (clients with their agent assignments)
   const { data: assignments, isLoading } = useQuery({
-    queryKey: ["/api/client-assignments"],
-    enabled: hasMinimumPrivilegeLevel(1), // TenantAdmin or higher
+    queryKey: ["/api/organizations", user?.organizationId, "clients"],
+    enabled: hasMinimumPrivilegeLevel(1) && !!user?.organizationId, // TenantAdmin or higher
   }) as { data: ClientAssignment[] | undefined; isLoading: boolean };
 
   // Fetch available agents for transfer
   const { data: availableAgents } = useQuery({
-    queryKey: ["/api/agents"],
-    enabled: hasMinimumPrivilegeLevel(1),
+    queryKey: ["/api/organizations", user?.organizationId, "agents"],
+    enabled: hasMinimumPrivilegeLevel(1) && !!user?.organizationId,
   }) as { data: any[] | undefined };
 
   // Fetch assignment history for selected client
   const { data: assignmentHistory } = useQuery({
-    queryKey: ["/api/client-assignments/history", selectedClientId],
-    enabled: !!selectedClientId,
+    queryKey: ["/api/organizations", user?.organizationId, "client-assignments", "history", selectedClientId],
+    enabled: !!selectedClientId && !!user?.organizationId,
   }) as { data: ClientAssignmentHistory[] | undefined; isLoading: boolean };
 
   const transferClientMutation = useMutation({
@@ -110,7 +112,7 @@ export default function ClientAssignmentsPage() {
       toAgentId: string;
       reason: string;
     }) => {
-      return apiRequest("/api/client-assignments/transfer", {
+      return apiRequest(`/api/organizations/${user?.organizationId}/transfer-client`, {
         method: "POST",
         body: JSON.stringify({ clientId, fromAgentId, toAgentId, reason }),
       });
@@ -120,7 +122,7 @@ export default function ClientAssignmentsPage() {
         title: "Client Transferred",
         description: "Client has been successfully transferred to the new agent.",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/client-assignments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/organizations", user?.organizationId, "clients"] });
       setSelectedClientId(null);
     },
     onError: (error: any) => {
