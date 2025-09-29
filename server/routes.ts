@@ -2586,9 +2586,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Achievement routes
   app.get("/api/achievements", async (req: any, res) => {
     try {
-      const userId = req.session?.user?.id;
-      if (!userId) {
-        return res.status(401).json({ message: "Not authenticated" });
+      if (!req.session?.user?.id) {
+        return res.status(401).json({ message: "Authentication required" });
       }
 
       // Return all achievements for the achievements gallery page
