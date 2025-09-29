@@ -2697,6 +2697,104 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== ADVANCED ANALYTICS ENDPOINTS =====
+
+  // Advanced Organization Analytics with insights
+  app.get("/api/organizations/:id/advanced-analytics", auth, async (req: any, res) => {
+    try {
+      const organizationId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Check access permissions (TenantAdmin or SuperAdmin)
+      if (currentUser.privilegeLevel > 1 && currentUser.organizationId !== organizationId) {
+        return res.status(403).json({ message: "Access denied." });
+      }
+
+      const advancedAnalytics = await storage.getOrganizationAdvancedAnalytics(organizationId);
+      res.json(advancedAnalytics);
+    } catch (error) {
+      console.error("Error fetching advanced analytics:", error);
+      res.status(500).json({ message: "Failed to fetch advanced analytics" });
+    }
+  });
+
+  // Comprehensive KPI Dashboard
+  app.get("/api/organizations/:id/kpi-dashboard", auth, async (req: any, res) => {
+    try {
+      const organizationId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Check access permissions (TenantAdmin or SuperAdmin)
+      if (currentUser.privilegeLevel > 1 && currentUser.organizationId !== organizationId) {
+        return res.status(403).json({ message: "Access denied." });
+      }
+
+      const kpiDashboard = await storage.getOrganizationKPIDashboard(organizationId);
+      res.json(kpiDashboard);
+    } catch (error) {
+      console.error("Error fetching KPI dashboard:", error);
+      res.status(500).json({ message: "Failed to fetch KPI dashboard" });
+    }
+  });
+
+  // Agent Workload Distribution
+  app.get("/api/organizations/:id/agent-workload", auth, async (req: any, res) => {
+    try {
+      const organizationId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Check access permissions (TenantAdmin or SuperAdmin)
+      if (currentUser.privilegeLevel > 1 && currentUser.organizationId !== organizationId) {
+        return res.status(403).json({ message: "Access denied." });
+      }
+
+      const workloadDistribution = await storage.getAgentWorkloadDistribution(organizationId);
+      res.json(workloadDistribution);
+    } catch (error) {
+      console.error("Error fetching agent workload:", error);
+      res.status(500).json({ message: "Failed to fetch agent workload distribution" });
+    }
+  });
+
+  // Client Lifecycle Analytics
+  app.get("/api/organizations/:id/client-lifecycle", auth, async (req: any, res) => {
+    try {
+      const organizationId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Check access permissions (TenantAdmin or SuperAdmin)
+      if (currentUser.privilegeLevel > 1 && currentUser.organizationId !== organizationId) {
+        return res.status(403).json({ message: "Access denied." });
+      }
+
+      const lifecycleAnalytics = await storage.getClientLifecycleAnalytics(organizationId);
+      res.json(lifecycleAnalytics);
+    } catch (error) {
+      console.error("Error fetching client lifecycle analytics:", error);
+      res.status(500).json({ message: "Failed to fetch client lifecycle analytics" });
+    }
+  });
+
   // ===== AGENT DIRECTORY AND COLLABORATION ENDPOINTS =====
   
   // Get all agents in organization

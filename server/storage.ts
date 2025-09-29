@@ -3387,6 +3387,263 @@ export class DatabaseStorage implements IStorage {
 
     return unassignedClients;
   }
+
+  // ===== ADVANCED ORGANIZATION ANALYTICS AND INSIGHTS =====
+
+  async getOrganizationAdvancedAnalytics(organizationId: number): Promise<any> {
+    const now = new Date();
+    const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+
+    // Revenue Analytics - Track policy values and revenue
+    const orgUsers = await db.select({ id: users.id }).from(users)
+      .where(eq(users.organizationId, organizationId));
+    
+    let revenueMetrics = {
+      totalPolicyValue: 0,
+      monthlyRecurringRevenue: 0,
+      averagePolicyValue: 0,
+      conversionRate: 0,
+    };
+
+    if (orgUsers.length > 0) {
+      const userIds = orgUsers.map(u => u.id);
+      
+      // Get quote to policy conversion rate
+      const [quoteCount] = await db.select({ count: count() })
+        .from(insuranceQuotes)
+        .where(sql`${insuranceQuotes.userId} = ANY(${userIds})`);
+
+      const [policyCount] = await db.select({ count: count() })
+        .from(policies)
+        .innerJoin(members, eq(policies.memberId, members.id))
+        .where(eq(members.organizationId, organizationId));
+
+      revenueMetrics.conversionRate = quoteCount.count > 0 
+        ? ((policyCount.count || 0) / quoteCount.count) * 100 
+        : 0;
+    }
+
+    // Client Lifecycle Analytics
+    const lifecycleMetrics = await this.getClientLifecycleAnalytics(organizationId);
+
+    // Agent Workload Distribution
+    const workloadMetrics = await this.getAgentWorkloadDistribution(organizationId);
+
+    // Performance Comparison (this month vs last month)
+    const thisMonthMembers = await db.select({ count: count() })
+      .from(members)
+      .where(
+        and(
+          eq(members.organizationId, organizationId),
+          gte(members.createdAt, thisMonth)
+        )
+      );
+
+    const lastMonthMembers = await db.select({ count: count() })
+      .from(members)
+      .where(
+        and(
+          eq(members.organizationId, organizationId),
+          gte(members.createdAt, lastMonth),
+          lte(members.createdAt, lastMonthEnd)
+        )
+      );
+
+    const memberGrowthRate = lastMonthMembers[0]?.count 
+      ? (((thisMonthMembers[0]?.count || 0) - lastMonthMembers[0].count) / lastMonthMembers[0].count) * 100
+      : 0;
+
+    return {
+      revenueMetrics,
+      lifecycleMetrics,
+      workloadMetrics,
+      comparativeAnalytics: {
+        memberGrowthRate,
+        thisMonthNewMembers: thisMonthMembers[0]?.count || 0,
+        lastMonthNewMembers: lastMonthMembers[0]?.count || 0,
+      }
+    };
+  }
+
+  async getClientLifecycleAnalytics(organizationId: number): Promise<any> {
+    // Lead to Member conversion tracking
+    const [totalContacts] = await db.select({ count: count() })
+      .from(contacts)
+      .where(eq(contacts.organizationId, organizationId));
+
+    const [totalMembers] = await db.select({ count: count() })
+      .from(members)
+      .where(eq(members.organizationId, organizationId));
+
+    const leadConversionRate = totalContacts.count > 0 
+      ? ((totalMembers.count || 0) / totalContacts.count) * 100 
+      : 0;
+
+    // Average time to conversion (simplified - can be enhanced)
+    const averageTimeToConversion = 14; // Days - placeholder for real calculation
+
+    // Client retention analysis
+    const retentionRate = await this.calculateClientRetentionRate(organizationId);
+
+    return {
+      totalProspects: totalContacts.count || 0,
+      totalClients: totalMembers.count || 0,
+      leadConversionRate,
+      averageTimeToConversion,
+      clientRetentionRate: retentionRate,
+    };
+  }
+
+  async getAgentWorkloadDistribution(organizationId: number): Promise<any> {
+    const agents = await db.select({
+      id: users.id,
+      email: users.email,
+    })
+    .from(users)
+    .where(
+      and(
+        eq(users.organizationId, organizationId),
+        sql`${users.role} IN ('Agent', 'TenantAdmin')`
+      )
+    );
+
+    const workloadData = [];
+
+    for (const agent of agents) {
+      // Get assigned clients count
+      const [assignedClients] = await db.select({ count: count() })
+        .from(clientAssignments)
+        .where(
+          and(
+            eq(clientAssignments.agentId, agent.id),
+            eq(clientAssignments.organizationId, organizationId),
+            eq(clientAssignments.status, 'Active')
+          )
+        );
+
+      // Get active policies count
+      const [activePolicies] = await db.select({ count: count() })
+        .from(policies)
+        .innerJoin(members, eq(policies.memberId, members.id))
+        .where(
+          and(
+            eq(members.organizationId, organizationId),
+            eq(members.assignedAgent, agent.id)
+          )
+        );
+
+      // Get active claims count
+      const [activeClaims] = await db.select({ count: count() })
+        .from(claims)
+        .innerJoin(members, eq(claims.memberId, members.id))
+        .where(
+          and(
+            eq(members.organizationId, organizationId),
+            eq(members.assignedAgent, agent.id),
+            sql`${claims.status} IN ('submitted', 'under_review', 'approved')`
+          )
+        );
+
+      const totalWorkload = (assignedClients.count || 0) + (activePolicies.count || 0) + (activeClaims.count || 0);
+      
+      workloadData.push({
+        agentId: agent.id,
+        agentName: agent.email,
+        assignedClients: assignedClients.count || 0,
+        activePolicies: activePolicies.count || 0,
+        activeClaims: activeClaims.count || 0,
+        totalWorkload,
+        workloadLevel: totalWorkload > 50 ? 'High' : totalWorkload > 25 ? 'Medium' : 'Low'
+      });
+    }
+
+    return {
+      agents: workloadData,
+      averageWorkload: workloadData.length > 0 
+        ? workloadData.reduce((sum, agent) => sum + agent.totalWorkload, 0) / workloadData.length 
+        : 0,
+      highWorkloadAgents: workloadData.filter(agent => agent.workloadLevel === 'High').length,
+    };
+  }
+
+  async calculateClientRetentionRate(organizationId: number): Promise<number> {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    // Count clients from 30+ days ago
+    const [oldClients] = await db.select({ count: count() })
+      .from(members)
+      .where(
+        and(
+          eq(members.organizationId, organizationId),
+          lte(members.createdAt, thirtyDaysAgo)
+        )
+      );
+
+    // Count how many are still active (simplified logic)
+    const [activeOldClients] = await db.select({ count: count() })
+      .from(members)
+      .where(
+        and(
+          eq(members.organizationId, organizationId),
+          lte(members.createdAt, thirtyDaysAgo),
+          eq(members.status, 'Active')
+        )
+      );
+
+    return oldClients.count > 0 
+      ? ((activeOldClients.count || 0) / oldClients.count) * 100 
+      : 100; // 100% if no old clients to measure
+  }
+
+  async getOrganizationKPIDashboard(organizationId: number): Promise<any> {
+    const basicAnalytics = await this.getOrganizationAnalytics(organizationId);
+    const advancedAnalytics = await this.getOrganizationAdvancedAnalytics(organizationId);
+    
+    // Key Performance Indicators
+    const kpis = {
+      // Growth KPIs
+      memberGrowthRate: advancedAnalytics.comparativeAnalytics.memberGrowthRate,
+      clientAcquisitionCost: 150, // Placeholder - can be calculated from marketing spend
+      
+      // Performance KPIs
+      agentUtilizationRate: 75, // Placeholder - calculated from workload data
+      averageResponseTime: 2.5, // Hours - placeholder for real tracking
+      
+      // Revenue KPIs
+      conversionRate: advancedAnalytics.revenueMetrics.conversionRate,
+      clientRetentionRate: advancedAnalytics.lifecycleMetrics.clientRetentionRate,
+      
+      // Service KPIs
+      customerSatisfactionScore: 4.2, // Out of 5 - placeholder for real feedback system
+      claimProcessingTime: 3.5, // Days - placeholder for real tracking
+    };
+
+    // Performance Alerts
+    const alerts = [];
+    if (kpis.memberGrowthRate < -10) {
+      alerts.push({ type: 'warning', message: 'Member growth rate declined significantly' });
+    }
+    if (advancedAnalytics.workloadMetrics.highWorkloadAgents > 0) {
+      alerts.push({ 
+        type: 'info', 
+        message: `${advancedAnalytics.workloadMetrics.highWorkloadAgents} agents have high workload` 
+      });
+    }
+    if (kpis.conversionRate < 10) {
+      alerts.push({ type: 'warning', message: 'Quote to policy conversion rate is low' });
+    }
+
+    return {
+      ...basicAnalytics,
+      ...advancedAnalytics,
+      kpis,
+      alerts,
+      lastUpdated: new Date(),
+    };
+  }
 }
 
 export const storage = new DatabaseStorage();
