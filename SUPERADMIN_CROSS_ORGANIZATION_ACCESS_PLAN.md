@@ -89,16 +89,16 @@ SuperAdmin users will have:
   - Automatic user context construction with privilegeLevel
   - Consistent privilege checking maintained across all endpoints
 
-### Phase 3: Frontend UI Enhancements ✅ PARTIALLY COMPLETED
+### Phase 3: Frontend UI Enhancements ✅ COMPLETED
 
 #### 3.1 Agent Directory UI Updates ✅ COMPLETED
 - **File**: `client/src/pages/dashboard/agents.tsx`
 - **Features Implemented**:
-  - ✅ Organization name display for SuperAdmin users
+  - ✅ Organization name display for SuperAdmin users with OrganizationBadge component
   - ✅ Updated AgentProfile interface to include organization metadata
   - ✅ Conditional rendering of organization info for SuperAdmin (privilege level 0)
-  - ⏳ Organization filter dropdown (SuperAdmin only) - PENDING
-  - ⏳ Grouping toggle: flat list vs organization sections - PENDING
+  - ✅ Organization filter dropdown (SuperAdmin only) - allows filtering by specific organization
+  - ✅ Grouping toggle: flat list vs organization sections - switch between views with visual icons
   - ✅ Search across all organizations (automatic with new endpoint)
 
 #### 3.2 React Query Integration ✅ COMPLETED
@@ -108,11 +108,12 @@ SuperAdmin users will have:
   - Simplified query - no need for conditional org selection
   - Cache management works automatically with new endpoint structure
 
-#### 3.3 UI Components
-- **New Components**:
-  - `OrganizationBadge`: Display organization name/color
-  - `ScopeSelector`: Toggle between organization-specific and global views
-  - `CrossOrgDataTable`: Enhanced table with organization columns
+#### 3.3 UI Components ✅ COMPLETED
+- **New Components Implemented**:
+  - ✅ `OrganizationBadge` (`client/src/components/organization-badge.tsx`): Display organization name with color coding and icon
+  - ✅ Organization filter dropdown: Select specific organization or view all
+  - ✅ Grouping toggle: Switch between flat list and organization-grouped sections
+  - ✅ Enhanced agent cards with conditional organization display for SuperAdmin users
 
 ### Phase 4: Data Consistency & Performance (Priority: Medium)
 
