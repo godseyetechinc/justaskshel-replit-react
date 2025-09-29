@@ -3162,6 +3162,231 @@ export class DatabaseStorage implements IStorage {
       return created;
     }
   }
+
+  // ===== CLIENT ASSIGNMENT AND RELATIONSHIP MANAGEMENT =====
+
+  async getOrganizationClients(organizationId: number): Promise<any[]> {
+    const clients = await db.select({
+      id: members.id,
+      email: members.email,
+      firstName: members.firstName,
+      lastName: members.lastName,
+      phone: members.phone,
+      status: members.status,
+      createdAt: members.createdAt,
+      updatedAt: members.updatedAt,
+      assignment: {
+        id: clientAssignments.id,
+        agentId: clientAssignments.agentId,
+        assignmentType: clientAssignments.assignmentType,
+        status: clientAssignments.status,
+        priority: clientAssignments.priority,
+        assignedAt: clientAssignments.assignedAt,
+        notes: clientAssignments.notes,
+      },
+      agent: {
+        id: users.id,
+        email: users.email,
+        role: users.role,
+      }
+    })
+    .from(members)
+    .leftJoin(clientAssignments, eq(members.id, clientAssignments.clientId))
+    .leftJoin(users, eq(clientAssignments.agentId, users.id))
+    .where(eq(members.organizationId, organizationId))
+    .orderBy(desc(members.createdAt));
+
+    return clients;
+  }
+
+  async getAgentClients(agentId: string, organizationId: number): Promise<any[]> {
+    const clients = await db.select({
+      id: members.id,
+      email: members.email,
+      firstName: members.firstName,
+      lastName: members.lastName,
+      phone: members.phone,
+      status: members.status,
+      createdAt: members.createdAt,
+      updatedAt: members.updatedAt,
+      assignment: {
+        id: clientAssignments.id,
+        assignmentType: clientAssignments.assignmentType,
+        status: clientAssignments.status,
+        priority: clientAssignments.priority,
+        assignedAt: clientAssignments.assignedAt,
+        notes: clientAssignments.notes,
+      }
+    })
+    .from(members)
+    .innerJoin(clientAssignments, eq(members.id, clientAssignments.clientId))
+    .where(
+      and(
+        eq(clientAssignments.agentId, agentId),
+        eq(clientAssignments.organizationId, organizationId),
+        eq(clientAssignments.status, 'Active')
+      )
+    )
+    .orderBy(desc(clientAssignments.assignedAt));
+
+    return clients;
+  }
+
+  async assignClientToAgent(assignmentData: {
+    clientId: number;
+    agentId: string;
+    organizationId: number;
+    assignmentType: string;
+    priority?: string;
+    notes?: string;
+  }): Promise<any> {
+    // Check if assignment already exists
+    const [existingAssignment] = await db.select()
+      .from(clientAssignments)
+      .where(
+        and(
+          eq(clientAssignments.clientId, assignmentData.clientId),
+          eq(clientAssignments.status, 'Active')
+        )
+      );
+
+    if (existingAssignment) {
+      // Transfer existing assignment
+      return await this.transferClientAssignment(
+        existingAssignment.id,
+        assignmentData.agentId,
+        `Transferred from ${existingAssignment.agentId}`
+      );
+    }
+
+    // Create new assignment
+    const [newAssignment] = await db.insert(clientAssignments)
+      .values({
+        ...assignmentData,
+        status: 'Active',
+        assignedAt: new Date(),
+      })
+      .returning();
+
+    return newAssignment;
+  }
+
+  async transferClientAssignment(
+    assignmentId: number, 
+    newAgentId: string, 
+    reason?: string
+  ): Promise<any> {
+    // Get current assignment
+    const [currentAssignment] = await db.select()
+      .from(clientAssignments)
+      .where(eq(clientAssignments.id, assignmentId));
+
+    if (!currentAssignment) {
+      throw new Error('Assignment not found');
+    }
+
+    // Update assignment with transfer information
+    const [updatedAssignment] = await db
+      .update(clientAssignments)
+      .set({
+        agentId: newAgentId,
+        transferredFrom: currentAssignment.agentId,
+        transferredTo: newAgentId,
+        transferredAt: new Date(),
+        notes: reason ? `${currentAssignment.notes || ''}\nTransfer reason: ${reason}` : currentAssignment.notes,
+        updatedAt: new Date(),
+      })
+      .where(eq(clientAssignments.id, assignmentId))
+      .returning();
+
+    return updatedAssignment;
+  }
+
+  async updateClientAssignment(
+    assignmentId: number, 
+    updates: {
+      status?: string;
+      priority?: string;
+      assignmentType?: string;
+      notes?: string;
+    }
+  ): Promise<any> {
+    const [updatedAssignment] = await db
+      .update(clientAssignments)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(eq(clientAssignments.id, assignmentId))
+      .returning();
+
+    return updatedAssignment;
+  }
+
+  async getClientAssignmentDetails(clientId: number): Promise<any | null> {
+    const [result] = await db.select({
+      client: {
+        id: members.id,
+        email: members.email,
+        firstName: members.firstName,
+        lastName: members.lastName,
+        phone: members.phone,
+        status: members.status,
+        organizationId: members.organizationId,
+      },
+      assignment: {
+        id: clientAssignments.id,
+        agentId: clientAssignments.agentId,
+        assignmentType: clientAssignments.assignmentType,
+        status: clientAssignments.status,
+        priority: clientAssignments.priority,
+        assignedAt: clientAssignments.assignedAt,
+        notes: clientAssignments.notes,
+        transferredFrom: clientAssignments.transferredFrom,
+        transferredTo: clientAssignments.transferredTo,
+        transferredAt: clientAssignments.transferredAt,
+      },
+      agent: {
+        id: users.id,
+        email: users.email,
+        role: users.role,
+      }
+    })
+    .from(members)
+    .leftJoin(clientAssignments, eq(members.id, clientAssignments.clientId))
+    .leftJoin(users, eq(clientAssignments.agentId, users.id))
+    .where(eq(members.id, clientId));
+
+    return result || null;
+  }
+
+  async getUnassignedClients(organizationId: number): Promise<any[]> {
+    const unassignedClients = await db.select({
+      id: members.id,
+      email: members.email,
+      firstName: members.firstName,
+      lastName: members.lastName,
+      phone: members.phone,
+      status: members.status,
+      createdAt: members.createdAt,
+    })
+    .from(members)
+    .leftJoin(clientAssignments, 
+      and(
+        eq(members.id, clientAssignments.clientId),
+        eq(clientAssignments.status, 'Active')
+      )
+    )
+    .where(
+      and(
+        eq(members.organizationId, organizationId),
+        isNull(clientAssignments.id) // No active assignment
+      )
+    )
+    .orderBy(desc(members.createdAt));
+
+    return unassignedClients;
+  }
 }
 
 export const storage = new DatabaseStorage();

@@ -2807,6 +2807,189 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== CLIENT ASSIGNMENT AND RELATIONSHIP MANAGEMENT ENDPOINTS =====
+  
+  // Get all clients in organization
+  app.get("/api/organizations/:id/clients", auth, async (req: any, res) => {
+    try {
+      const organizationId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Check access permissions
+      if (currentUser.privilegeLevel > 1 && currentUser.organizationId !== organizationId) {
+        return res.status(403).json({ message: "Access denied." });
+      }
+
+      const clients = await storage.getOrganizationClients(organizationId);
+      res.json(clients);
+    } catch (error) {
+      console.error("Error fetching organization clients:", error);
+      res.status(500).json({ message: "Failed to fetch organization clients" });
+    }
+  });
+
+  // Get unassigned clients in organization
+  app.get("/api/organizations/:id/clients/unassigned", auth, async (req: any, res) => {
+    try {
+      const organizationId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Only TenantAdmin and above can view unassigned clients
+      if (currentUser.privilegeLevel > 1 && currentUser.organizationId !== organizationId) {
+        return res.status(403).json({ message: "Access denied." });
+      }
+
+      const unassignedClients = await storage.getUnassignedClients(organizationId);
+      res.json(unassignedClients);
+    } catch (error) {
+      console.error("Error fetching unassigned clients:", error);
+      res.status(500).json({ message: "Failed to fetch unassigned clients" });
+    }
+  });
+
+  // Get agent's clients
+  app.get("/api/agents/:id/clients", auth, async (req: any, res) => {
+    try {
+      const agentId = req.params.id;
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Agents can only see their own clients, TenantAdmin/SuperAdmin can see any agent's clients in same org
+      if (currentUser.id !== agentId && currentUser.privilegeLevel > 1) {
+        return res.status(403).json({ message: "Access denied." });
+      }
+
+      const clients = await storage.getAgentClients(agentId, currentUser.organizationId);
+      res.json(clients);
+    } catch (error) {
+      console.error("Error fetching agent clients:", error);
+      res.status(500).json({ message: "Failed to fetch agent clients" });
+    }
+  });
+
+  // Assign client to agent
+  app.post("/api/client-assignments", auth, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Only TenantAdmin and above can assign clients
+      if (currentUser.privilegeLevel > 1) {
+        return res.status(403).json({ message: "Access denied. Only administrators can assign clients." });
+      }
+
+      const assignmentData = {
+        ...req.body,
+        organizationId: currentUser.organizationId,
+      };
+
+      const assignment = await storage.assignClientToAgent(assignmentData);
+      res.status(201).json(assignment);
+    } catch (error) {
+      console.error("Error assigning client:", error);
+      res.status(500).json({ message: "Failed to assign client to agent" });
+    }
+  });
+
+  // Transfer client assignment
+  app.put("/api/client-assignments/:id/transfer", auth, async (req: any, res) => {
+    try {
+      const assignmentId = parseInt(req.params.id);
+      const { newAgentId, reason } = req.body;
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Only TenantAdmin and above can transfer assignments
+      if (currentUser.privilegeLevel > 1) {
+        return res.status(403).json({ message: "Access denied. Only administrators can transfer assignments." });
+      }
+
+      const updatedAssignment = await storage.transferClientAssignment(assignmentId, newAgentId, reason);
+      res.json(updatedAssignment);
+    } catch (error) {
+      console.error("Error transferring client assignment:", error);
+      res.status(500).json({ message: "Failed to transfer client assignment" });
+    }
+  });
+
+  // Update client assignment
+  app.put("/api/client-assignments/:id", auth, async (req: any, res) => {
+    try {
+      const assignmentId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // TenantAdmin and above can update any assignment, agents can update their own assignments
+      if (currentUser.privilegeLevel > 1) {
+        // For regular agents, they can only update their own client assignments
+        // This would require additional logic to check if the assignment belongs to them
+        return res.status(403).json({ message: "Access denied." });
+      }
+
+      const updatedAssignment = await storage.updateClientAssignment(assignmentId, req.body);
+      res.json(updatedAssignment);
+    } catch (error) {
+      console.error("Error updating client assignment:", error);
+      res.status(500).json({ message: "Failed to update client assignment" });
+    }
+  });
+
+  // Get client assignment details
+  app.get("/api/clients/:id/assignment", auth, async (req: any, res) => {
+    try {
+      const clientId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const assignmentDetails = await storage.getClientAssignmentDetails(clientId);
+      
+      if (!assignmentDetails) {
+        return res.status(404).json({ message: "Client assignment not found" });
+      }
+
+      // Check access permissions
+      if (currentUser.privilegeLevel > 1 && 
+          currentUser.organizationId !== assignmentDetails.client.organizationId) {
+        return res.status(403).json({ message: "Access denied." });
+      }
+
+      res.json(assignmentDetails);
+    } catch (error) {
+      console.error("Error fetching client assignment details:", error);
+      res.status(500).json({ message: "Failed to fetch client assignment details" });
+    }
+  });
+
   // Client Assignment Management
   app.get("/api/organizations/:id/client-assignments", auth, async (req: any, res) => {
     try {
