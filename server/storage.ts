@@ -1111,12 +1111,50 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getOrganizations(): Promise<any[]> {
-    return await db.select().from(agentOrganizations).orderBy(agentOrganizations.name);
+    // Exclude system organization from normal tenant operations
+    return await db.select()
+      .from(agentOrganizations)
+      .where(
+        and(
+          eq(agentOrganizations.isSystemOrganization, false),
+          eq(agentOrganizations.isHidden, false)
+        )
+      )
+      .orderBy(agentOrganizations.name);
   }
 
   async getOrganizationById(id: number): Promise<any | undefined> {
     const [org] = await db.select().from(agentOrganizations).where(eq(agentOrganizations.id, id));
     return org;
+  }
+
+  // SuperAdmin utility methods
+  async getAllOrganizations(): Promise<any[]> {
+    // For SuperAdmin: get all organizations including system organization
+    return await db.select().from(agentOrganizations).orderBy(agentOrganizations.name);
+  }
+
+  isSuperAdminContext(organizationId: number | null | undefined): boolean {
+    return organizationId === 0; // System organization ID
+  }
+
+  async checkUserPermissions(userId: string, feature: string, action: string): Promise<boolean> {
+    const user = await this.getUser(userId);
+    if (!user) return false;
+    
+    // SuperAdmins in system organization have all permissions
+    if (user.organizationId === 0 && user.role === 'SuperAdmin') {
+      return true;
+    }
+    
+    // Regular organization-based permission checking
+    // For now, use existing privilege level system
+    return user.privilegeLevel !== null && user.privilegeLevel <= 2;
+  }
+
+  async getTenantOrganizations(): Promise<any[]> {
+    // Same as getOrganizations - exclude system organization from normal tenant operations
+    return this.getOrganizations();
   }
 
   async updateOrganization(id: number, updates: any): Promise<any> {

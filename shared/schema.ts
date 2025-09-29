@@ -362,6 +362,8 @@ export const agentOrganizations = pgTable("agent_organizations", {
   maxAgents: integer("max_agents").default(5),
   maxMembers: integer("max_members").default(100),
   settings: jsonb("settings"), // organization-specific settings
+  isSystemOrganization: boolean("is_system_organization").default(false),
+  isHidden: boolean("is_hidden").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
