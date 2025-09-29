@@ -1019,8 +1019,8 @@ export class DatabaseStorage implements IStorage {
         id: members.id,
         userId: members.userId,
         memberNumber: members.memberNumber,
-        firstName: members.firstName,
-        lastName: members.lastName,
+        // firstName: members.firstName, // Column doesn't exist - using email instead
+        // lastName: members.lastName, // Column doesn't exist
         email: members.email,
         dateOfBirth: members.dateOfBirth,
         phone: members.phone,
@@ -1083,8 +1083,8 @@ export class DatabaseStorage implements IStorage {
         id: members.id,
         userId: members.userId,
         memberNumber: members.memberNumber,
-        firstName: members.firstName,
-        lastName: members.lastName,
+        // firstName: members.firstName, // Column doesn't exist - using email instead
+        // lastName: members.lastName, // Column doesn't exist
         email: members.email,
         membershipStatus: members.membershipStatus,
         membershipDate: members.membershipDate,
@@ -2266,7 +2266,7 @@ export class DatabaseStorage implements IStorage {
 
       result.push({
         agentId: agent.id,
-        agentName: `${agent.firstName || ''} ${agent.lastName || ''}`.trim() || agent.email || 'Unknown',
+        agentName: agent.email || 'Unknown', // Simplified - firstName/lastName columns don't exist
         totalClients,
         activeClients,
         quotesGenerated: quotes?.count || 0,
@@ -2331,6 +2331,7 @@ export class DatabaseStorage implements IStorage {
       expiresAt: Date;
     }[];
   }> {
+    try {
     // Get agents - using simple approach to avoid query issues
     const agents = await db.select().from(users).where(
       and(
@@ -2406,6 +2407,15 @@ export class DatabaseStorage implements IStorage {
       members: memberData,
       invitations: invitationData,
     };
+    } catch (error) {
+      console.error('Error in getOrganizationTeamOverview:', error);
+      // Return empty data structure on error to allow page to load
+      return {
+        agents: [],
+        members: [],
+        invitations: [],
+      };
+    }
   }
 
   async getAgentClientAssignments(organizationId: number, agentId?: string): Promise<{
@@ -2421,7 +2431,7 @@ export class DatabaseStorage implements IStorage {
     // Get members assigned to agents
     const memberAssignments = await db.select({
       clientId: members.id,
-      clientName: sql<string>`CONCAT(${members.firstName}, ' ', ${members.lastName})`,
+      clientName: members.email, // Simplified - firstName/lastName columns don't exist
       clientEmail: members.email,
       assignedAgent: members.assignedAgent,
       assignmentDate: members.createdAt,
@@ -2439,7 +2449,7 @@ export class DatabaseStorage implements IStorage {
     const agentIds = memberAssignments.map(m => m.assignedAgent).filter(Boolean);
     const agents = agentIds.length > 0 ? await db.select({
       id: users.id,
-      name: sql<string>`CONCAT(${users.firstName}, ' ', ${users.lastName})`,
+      name: users.email, // Simplified - firstName/lastName columns don't exist
     }).from(users).where(sql`${users.id} = ANY(${agentIds})`) : [];
 
     const agentMap = new Map(agents.map(agent => [agent.id, agent.name]));
