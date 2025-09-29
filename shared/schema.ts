@@ -1145,13 +1145,13 @@ export const activityLikes = pgTable("activity_likes", {
 });
 
 // Comments on social activities
-export const activityComments = pgTable("activity_comments", {
+export const activityComments: any = pgTable("activity_comments", {
   id: serial("id").primaryKey(),
   activityId: integer("activity_id").references(() => socialActivities.id).notNull(),
   userId: varchar("user_id").references(() => users.id).notNull(),
   comment: text("comment").notNull(),
   isReply: boolean("is_reply").default(false),
-  parentCommentId: integer("parent_comment_id").references(() => activityComments.id),
+  parentCommentId: integer("parent_comment_id"),
   likesCount: integer("likes_count").default(0),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -1655,3 +1655,283 @@ export type InsertPerson = z.infer<typeof insertPersonSchema>;
 export type InsertPersonUser = z.infer<typeof insertPersonUserSchema>;
 export type InsertPersonMember = z.infer<typeof insertPersonMemberSchema>;
 export type InsertPersonContact = z.infer<typeof insertPersonContactSchema>;
+
+// ===== PHASE 2: ADVANCED ORGANIZATION MANAGEMENT SCHEMA =====
+
+// Agent profiles for enhanced directory and collaboration
+export const agentProfiles = pgTable("agent_profiles", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  organizationId: integer("organization_id").references(() => agentOrganizations.id).notNull(),
+  specializations: jsonb("specializations"), // Array of specialization areas
+  bio: text("bio"),
+  licenseNumber: varchar("license_number", { length: 50 }),
+  yearsExperience: integer("years_experience"),
+  languagesSpoken: jsonb("languages_spoken"), // Array of languages
+  certifications: jsonb("certifications"), // Array of certifications
+  contactPreferences: jsonb("contact_preferences"), // Email, phone, SMS preferences
+  availabilitySchedule: jsonb("availability_schedule"), // Weekly schedule
+  profileImageUrl: varchar("profile_image_url", { length: 255 }),
+  isPublicProfile: boolean("is_public_profile").default(true),
+  isAcceptingClients: boolean("is_accepting_clients").default(true),
+  maxClientLoad: integer("max_client_load").default(100),
+  currentClientCount: integer("current_client_count").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_agent_profiles_user_id").on(table.userId),
+  index("idx_agent_profiles_organization_id").on(table.organizationId),
+]);
+
+// Client assignments for agent-client relationship management
+export const clientAssignments = pgTable("client_assignments", {
+  id: serial("id").primaryKey(),
+  clientId: integer("client_id").references(() => members.id).notNull(), // Member as client
+  agentId: varchar("agent_id").references(() => users.id).notNull(),
+  organizationId: integer("organization_id").references(() => agentOrganizations.id).notNull(),
+  assignmentType: varchar("assignment_type", { 
+    enum: ["Primary", "Secondary", "Temporary", "Shared"] 
+  }).default("Primary"),
+  assignedBy: varchar("assigned_by").references(() => users.id).notNull(),
+  assignedAt: timestamp("assigned_at").defaultNow(),
+  isActive: boolean("is_active").default(true),
+  notes: text("notes"),
+  priority: varchar("priority", { enum: ["Low", "Medium", "High", "Urgent"] }).default("Medium"),
+  status: varchar("status", { 
+    enum: ["Active", "Inactive", "Transferred", "Completed"] 
+  }).default("Active"),
+  transferReason: text("transfer_reason"),
+  transferredTo: varchar("transferred_to").references(() => users.id),
+  transferredAt: timestamp("transferred_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_client_assignments_client_id").on(table.clientId),
+  index("idx_client_assignments_agent_id").on(table.agentId),
+  index("idx_client_assignments_organization_id").on(table.organizationId),
+]);
+
+// Agent performance tracking for analytics and reporting
+export const agentPerformance = pgTable("agent_performance", {
+  id: serial("id").primaryKey(),
+  agentId: varchar("agent_id").references(() => users.id).notNull(),
+  organizationId: integer("organization_id").references(() => agentOrganizations.id).notNull(),
+  periodType: varchar("period_type", { enum: ["Daily", "Weekly", "Monthly", "Quarterly", "Yearly"] }).notNull(),
+  periodStart: timestamp("period_start").notNull(),
+  periodEnd: timestamp("period_end").notNull(),
+  quotesGenerated: integer("quotes_generated").default(0),
+  quotesConverted: integer("quotes_converted").default(0),
+  policiesSold: integer("policies_sold").default(0),
+  totalRevenue: decimal("total_revenue", { precision: 10, scale: 2 }).default("0.00"),
+  commissionsEarned: decimal("commissions_earned", { precision: 10, scale: 2 }).default("0.00"),
+  clientsAdded: integer("clients_added").default(0),
+  clientsLost: integer("clients_lost").default(0),
+  activitiesLogged: integer("activities_logged").default(0),
+  responseTimeAvg: integer("response_time_avg"), // Average response time in hours
+  satisfactionScore: decimal("satisfaction_score", { precision: 3, scale: 2 }), // 1.00 to 5.00
+  goalsAchieved: integer("goals_achieved").default(0),
+  goalsTotal: integer("goals_total").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_agent_performance_agent_id").on(table.agentId),
+  index("idx_agent_performance_organization_id").on(table.organizationId),
+  index("idx_agent_performance_period").on(table.periodStart, table.periodEnd),
+]);
+
+// Client activity tracking for interaction history
+export const clientActivities = pgTable("client_activities", {
+  id: serial("id").primaryKey(),
+  clientId: integer("client_id").references(() => members.id).notNull(),
+  agentId: varchar("agent_id").references(() => users.id).notNull(),
+  organizationId: integer("organization_id").references(() => agentOrganizations.id).notNull(),
+  activityType: varchar("activity_type", { 
+    enum: ["Call", "Email", "Meeting", "Quote", "Policy Review", "Claim Assistance", "Follow-up", "Consultation", "Document Review", "Other"] 
+  }).notNull(),
+  subject: varchar("subject", { length: 200 }).notNull(),
+  description: text("description"),
+  duration: integer("duration"), // Duration in minutes
+  outcome: varchar("outcome", { 
+    enum: ["Successful", "Follow-up Required", "No Response", "Not Interested", "Postponed", "Completed"] 
+  }),
+  nextActionRequired: boolean("next_action_required").default(false),
+  nextActionDate: timestamp("next_action_date"),
+  nextActionDescription: text("next_action_description"),
+  priority: varchar("priority", { enum: ["Low", "Medium", "High", "Urgent"] }).default("Medium"),
+  tags: jsonb("tags"), // Array of tags for categorization
+  attachments: jsonb("attachments"), // Array of attachment URLs/references
+  isPrivate: boolean("is_private").default(false),
+  relatedQuoteId: integer("related_quote_id").references(() => quotes.id),
+  relatedPolicyId: integer("related_policy_id").references(() => policies.id),
+  relatedClaimId: integer("related_claim_id").references(() => claims.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_client_activities_client_id").on(table.clientId),
+  index("idx_client_activities_agent_id").on(table.agentId),
+  index("idx_client_activities_organization_id").on(table.organizationId),
+  index("idx_client_activities_created_at").on(table.createdAt),
+]);
+
+// Organization analytics summary for dashboard metrics
+export const organizationAnalytics = pgTable("organization_analytics", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organization_id").references(() => agentOrganizations.id).notNull(),
+  periodType: varchar("period_type", { enum: ["Daily", "Weekly", "Monthly", "Quarterly", "Yearly"] }).notNull(),
+  periodStart: timestamp("period_start").notNull(),
+  periodEnd: timestamp("period_end").notNull(),
+  totalAgents: integer("total_agents").default(0),
+  activeAgents: integer("active_agents").default(0),
+  totalMembers: integer("total_members").default(0),
+  newMembers: integer("new_members").default(0),
+  lostMembers: integer("lost_members").default(0),
+  totalQuotes: integer("total_quotes").default(0),
+  convertedQuotes: integer("converted_quotes").default(0),
+  totalPolicies: integer("total_policies").default(0),
+  activePolicies: integer("active_policies").default(0),
+  totalClaims: integer("total_claims").default(0),
+  processedClaims: integer("processed_claims").default(0),
+  totalRevenue: decimal("total_revenue", { precision: 12, scale: 2 }).default("0.00"),
+  totalCommissions: decimal("total_commissions", { precision: 12, scale: 2 }).default("0.00"),
+  averageQuoteValue: decimal("average_quote_value", { precision: 10, scale: 2 }).default("0.00"),
+  conversionRate: decimal("conversion_rate", { precision: 5, scale: 4 }).default("0.0000"), // Percentage as decimal
+  customerSatisfaction: decimal("customer_satisfaction", { precision: 3, scale: 2 }), // 1.00 to 5.00
+  avgResponseTime: integer("avg_response_time"), // Average response time in hours
+  topPerformingAgent: varchar("top_performing_agent").references(() => users.id),
+  growthRate: decimal("growth_rate", { precision: 6, scale: 4 }), // Growth rate as decimal
+  churnRate: decimal("churn_rate", { precision: 6, scale: 4 }), // Churn rate as decimal
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_organization_analytics_org_id").on(table.organizationId),
+  index("idx_organization_analytics_period").on(table.periodStart, table.periodEnd),
+]);
+
+// Agent collaboration and knowledge sharing
+export const agentCollaborations = pgTable("agent_collaborations", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organization_id").references(() => agentOrganizations.id).notNull(),
+  initiatorId: varchar("initiator_id").references(() => users.id).notNull(),
+  collaboratorId: varchar("collaborator_id").references(() => users.id).notNull(),
+  collaborationType: varchar("collaboration_type", { 
+    enum: ["Referral", "Joint Meeting", "Knowledge Share", "Case Review", "Training", "Mentoring"] 
+  }).notNull(),
+  subject: varchar("subject", { length: 200 }).notNull(),
+  description: text("description"),
+  status: varchar("status", { 
+    enum: ["Pending", "In Progress", "Completed", "Cancelled"] 
+  }).default("Pending"),
+  priority: varchar("priority", { enum: ["Low", "Medium", "High", "Urgent"] }).default("Medium"),
+  scheduledDate: timestamp("scheduled_date"),
+  completedDate: timestamp("completed_date"),
+  outcome: text("outcome"),
+  rating: integer("rating"), // 1-5 rating for collaboration quality
+  isPublic: boolean("is_public").default(false), // Visible to other agents in organization
+  tags: jsonb("tags"), // Array of tags for categorization
+  attachments: jsonb("attachments"), // Array of attachment URLs/references
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_agent_collaborations_organization_id").on(table.organizationId),
+  index("idx_agent_collaborations_initiator_id").on(table.initiatorId),
+  index("idx_agent_collaborations_collaborator_id").on(table.collaboratorId),
+]);
+
+// Organization knowledge base for shared resources
+export const organizationKnowledgeBase = pgTable("organization_knowledge_base", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organization_id").references(() => agentOrganizations.id).notNull(),
+  authorId: varchar("author_id").references(() => users.id).notNull(),
+  title: varchar("title", { length: 200 }).notNull(),
+  content: text("content").notNull(),
+  category: varchar("category", { 
+    enum: ["Best Practices", "Procedures", "Templates", "Training", "FAQ", "Resources", "Policies", "Updates"] 
+  }).notNull(),
+  tags: jsonb("tags"), // Array of tags for categorization
+  isPublic: boolean("is_public").default(true), // Visible to all agents in organization
+  isPinned: boolean("is_pinned").default(false),
+  viewCount: integer("view_count").default(0),
+  likeCount: integer("like_count").default(0),
+  version: integer("version").default(1),
+  lastReviewedBy: varchar("last_reviewed_by").references(() => users.id),
+  lastReviewedAt: timestamp("last_reviewed_at"),
+  attachments: jsonb("attachments"), // Array of attachment URLs/references
+  relatedArticles: jsonb("related_articles"), // Array of related article IDs
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_org_knowledge_base_organization_id").on(table.organizationId),
+  index("idx_org_knowledge_base_author_id").on(table.authorId),
+  index("idx_org_knowledge_base_category").on(table.category),
+]);
+
+// Phase 2 schema types and exports
+export type AgentProfile = typeof agentProfiles.$inferSelect;
+export type InsertAgentProfile = typeof agentProfiles.$inferInsert;
+export type ClientAssignment = typeof clientAssignments.$inferSelect;
+export type InsertClientAssignment = typeof clientAssignments.$inferInsert;
+export type AgentPerformance = typeof agentPerformance.$inferSelect;
+export type InsertAgentPerformance = typeof agentPerformance.$inferInsert;
+export type ClientActivity = typeof clientActivities.$inferSelect;
+export type InsertClientActivity = typeof clientActivities.$inferInsert;
+export type OrganizationAnalytics = typeof organizationAnalytics.$inferSelect;
+export type InsertOrganizationAnalytics = typeof organizationAnalytics.$inferInsert;
+export type AgentCollaboration = typeof agentCollaborations.$inferSelect;
+export type InsertAgentCollaboration = typeof agentCollaborations.$inferInsert;
+export type OrganizationKnowledgeBase = typeof organizationKnowledgeBase.$inferSelect;
+export type InsertOrganizationKnowledgeBase = typeof organizationKnowledgeBase.$inferInsert;
+
+// Phase 2 insert schemas
+export const insertAgentProfileSchema = createInsertSchema(agentProfiles).omit({
+  id: true,
+  currentClientCount: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertClientAssignmentSchema = createInsertSchema(clientAssignments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertAgentPerformanceSchema = createInsertSchema(agentPerformance).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertClientActivitySchema = createInsertSchema(clientActivities).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertOrganizationAnalyticsSchema = createInsertSchema(organizationAnalytics).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertAgentCollaborationSchema = createInsertSchema(agentCollaborations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertOrganizationKnowledgeBaseSchema = createInsertSchema(organizationKnowledgeBase).omit({
+  id: true,
+  viewCount: true,
+  likeCount: true,
+  version: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertAgentProfileInput = z.infer<typeof insertAgentProfileSchema>;
+export type InsertClientAssignmentInput = z.infer<typeof insertClientAssignmentSchema>;
+export type InsertAgentPerformanceInput = z.infer<typeof insertAgentPerformanceSchema>;
+export type InsertClientActivityInput = z.infer<typeof insertClientActivitySchema>;
+export type InsertOrganizationAnalyticsInput = z.infer<typeof insertOrganizationAnalyticsSchema>;
+export type InsertAgentCollaborationInput = z.infer<typeof insertAgentCollaborationSchema>;
+export type InsertOrganizationKnowledgeBaseInput = z.infer<typeof insertOrganizationKnowledgeBaseSchema>;
