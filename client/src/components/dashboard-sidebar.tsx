@@ -333,27 +333,39 @@ export default function DashboardSidebar() {
     }))
     .filter((group) => group.items.length > 0); // Only show groups with accessible items
 
+  // Track user's manual collapse actions to avoid auto-expanding
+  const [userCollapsedGroups, setUserCollapsedGroups] = useState<Set<string>>(new Set());
+
   // Persist expanded state to localStorage
   const toggleGroupExpansion = (groupId: string) => {
     const newExpanded = new Set(expandedGroups);
+    const newUserCollapsed = new Set(userCollapsedGroups);
+    
     if (newExpanded.has(groupId)) {
       newExpanded.delete(groupId);
+      // Mark as manually collapsed by user
+      newUserCollapsed.add(groupId);
     } else {
       newExpanded.add(groupId);
+      // Remove from manually collapsed list since user is expanding
+      newUserCollapsed.delete(groupId);
     }
+    
     setExpandedGroups(newExpanded);
+    setUserCollapsedGroups(newUserCollapsed);
     
     if (typeof window !== 'undefined') {
       localStorage.setItem('sidebar-expanded-groups', JSON.stringify(Array.from(newExpanded)));
     }
   };
 
-  // Auto-expand group containing current active page
+  // Auto-expand group containing current active page (but respect user's manual collapse)
   const autoExpandActiveGroup = () => {
     for (const group of filteredMenuGroups) {
       for (const item of group.items) {
         if (isActive(item.href)) {
-          if (!expandedGroups.has(group.id)) {
+          // Only auto-expand if user hasn't manually collapsed this group
+          if (!expandedGroups.has(group.id) && !userCollapsedGroups.has(group.id)) {
             const newExpanded = new Set(expandedGroups);
             newExpanded.add(group.id);
             setExpandedGroups(newExpanded);
@@ -370,7 +382,7 @@ export default function DashboardSidebar() {
   // Auto-expand on location change
   useEffect(() => {
     autoExpandActiveGroup();
-  }, [location, filteredMenuGroups, expandedGroups]);
+  }, [location, filteredMenuGroups, expandedGroups, userCollapsedGroups]);
 
   // Keyboard navigation support
   const handleKeyDown = (event: React.KeyboardEvent, groupId: string) => {
