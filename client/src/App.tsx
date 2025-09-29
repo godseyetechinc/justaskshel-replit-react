@@ -13,6 +13,7 @@ import Landing from "@/pages/landing";
 import Home from "@/pages/home";
 import Login from "@/pages/login";
 import Signup from "@/pages/signup";
+import AcceptInvitation from "@/pages/accept-invitation";
 // Lazy-loaded dashboard components for performance optimization
 const Dashboard = lazy(() => import("@/pages/dashboard"));
 const MembersPage = lazy(() => import("@/pages/dashboard/members"));
@@ -124,6 +125,7 @@ function Router() {
           <Route path="/terms-of-service" component={TermsOfService} />
           <Route path="/login" component={Login} />
           <Route path="/signup" component={Signup} />
+          <Route path="/accept-invitation/:token" component={AcceptInvitation} />
         </>
       ) : (
         <Suspense fallback={<PageLoadingFallback />}>

@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { DataIntegrityService } from "./data-integrity";
 import { createSessionConfig } from "./replitAuth";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
@@ -190,6 +191,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .json({ message: "Account is inactive. Please contact support." });
       }
 
+      // Validate organization selection requirements
+      const requiresOrganization = user.privilegeLevel <= 2; // SuperAdmin, TenantAdmin, Agent
+      
+      if (requiresOrganization && !organizationId) {
+        return res
+          .status(400)
+          .json({ 
+            message: "Organization selection is required for your role", 
+            requiresOrganization: true,
+            userRole: user.role
+          });
+      }
+
       // Validate organization selection if provided
       if (organizationId) {
         const realOrgId = deobfuscateOrgId(organizationId);
@@ -253,8 +267,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/signup", async (req, res) => {
     try {
       const validatedData = signupSchema.parse(req.body);
-      const { email, password, firstName, lastName, phone, role, referralCode } =
-        validatedData;
+      const { 
+        email, password, firstName, lastName, phone, role, referralCode,
+        organizationName, organizationDisplayName, organizationDescription,
+        organizationPhone, organizationEmail, organizationWebsite
+      } = validatedData;
 
       // Check if user already exists
       const existingUser = await storage.getUserByEmail(email);
@@ -267,6 +284,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Hash password
       const hashedPassword = await bcrypt.hash(password, 10);
 
+      let organizationId: number | undefined;
+      let finalRole = role || "Member";
+      let finalPrivilegeLevel = role === "Admin" ? 1 : role === "Agent" ? 2 : 3;
+
+      // Handle agent organization creation
+      if (role === "Agent") {
+        if (!organizationName || !organizationDisplayName) {
+          return res.status(400).json({ 
+            message: "Organization name and display name are required for agents" 
+          });
+        }
+
+        try {
+          // Create the organization
+          const newOrganization = await storage.createOrganization({
+            name: organizationName,
+            displayName: organizationDisplayName,
+            description: organizationDescription || null,
+            phone: organizationPhone || null,
+            email: organizationEmail || email, // Fallback to user email
+            website: organizationWebsite || null,
+            status: "Active",
+            subscriptionPlan: "Basic",
+            subscriptionStatus: "Trial",
+            maxAgents: 5,
+            maxMembers: 100,
+            primaryColor: "#0EA5E9",
+            secondaryColor: "#64748B",
+          });
+
+          organizationId = newOrganization.id;
+          // Agent who creates organization becomes TenantAdmin
+          finalRole = "TenantAdmin";
+          finalPrivilegeLevel = 1;
+        } catch (orgError) {
+          console.error("Error creating organization:", orgError);
+          return res.status(500).json({ 
+            message: "Failed to create organization" 
+          });
+        }
+      }
+
       // Create user
       const newUser = await storage.createUser({
         email,
@@ -274,8 +333,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         firstName,
         lastName,
         phone,
-        role: role || "Member",
-        privilegeLevel: role === "Admin" ? 1 : role === "Agent" ? 2 : 3,
+        role: finalRole,
+        privilegeLevel: finalPrivilegeLevel,
+        organizationId,
         isActive: true,
       });
 
@@ -327,7 +387,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           lastName: newUser.lastName,
           role: newUser.role,
           privilegeLevel: newUser.privilegeLevel,
+          organizationId: newUser.organizationId,
         },
+        ...(organizationId && { organizationCreated: true }),
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -495,6 +557,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+
+  // ===== DATA INTEGRITY ENDPOINTS =====
+  
+  // Check data integrity (SuperAdmin only)
+  app.get("/api/admin/integrity/check", auth, async (req: any, res) => {
+    try {
+      // Check if user has sufficient privileges (SuperAdmin only)
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user || user.privilegeLevel !== 0) {
+        return res.status(403).json({ message: "Insufficient privileges. SuperAdmin access required." });
+      }
+
+      console.log("Running data integrity check...");
+      const integrityService = new DataIntegrityService(storage);
+      const checkResult = await integrityService.runIntegrityCheck();
+      
+      res.json({
+        message: "Data integrity check completed",
+        result: checkResult
+      });
+    } catch (error) {
+      console.error("Error during integrity check:", error);
+      res.status(500).json({ 
+        message: "Failed to run integrity check",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // Fix data integrity issues (SuperAdmin only)
+  app.post("/api/admin/integrity/fix", auth, async (req: any, res) => {
+    try {
+      // Check if user has sufficient privileges (SuperAdmin only)
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user || user.privilegeLevel !== 0) {
+        return res.status(403).json({ message: "Insufficient privileges. SuperAdmin access required." });
+      }
+
+      console.log("Fixing data integrity issues...");
+      const integrityService = new DataIntegrityService(storage);
+      const fixResult = await integrityService.fixIntegrityIssues();
+      
+      res.json({
+        message: "Data integrity fixes completed",
+        result: fixResult
+      });
+    } catch (error) {
+      console.error("Error during integrity fixes:", error);
+      res.status(500).json({ 
+        message: "Failed to fix integrity issues",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // Generate integrity report (SuperAdmin only)
+  app.get("/api/admin/integrity/report", auth, async (req: any, res) => {
+    try {
+      // Check if user has sufficient privileges (SuperAdmin only)
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user || user.privilegeLevel !== 0) {
+        return res.status(403).json({ message: "Insufficient privileges. SuperAdmin access required." });
+      }
+
+      console.log("Generating integrity report...");
+      const integrityService = new DataIntegrityService(storage);
+      const report = await integrityService.generateIntegrityReport();
+      
+      res.json({
+        message: "Integrity report generated",
+        report: report
+      });
+    } catch (error) {
+      console.error("Error generating integrity report:", error);
+      res.status(500).json({ 
+        message: "Failed to generate integrity report",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // ===== END DATA INTEGRITY ENDPOINTS =====
 
   // Insurance types
   app.get("/api/insurance-types", async (req, res) => {
@@ -2171,6 +2318,235 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching organization members:", error);
       res.status(500).json({ message: "Failed to fetch organization members" });
+    }
+  });
+
+  // Organization Invitation Management
+  
+  // Send organization invitation (TenantAdmin only)
+  app.post("/api/organizations/:id/invite", auth, async (req: any, res) => {
+    try {
+      const organizationId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+      const { email, role } = req.body;
+
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Only TenantAdmin can send invitations for their organization
+      if (currentUser.privilegeLevel !== 1) {
+        return res.status(403).json({ message: "Access denied. TenantAdmin role required." });
+      }
+
+      if (currentUser.organizationId !== organizationId) {
+        return res.status(403).json({ message: "Cannot invite users to different organizations." });
+      }
+
+      // Check if user already has a pending invitation
+      const existingInvitation = await storage.getInvitationByEmail(email, organizationId);
+      if (existingInvitation) {
+        return res.status(409).json({ message: "User already has a pending invitation" });
+      }
+
+      // Check if user already exists and is in organization
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser && existingUser.organizationId === organizationId) {
+        return res.status(409).json({ message: "User is already a member of this organization" });
+      }
+
+      const invitation = await storage.createOrganizationInvitation({
+        organizationId,
+        email,
+        role,
+        invitedBy: userId,
+      });
+
+      res.status(201).json(invitation);
+    } catch (error) {
+      console.error("Error creating organization invitation:", error);
+      res.status(500).json({ message: "Failed to create invitation" });
+    }
+  });
+
+  // Get organization invitations (TenantAdmin only)
+  app.get("/api/organizations/:id/invitations", auth, async (req: any, res) => {
+    try {
+      const organizationId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Only TenantAdmin can view invitations for their organization
+      if (currentUser.privilegeLevel !== 1) {
+        return res.status(403).json({ message: "Access denied. TenantAdmin role required." });
+      }
+
+      if (currentUser.organizationId !== organizationId) {
+        return res.status(403).json({ message: "Cannot view invitations for different organizations." });
+      }
+
+      const invitations = await storage.getOrganizationInvitations(organizationId);
+      res.json(invitations);
+    } catch (error) {
+      console.error("Error fetching organization invitations:", error);
+      res.status(500).json({ message: "Failed to fetch invitations" });
+    }
+  });
+
+  // Get invitation details by token
+  app.get("/api/invitations/:token/details", async (req, res) => {
+    try {
+      const { token } = req.params;
+
+      const invitation = await storage.getInvitationByToken(token);
+      if (!invitation) {
+        return res.status(404).json({ message: "Invitation not found" });
+      }
+
+      // Get organization details
+      const organization = await storage.getOrganizationById(invitation.organizationId);
+      if (!organization) {
+        return res.status(404).json({ message: "Organization not found" });
+      }
+
+      // Get inviter details (optional)
+      let inviterName = "Unknown";
+      if (invitation.invitedBy) {
+        const inviter = await storage.getUser(invitation.invitedBy);
+        if (inviter) {
+          const inviterPerson = await storage.getPersonById(inviter.personId);
+          inviterName = inviterPerson ? `${inviterPerson.firstName} ${inviterPerson.lastName}` : inviter.email;
+        }
+      }
+
+      res.json({
+        id: invitation.id,
+        email: invitation.email,
+        role: invitation.role,
+        organizationId: invitation.organizationId,
+        organizationName: organization.displayName || organization.name,
+        inviterName,
+        expiresAt: invitation.expiresAt,
+        status: invitation.status,
+        createdAt: invitation.createdAt,
+      });
+    } catch (error) {
+      console.error("Error fetching invitation details:", error);
+      res.status(500).json({ message: "Failed to fetch invitation details" });
+    }
+  });
+
+  // Decline invitation
+  app.post("/api/invitations/:token/decline", async (req, res) => {
+    try {
+      const { token } = req.params;
+
+      const invitation = await storage.getInvitationByToken(token);
+      if (!invitation) {
+        return res.status(404).json({ message: "Invitation not found" });
+      }
+
+      if (invitation.status !== "Pending") {
+        return res.status(400).json({ message: "Invitation is no longer valid" });
+      }
+
+      if (new Date() > invitation.expiresAt) {
+        await storage.expireInvitation(invitation.id);
+        return res.status(400).json({ message: "Invitation has expired" });
+      }
+
+      // Update invitation status to declined
+      const declinedInvitation = await storage.updateOrganizationInvitation(invitation.id, {
+        status: "Declined",
+        updatedAt: new Date(),
+      });
+
+      res.json({ 
+        message: "Invitation declined successfully",
+        invitation: declinedInvitation
+      });
+    } catch (error) {
+      console.error("Error declining invitation:", error);
+      res.status(500).json({ message: "Failed to decline invitation" });
+    }
+  });
+
+  // Accept organization invitation
+  app.post("/api/invitations/:token/accept", async (req, res) => {
+    try {
+      const { token } = req.params;
+      const { userId } = req.body;
+
+      const invitation = await storage.getInvitationByToken(token);
+      if (!invitation) {
+        return res.status(404).json({ message: "Invitation not found" });
+      }
+
+      if (invitation.status !== "Pending") {
+        return res.status(400).json({ message: "Invitation is no longer valid" });
+      }
+
+      if (new Date() > invitation.expiresAt) {
+        await storage.expireInvitation(invitation.id);
+        return res.status(400).json({ message: "Invitation has expired" });
+      }
+
+      // Check if user exists
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Check if user email matches invitation
+      if (user.email !== invitation.email) {
+        return res.status(403).json({ message: "User email does not match invitation" });
+      }
+
+      // Update user with organization and role
+      await storage.updateUser(userId, {
+        organizationId: invitation.organizationId,
+        role: invitation.role,
+        privilegeLevel: invitation.role === "Agent" ? 2 : 3,
+      });
+
+      // Accept the invitation
+      const acceptedInvitation = await storage.acceptInvitation(token, userId);
+
+      res.json({ 
+        message: "Invitation accepted successfully",
+        invitation: acceptedInvitation
+      });
+    } catch (error) {
+      console.error("Error accepting invitation:", error);
+      res.status(500).json({ message: "Failed to accept invitation" });
+    }
+  });
+
+  // Revoke organization invitation (TenantAdmin only)
+  app.delete("/api/invitations/:id", auth, async (req: any, res) => {
+    try {
+      const invitationId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      if (currentUser.privilegeLevel !== 1) {
+        return res.status(403).json({ message: "Access denied. TenantAdmin role required." });
+      }
+
+      await storage.deleteOrganizationInvitation(invitationId);
+      res.json({ message: "Invitation revoked successfully" });
+    } catch (error) {
+      console.error("Error revoking invitation:", error);
+      res.status(500).json({ message: "Failed to revoke invitation" });
     }
   });
 

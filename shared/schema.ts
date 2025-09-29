@@ -366,6 +366,25 @@ export const agentOrganizations = pgTable("agent_organizations", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Organization invitations - manage invitations to join organizations  
+export const organizationInvitations = pgTable("organization_invitations", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organization_id").references(() => agentOrganizations.id).notNull(),
+  email: varchar("email", { length: 100 }).notNull(),
+  role: varchar("role", { enum: ["Agent", "Member"] }).notNull(),
+  invitedBy: varchar("invited_by").references(() => users.id).notNull(),
+  invitationToken: varchar("invitation_token", { length: 255 }).unique().notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  acceptedAt: timestamp("accepted_at"),
+  acceptedBy: varchar("accepted_by").references(() => users.id),
+  status: varchar("status", { enum: ["Pending", "Accepted", "Expired", "Revoked"] }).default("Pending"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_organization_invitations_org_id").on(table.organizationId),
+  index("idx_organization_invitations_email").on(table.email),
+  index("idx_organization_invitations_token").on(table.invitationToken),
+]);
+
 // Contacts - general contact information
 export const contacts = pgTable("contacts", {
   id: serial("id").primaryKey(),
@@ -1530,6 +1549,15 @@ export const insertRoleSchema = createInsertSchema(roles).omit({
   updatedAt: true,
 });
 
+export const insertOrganizationInvitationSchema = createInsertSchema(organizationInvitations).omit({
+  id: true,
+  invitationToken: true,
+  acceptedAt: true,
+  acceptedBy: true,
+  status: true,
+  createdAt: true,
+});
+
 export const insertExternalQuoteRequestSchema = createInsertSchema(externalQuoteRequests).omit({
   id: true,
   createdAt: true,
@@ -1547,10 +1575,14 @@ export const insertQuoteSchema = createInsertSchema(insuranceQuotes).omit({
 export type User = typeof users.$inferSelect;
 export type Role = typeof roles.$inferSelect;
 export type ExternalQuoteRequest = typeof externalQuoteRequests.$inferSelect;
+export type OrganizationInvitation = typeof organizationInvitations.$inferSelect;
+export type AgentOrganization = typeof agentOrganizations.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertRole = z.infer<typeof insertRoleSchema>;
 export type InsertQuote = z.infer<typeof insertQuoteSchema>;
 export type InsertExternalQuoteRequest = z.infer<typeof insertExternalQuoteRequestSchema>;
+export type InsertOrganizationInvitation = z.infer<typeof insertOrganizationInvitationSchema>;
+export type InsertAgentOrganization = typeof agentOrganizations.$inferInsert;
 
 // Role-based authorization types
 export type UserRole = "SuperAdmin" | "TenantAdmin" | "Agent" | "Member" | "Guest" | "Visitor";

@@ -41,7 +41,10 @@ import {
   Info,
   Users,
   CreditCard,
-  Shield
+  Shield,
+  Plus,
+  Trash2,
+  Send
 } from "lucide-react";
 import { useRoleAuth } from "@/hooks/useRoleAuth";
 
@@ -91,12 +94,21 @@ export default function OrganizationProfile() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("profile");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState("Agent");
+  const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
   const { isTenantAdmin, isLoading: authLoading } = useRoleAuth();
 
   // Fetch current organization profile
   const { data: organization, isLoading } = useQuery<Organization>({
     queryKey: ["/api/organization-profile"],
     enabled: !authLoading && isTenantAdmin,
+  });
+
+  // Fetch organization invitations
+  const { data: invitations, isLoading: invitationsLoading } = useQuery({
+    queryKey: [`/api/organizations/${organization?.id}/invitations`],
+    enabled: !authLoading && isTenantAdmin && !!organization?.id,
   });
 
   const form = useForm<OrganizationProfileData>({
@@ -161,6 +173,82 @@ export default function OrganizationProfile() {
 
   const handleSubmit = (data: OrganizationProfileData) => {
     updateProfileMutation.mutate(data);
+  };
+
+  // Send invitation mutation
+  const sendInvitationMutation = useMutation({
+    mutationFn: async ({ email, role }: { email: string; role: string }) => {
+      if (!organization?.id) {
+        throw new Error("Organization not found. Please refresh the page and try again.");
+      }
+      return await apiRequest(`/api/organizations/${organization.id}/invite`, {
+        method: "POST",
+        body: JSON.stringify({ email, role }),
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Invitation Sent",
+        description: "Team invitation has been sent successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${organization?.id}/invitations`] });
+      setInviteEmail("");
+      setInviteRole("Agent");
+      setIsInviteDialogOpen(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Invitation Failed",
+        description: error.message || "Failed to send invitation",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Revoke invitation mutation
+  const revokeInvitationMutation = useMutation({
+    mutationFn: async (invitationId: number) => {
+      if (!organization?.id) {
+        throw new Error("Organization not found. Please refresh the page and try again.");
+      }
+      return await apiRequest(`/api/invitations/${invitationId}`, {
+        method: "DELETE",
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Invitation Revoked",
+        description: "Team invitation has been revoked.",
+      });
+      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${organization?.id}/invitations`] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Revocation Failed",
+        description: error.message || "Failed to revoke invitation",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSendInvitation = () => {
+    if (!organization?.id) {
+      toast({
+        title: "Organization Error",
+        description: "Organization not found. Please refresh the page and try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!inviteEmail || !inviteRole) {
+      toast({
+        title: "Invalid Input",
+        description: "Please provide email and role for the invitation.",
+        variant: "destructive",
+      });
+      return;
+    }
+    sendInvitationMutation.mutate({ email: inviteEmail, role: inviteRole });
   };
 
   if (authLoading || isLoading) {
@@ -235,7 +323,7 @@ export default function OrganizationProfile() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="profile" className="flex items-center space-x-2">
             <Building2 className="h-4 w-4" />
             <span>Profile</span>
@@ -243,6 +331,10 @@ export default function OrganizationProfile() {
           <TabsTrigger value="branding" className="flex items-center space-x-2">
             <Palette className="h-4 w-4" />
             <span>Branding</span>
+          </TabsTrigger>
+          <TabsTrigger value="team" className="flex items-center space-x-2">
+            <Users className="h-4 w-4" />
+            <span>Team</span>
           </TabsTrigger>
           <TabsTrigger value="subscription" className="flex items-center space-x-2">
             <CreditCard className="h-4 w-4" />
@@ -520,6 +612,161 @@ export default function OrganizationProfile() {
                   )}
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            <TabsContent value="team" className="space-y-6">
+              {!organization ? (
+                <Card>
+                  <CardContent className="p-6">
+                    <Alert>
+                      <Info className="h-4 w-4" />
+                      <AlertDescription>
+                        Unable to load organization information. Please refresh the page to try again.
+                      </AlertDescription>
+                    </Alert>
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Send Invitation Card */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center space-x-2">
+                          <Send className="h-5 w-5" />
+                          <span>Invite Team Members</span>
+                        </CardTitle>
+                        <CardDescription>
+                          Send invitations to invite new agents or members to your organization
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="inviteEmail">Email Address</Label>
+                          <Input
+                            id="inviteEmail"
+                            type="email"
+                            placeholder="user@example.com"
+                            value={inviteEmail}
+                            onChange={(e) => setInviteEmail(e.target.value)}
+                            disabled={!organization.id}
+                            data-testid="input-invite-email"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="inviteRole">Role</Label>
+                          <Select value={inviteRole} onValueChange={setInviteRole} disabled={!organization.id}>
+                            <SelectTrigger data-testid="select-invite-role">
+                              <SelectValue placeholder="Select role" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Agent">Agent</SelectItem>
+                              <SelectItem value="Member">Member</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <Button
+                          onClick={handleSendInvitation}
+                          disabled={sendInvitationMutation.isPending || !inviteEmail || !organization.id}
+                          className="w-full"
+                          data-testid="button-send-invitation"
+                        >
+                          <Send className="h-4 w-4 mr-2" />
+                          {sendInvitationMutation.isPending ? "Sending..." : "Send Invitation"}
+                        </Button>
+                      </CardContent>
+                    </Card>
+
+                {/* Pending Invitations Card */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <Mail className="h-5 w-5" />
+                      <span>Pending Invitations</span>
+                    </CardTitle>
+                    <CardDescription>
+                      Manage pending invitations sent to potential team members
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {invitationsLoading ? (
+                      <p className="text-sm text-gray-500">Loading invitations...</p>
+                    ) : !invitations || invitations.length === 0 ? (
+                      <p className="text-sm text-gray-500">No pending invitations</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {invitations.map((invitation: any) => (
+                          <div
+                            key={invitation.id}
+                            className="flex items-center justify-between p-3 border rounded-lg"
+                            data-testid={`invitation-${invitation.id}`}
+                          >
+                            <div className="flex-1">
+                              <p className="font-medium text-sm">{invitation.email}</p>
+                              <p className="text-xs text-gray-500">
+                                Role: {invitation.role} • 
+                                Expires: {new Date(invitation.expiresAt).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => revokeInvitationMutation.mutate(invitation.id)}
+                              disabled={revokeInvitationMutation.isPending}
+                              data-testid={`button-revoke-${invitation.id}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+                  {/* Team Overview Card */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center space-x-2">
+                        <Users className="h-5 w-5" />
+                        <span>Team Overview</span>
+                      </CardTitle>
+                      <CardDescription>
+                        Overview of your organization's team structure and limits
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="text-center p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
+                          <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                            {organization.maxAgents}
+                          </p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Max Agents</p>
+                        </div>
+                        <div className="text-center p-3 bg-green-50 dark:bg-green-950/20 rounded-lg">
+                          <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                            {organization.maxMembers}
+                          </p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Max Members</p>
+                        </div>
+                        <div className="text-center p-3 bg-purple-50 dark:bg-purple-950/20 rounded-lg">
+                          <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                            {organization.subscriptionPlan}
+                          </p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Plan</p>
+                        </div>
+                        <div className="text-center p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg">
+                          <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+                            {invitations?.length || 0}
+                          </p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Pending</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </>
+              )}
             </TabsContent>
 
             <TabsContent value="subscription" className="space-y-6">

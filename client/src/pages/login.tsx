@@ -74,9 +74,15 @@ export default function Login() {
       }, 200);
     },
     onError: (error: any) => {
+      let errorMessage = error.message || "Invalid email or password";
+      
+      if (error.requiresOrganization && error.userRole) {
+        errorMessage = `${error.userRole}s must select an organization to login. Please choose your organization from the dropdown above.`;
+      }
+      
       toast({
         title: "Login Failed",
-        description: error.message || "Invalid email or password",
+        description: errorMessage,
         variant: "destructive",
       });
     },
@@ -115,7 +121,7 @@ export default function Login() {
               <Label htmlFor="organization">
                 <div className="flex items-center space-x-2">
                   <Building2 className="h-4 w-4" />
-                  <span>Organization (Optional)</span>
+                  <span>Organization</span>
                 </div>
               </Label>
               <Select 
@@ -130,7 +136,7 @@ export default function Login() {
                   <SelectItem value="no-org">
                     <div className="flex items-center space-x-2">
                       <Globe className="h-4 w-4 text-gray-500" />
-                      <span>No Organization (Individual Access)</span>
+                      <span>Individual Access (Members Only)</span>
                     </div>
                   </SelectItem>
                   {organizations?.map((org: Organization) => (
@@ -160,7 +166,7 @@ export default function Login() {
                 </SelectContent>
               </Select>
               <p className="text-xs text-gray-500">
-                Select your organization for tenant-specific access, or leave unselected for individual access.
+                Agents and Admins must select their organization. Members can choose individual access.
               </p>
             </div>
 

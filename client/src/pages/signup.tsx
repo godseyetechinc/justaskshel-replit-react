@@ -11,11 +11,22 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Home } from "lucide-react";
+import { Home, Building2 } from "lucide-react";
 
-type SignupFormData = z.infer<typeof signupSchema>;
+// Extended signup schema for agent organization creation
+const agentSignupSchema = signupSchema.extend({
+  organizationName: z.string().optional(),
+  organizationDisplayName: z.string().optional(),
+  organizationDescription: z.string().optional(),
+  organizationPhone: z.string().optional(),
+  organizationEmail: z.string().email().optional(),
+  organizationWebsite: z.string().url().optional().or(z.literal('')),
+});
+
+type SignupFormData = z.infer<typeof agentSignupSchema>;
 
 export default function Signup() {
   const [, setLocation] = useLocation();
@@ -30,11 +41,13 @@ export default function Signup() {
     watch,
     formState: { errors },
   } = useForm<SignupFormData>({
-    resolver: zodResolver(signupSchema),
+    resolver: zodResolver(agentSignupSchema),
     defaultValues: {
       role: "Member",
     },
   });
+
+  const selectedRole = watch("role");
 
   const signupMutation = useMutation({
     mutationFn: (data: SignupFormData) => 
@@ -194,6 +207,101 @@ export default function Signup() {
                 </p>
               )}
             </div>
+
+            {/* Agent Organization Fields */}
+            {selectedRole === "Agent" && (
+              <div className="space-y-4 p-4 border rounded-lg bg-blue-50 dark:bg-blue-950/20">
+                <div className="flex items-center space-x-2">
+                  <Building2 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  <Label className="text-base font-semibold">Create Your Organization</Label>
+                </div>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  As an agent, you'll need to create an organization to manage your clients and team members.
+                </p>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="organizationName">Organization Name*</Label>
+                    <Input
+                      id="organizationName"
+                      placeholder="ABC Insurance Agency"
+                      data-testid="input-organizationName"
+                      {...register("organizationName", { 
+                        required: selectedRole === "Agent" ? "Organization name is required" : false 
+                      })}
+                    />
+                    {errors.organizationName && (
+                      <p className="text-sm text-red-600 dark:text-red-400">
+                        {errors.organizationName.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="organizationDisplayName">Display Name*</Label>
+                    <Input
+                      id="organizationDisplayName"
+                      placeholder="ABC Insurance"
+                      data-testid="input-organizationDisplayName"
+                      {...register("organizationDisplayName", { 
+                        required: selectedRole === "Agent" ? "Display name is required" : false 
+                      })}
+                    />
+                    {errors.organizationDisplayName && (
+                      <p className="text-sm text-red-600 dark:text-red-400">
+                        {errors.organizationDisplayName.message}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="organizationDescription">Description</Label>
+                  <Textarea
+                    id="organizationDescription"
+                    placeholder="Brief description of your organization and services..."
+                    rows={3}
+                    data-testid="input-organizationDescription"
+                    {...register("organizationDescription")}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="organizationPhone">Organization Phone</Label>
+                    <Input
+                      id="organizationPhone"
+                      type="tel"
+                      placeholder="(555) 123-4567"
+                      data-testid="input-organizationPhone"
+                      {...register("organizationPhone")}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="organizationEmail">Organization Email</Label>
+                    <Input
+                      id="organizationEmail"
+                      type="email"
+                      placeholder="info@abcinsurance.com"
+                      data-testid="input-organizationEmail"
+                      {...register("organizationEmail")}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="organizationWebsite">Website (Optional)</Label>
+                  <Input
+                    id="organizationWebsite"
+                    type="url"
+                    placeholder="https://www.abcinsurance.com"
+                    data-testid="input-organizationWebsite"
+                    {...register("organizationWebsite")}
+                  />
+                </div>
+              </div>
+            )}
 
             <Button
               type="submit"

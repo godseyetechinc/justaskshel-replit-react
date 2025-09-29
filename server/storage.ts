@@ -79,6 +79,12 @@ import {
   type InsertPersonMember,
   type PersonContact,
   type InsertPersonContact,
+  type OrganizationInvitation,
+  type InsertOrganizationInvitation,
+  type AgentOrganization,
+  type InsertAgentOrganization,
+  organizationInvitations,
+  agentOrganizations,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, count, sql } from "drizzle-orm";
@@ -269,6 +275,25 @@ export interface IStorage {
   // Data Migration Methods
   migrateDataToPersons(): Promise<{ personsCreated: number; associationsCreated: number; duplicatesFound: number }>;
   identifyPersonDuplicates(): Promise<Array<{ email?: string; phone?: string; duplicates: Person[] }>>;
+
+  // Agent Organizations
+  createOrganization(organization: InsertAgentOrganization): Promise<AgentOrganization>;
+  getOrganizations(): Promise<AgentOrganization[]>;
+  getOrganizationById(id: number): Promise<AgentOrganization | undefined>;
+  updateOrganization(id: number, updates: Partial<InsertAgentOrganization>): Promise<AgentOrganization>;
+  deleteOrganization(id: number): Promise<void>;
+  getOrganizationUsers(organizationId: number): Promise<User[]>;
+  getOrganizationMembers(organizationId: number): Promise<Member[]>;
+
+  // Organization Invitations
+  createOrganizationInvitation(invitation: InsertOrganizationInvitation): Promise<OrganizationInvitation>;
+  getOrganizationInvitations(organizationId: number): Promise<OrganizationInvitation[]>;
+  getInvitationByToken(token: string): Promise<OrganizationInvitation | undefined>;
+  getInvitationByEmail(email: string, organizationId: number): Promise<OrganizationInvitation | undefined>;
+  updateOrganizationInvitation(id: number, updates: Partial<OrganizationInvitation>): Promise<OrganizationInvitation>;
+  deleteOrganizationInvitation(id: number): Promise<void>;
+  expireInvitation(id: number): Promise<OrganizationInvitation>;
+  acceptInvitation(token: string, userId: string): Promise<OrganizationInvitation>;
 
 }
 
@@ -964,6 +989,88 @@ export class DatabaseStorage implements IStorage {
       .from(members)
       .where(eq(members.organizationId, organizationId))
       .orderBy(members.createdAt);
+  }
+
+  // Organization Invitation methods
+  async createOrganizationInvitation(invitation: InsertOrganizationInvitation): Promise<OrganizationInvitation> {
+    const token = `inv_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiration
+    
+    const [newInvitation] = await db
+      .insert(organizationInvitations)
+      .values({
+        ...invitation,
+        invitationToken: token,
+        expiresAt,
+      })
+      .returning();
+    return newInvitation;
+  }
+
+  async getOrganizationInvitations(organizationId: number): Promise<OrganizationInvitation[]> {
+    return await db
+      .select()
+      .from(organizationInvitations)
+      .where(eq(organizationInvitations.organizationId, organizationId))
+      .orderBy(organizationInvitations.createdAt);
+  }
+
+  async getInvitationByToken(token: string): Promise<OrganizationInvitation | undefined> {
+    const [invitation] = await db
+      .select()
+      .from(organizationInvitations)
+      .where(eq(organizationInvitations.invitationToken, token));
+    return invitation;
+  }
+
+  async getInvitationByEmail(email: string, organizationId: number): Promise<OrganizationInvitation | undefined> {
+    const [invitation] = await db
+      .select()
+      .from(organizationInvitations)
+      .where(
+        and(
+          eq(organizationInvitations.email, email),
+          eq(organizationInvitations.organizationId, organizationId),
+          eq(organizationInvitations.status, "Pending")
+        )
+      );
+    return invitation;
+  }
+
+  async updateOrganizationInvitation(id: number, updates: Partial<OrganizationInvitation>): Promise<OrganizationInvitation> {
+    const [updated] = await db
+      .update(organizationInvitations)
+      .set(updates)
+      .where(eq(organizationInvitations.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteOrganizationInvitation(id: number): Promise<void> {
+    await db.delete(organizationInvitations).where(eq(organizationInvitations.id, id));
+  }
+
+  async expireInvitation(id: number): Promise<OrganizationInvitation> {
+    const [expired] = await db
+      .update(organizationInvitations)
+      .set({ status: "Expired" })
+      .where(eq(organizationInvitations.id, id))
+      .returning();
+    return expired;
+  }
+
+  async acceptInvitation(token: string, userId: string): Promise<OrganizationInvitation> {
+    const [accepted] = await db
+      .update(organizationInvitations)
+      .set({ 
+        status: "Accepted",
+        acceptedAt: new Date(),
+        acceptedBy: userId
+      })
+      .where(eq(organizationInvitations.invitationToken, token))
+      .returning();
+    return accepted;
   }
 
   async upsertMemberProfile(userId: string, memberData: Partial<InsertMember>): Promise<Member> {
