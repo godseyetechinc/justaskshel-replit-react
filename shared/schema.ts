@@ -39,7 +39,12 @@ export const users: any = pgTable("users", {
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => [
+  index("idx_users_organization_id").on(table.organizationId),
+  index("idx_users_role").on(table.role),
+  index("idx_users_privilege_level").on(table.privilegeLevel),
+  index("idx_users_org_privilege").on(table.organizationId, table.privilegeLevel),
+]);
 
 // Roles definition table for role-based authorization
 export const roles = pgTable("roles", {
