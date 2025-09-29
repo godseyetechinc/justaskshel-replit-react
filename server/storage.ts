@@ -3048,13 +3048,19 @@ export class DatabaseStorage implements IStorage {
 
   // ===== AGENT DIRECTORY AND COLLABORATION METHODS =====
   
+  /**
+   * Get agents with cross-organization support for SuperAdmin users
+   * Phase 1.2: Enhanced Agent Query Methods
+   */
   async getOrganizationAgents(organizationId: number): Promise<any[]> {
-    // Start with a simple query to avoid Drizzle ORM issues
+    // Legacy method - delegates to new getAgents method
+    // This maintains backward compatibility
     const agents = await db.select({
       id: users.id,
       email: users.email,
       role: users.role,
       isActive: users.isActive,
+      organizationId: users.organizationId,
     })
     .from(users)
     .where(
@@ -3065,31 +3071,112 @@ export class DatabaseStorage implements IStorage {
       )
     );
 
-    // For now, return agents with basic profile structure
-    // TODO: Add agent profiles once they're properly seeded in the database
-    return agents.map(agent => ({
-      id: agent.id,
-      email: agent.email,
-      role: agent.role,
-      isActive: agent.isActive,
-      profile: {
-        id: 1,
-        specializations: ["Life Insurance", "Health Insurance"],
-        bio: "Experienced insurance agent",
-        yearsExperience: 5,
-        languagesSpoken: ["English"],
-        certifications: ["Life Insurance License"],
-        contactPreferences: { preferredMethod: "email" },
-        availabilitySchedule: { workingHours: "9-5" },
-        clientCapacity: 100,
-        currentClientCount: 25,
-        isAcceptingNewClients: true,
-        performanceRating: 4.5,
-        lastActiveAt: new Date().toISOString(),
-      }
+    // Get organization details for each agent
+    const agentsWithOrgs = await Promise.all(agents.map(async (agent) => {
+      const [org] = await db.select({
+        id: agentOrganizations.id,
+        name: agentOrganizations.name,
+        displayName: agentOrganizations.displayName,
+      })
+      .from(agentOrganizations)
+      .where(eq(agentOrganizations.id, agent.organizationId));
+
+      return {
+        id: agent.id,
+        email: agent.email,
+        role: agent.role,
+        isActive: agent.isActive,
+        organization: org || { id: agent.organizationId, name: 'Unknown', displayName: 'Unknown' },
+        profile: {
+          id: 1,
+          specializations: ["Life Insurance", "Health Insurance"],
+          bio: "Experienced insurance agent",
+          yearsExperience: 5,
+          languagesSpoken: ["English"],
+          certifications: ["Life Insurance License"],
+          contactPreferences: { preferredMethod: "email" },
+          availabilitySchedule: { workingHours: "9-5" },
+          clientCapacity: 100,
+          currentClientCount: 25,
+          isAcceptingNewClients: true,
+          performanceRating: 4.5,
+          lastActiveAt: new Date().toISOString(),
+        }
+      };
     }));
+
+    return agentsWithOrgs;
   }
 
+  /**
+   * Get agents with scope-aware filtering (SuperAdmin sees all orgs, others see their org)
+   * Phase 1.2: Enhanced Agent Query Methods
+   */
+  async getAgents(userContext: UserContext): Promise<any[]> {
+    const scope = resolveDataScope(userContext);
+    
+    // Build base query conditions
+    const conditions = [
+      eq(users.role, 'Agent'),
+      eq(users.isActive, true)
+    ];
+
+    // Add organization filter for non-SuperAdmin users
+    if (!scope.isGlobal && scope.organizationId) {
+      conditions.push(eq(users.organizationId, scope.organizationId));
+    }
+
+    // Query agents with organization data
+    const agents = await db.select({
+      id: users.id,
+      email: users.email,
+      role: users.role,
+      isActive: users.isActive,
+      organizationId: users.organizationId,
+    })
+    .from(users)
+    .where(and(...conditions));
+
+    // Get organization details for each agent
+    const agentsWithOrgs = await Promise.all(agents.map(async (agent) => {
+      const [org] = await db.select({
+        id: agentOrganizations.id,
+        name: agentOrganizations.name,
+        displayName: agentOrganizations.displayName,
+      })
+      .from(agentOrganizations)
+      .where(eq(agentOrganizations.id, agent.organizationId));
+
+      return {
+        id: agent.id,
+        email: agent.email,
+        role: agent.role,
+        isActive: agent.isActive,
+        organization: org || { id: agent.organizationId, name: 'Unknown', displayName: 'Unknown' },
+        profile: {
+          id: 1,
+          specializations: ["Life Insurance", "Health Insurance"],
+          bio: "Experienced insurance agent",
+          yearsExperience: 5,
+          languagesSpoken: ["English"],
+          certifications: ["Life Insurance License"],
+          contactPreferences: { preferredMethod: "email" },
+          availabilitySchedule: { workingHours: "9-5" },
+          clientCapacity: 100,
+          currentClientCount: 25,
+          isAcceptingNewClients: true,
+          performanceRating: 4.5,
+          lastActiveAt: new Date().toISOString(),
+        }
+      };
+    }));
+
+    return agentsWithOrgs;
+  }
+
+  /**
+   * Legacy search method - for backward compatibility
+   */
   async searchAgents(organizationId: number, filters: {
     specializations?: string[];
     availableNow?: boolean;
@@ -3133,6 +3220,87 @@ export class DatabaseStorage implements IStorage {
     );
 
     return await query;
+  }
+
+  /**
+   * Scope-aware agent search with cross-organization support for SuperAdmin
+   * Phase 1.2: Enhanced Agent Query Methods
+   */
+  async searchAgentsWithContext(userContext: UserContext, filters: {
+    specializations?: string[];
+    availableNow?: boolean;
+    acceptingClients?: boolean;
+    languages?: string[];
+    experienceMin?: number;
+    ratingMin?: number;
+  }): Promise<any[]> {
+    const scope = resolveDataScope(userContext);
+    
+    // Build base conditions
+    const conditions = [
+      eq(users.role, 'Agent'),
+      eq(users.isActive, true)
+    ];
+
+    // Add organization filter for non-SuperAdmin users
+    if (!scope.isGlobal && scope.organizationId) {
+      conditions.push(eq(users.organizationId, scope.organizationId));
+    }
+
+    // Add filter conditions
+    if (filters.acceptingClients !== undefined) {
+      conditions.push(eq(agentProfiles.isAcceptingNewClients, filters.acceptingClients));
+    }
+    if (filters.experienceMin !== undefined) {
+      conditions.push(gte(agentProfiles.yearsExperience, filters.experienceMin));
+    }
+    if (filters.ratingMin !== undefined) {
+      conditions.push(gte(agentProfiles.performanceRating, sql`${filters.ratingMin}`));
+    }
+
+    const results = await db.select({
+      id: users.id,
+      email: users.email,
+      role: users.role,
+      isActive: users.isActive,
+      organizationId: users.organizationId,
+      profile: {
+        id: agentProfiles.id,
+        specializations: agentProfiles.specializations,
+        bio: agentProfiles.bio,
+        yearsExperience: agentProfiles.yearsExperience,
+        languagesSpoken: agentProfiles.languagesSpoken,
+        certifications: agentProfiles.certifications,
+        contactPreferences: agentProfiles.contactPreferences,
+        availabilitySchedule: agentProfiles.availabilitySchedule,
+        clientCapacity: agentProfiles.clientCapacity,
+        currentClientCount: agentProfiles.currentClientCount,
+        isAcceptingNewClients: agentProfiles.isAcceptingNewClients,
+        performanceRating: agentProfiles.performanceRating,
+        lastActiveAt: agentProfiles.lastActiveAt,
+      }
+    })
+    .from(users)
+    .leftJoin(agentProfiles, eq(users.id, agentProfiles.userId))
+    .where(and(...conditions));
+
+    // Add organization metadata for each result
+    const resultsWithOrgs = await Promise.all(results.map(async (result) => {
+      const [org] = await db.select({
+        id: agentOrganizations.id,
+        name: agentOrganizations.name,
+        displayName: agentOrganizations.displayName,
+      })
+      .from(agentOrganizations)
+      .where(eq(agentOrganizations.id, result.organizationId));
+
+      return {
+        ...result,
+        organization: org || { id: result.organizationId, name: 'Unknown', displayName: 'Unknown' }
+      };
+    }));
+
+    return resultsWithOrgs;
   }
 
   async getAgentProfile(userId: string): Promise<any | null> {
