@@ -461,6 +461,34 @@ export interface IStorage {
 
 }
 
+/**
+ * Data scope resolver helper - determines if user should see all organizations or just their own
+ * Phase 1.1: SuperAdmin Cross-Organization Access
+ */
+interface DataScope {
+  isGlobal: boolean;
+  organizationId?: number;
+}
+
+interface UserContext {
+  userId: string;
+  privilegeLevel: number;
+  organizationId?: number;
+}
+
+function resolveDataScope(userContext: UserContext): DataScope {
+  // SuperAdmin (privilege level 0) sees all organizations
+  if (userContext.privilegeLevel === 0) {
+    return { isGlobal: true };
+  }
+  
+  // All other users see only their organization
+  return { 
+    isGlobal: false, 
+    organizationId: userContext.organizationId 
+  };
+}
+
 export class DatabaseStorage implements IStorage {
   // User operations - mandatory for Replit Auth
   async getUser(id: string): Promise<User | undefined> {
