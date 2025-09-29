@@ -3644,6 +3644,254 @@ export class DatabaseStorage implements IStorage {
       lastUpdated: new Date(),
     };
   }
+
+  // ===== ENHANCED AGENT PERFORMANCE TRACKING AND REPORTING =====
+
+  async getAgentPerformanceHistory(agentId: string, organizationId: number, months: number = 6): Promise<any[]> {
+    const result = [];
+    const now = new Date();
+
+    for (let i = months - 1; i >= 0; i--) {
+      const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
+      const monthName = monthStart.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+
+      // Quotes generated this month
+      const [monthlyQuotes] = await db.select({ count: count() })
+        .from(insuranceQuotes)
+        .where(
+          and(
+            eq(insuranceQuotes.userId, agentId),
+            gte(insuranceQuotes.createdAt, monthStart),
+            lte(insuranceQuotes.createdAt, monthEnd)
+          )
+        );
+
+      // New clients assigned this month
+      const [monthlyClients] = await db.select({ count: count() })
+        .from(clientAssignments)
+        .where(
+          and(
+            eq(clientAssignments.agentId, agentId),
+            eq(clientAssignments.organizationId, organizationId),
+            gte(clientAssignments.assignedAt, monthStart),
+            lte(clientAssignments.assignedAt, monthEnd)
+          )
+        );
+
+      // Policies sold this month (simplified - using member creation as proxy)
+      const [monthlyPolicies] = await db.select({ count: count() })
+        .from(members)
+        .where(
+          and(
+            eq(members.organizationId, organizationId),
+            eq(members.assignedAgent, agentId),
+            gte(members.createdAt, monthStart),
+            lte(members.createdAt, monthEnd)
+          )
+        );
+
+      result.push({
+        month: monthName,
+        quotesGenerated: monthlyQuotes?.count || 0,
+        newClients: monthlyClients?.count || 0,
+        policiesSold: monthlyPolicies?.count || 0,
+        performanceScore: ((monthlyQuotes?.count || 0) * 1) + ((monthlyClients?.count || 0) * 3) + ((monthlyPolicies?.count || 0) * 5),
+      });
+    }
+
+    return result;
+  }
+
+  async getAgentGoalsAndTargets(agentId: string, organizationId: number): Promise<any> {
+    // Default goals - in real implementation, these would be stored in database
+    const monthlyGoals = {
+      quotesTarget: 50,
+      clientsTarget: 10,
+      policiesTarget: 5,
+      revenueTarget: 25000,
+    };
+
+    // Get current month performance
+    const thisMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    
+    const [currentQuotes] = await db.select({ count: count() })
+      .from(insuranceQuotes)
+      .where(
+        and(
+          eq(insuranceQuotes.userId, agentId),
+          gte(insuranceQuotes.createdAt, thisMonth)
+        )
+      );
+
+    const [currentClients] = await db.select({ count: count() })
+      .from(clientAssignments)
+      .where(
+        and(
+          eq(clientAssignments.agentId, agentId),
+          eq(clientAssignments.organizationId, organizationId),
+          gte(clientAssignments.assignedAt, thisMonth)
+        )
+      );
+
+    const [currentPolicies] = await db.select({ count: count() })
+      .from(members)
+      .where(
+        and(
+          eq(members.organizationId, organizationId),
+          eq(members.assignedAgent, agentId),
+          gte(members.createdAt, thisMonth)
+        )
+      );
+
+    const currentPerformance = {
+      quotesActual: currentQuotes?.count || 0,
+      clientsActual: currentClients?.count || 0,
+      policiesActual: currentPolicies?.count || 0,
+      revenueActual: (currentPolicies?.count || 0) * 5000, // Simplified calculation
+    };
+
+    return {
+      goals: monthlyGoals,
+      current: currentPerformance,
+      achievement: {
+        quotesPercentage: Math.round((currentPerformance.quotesActual / monthlyGoals.quotesTarget) * 100),
+        clientsPercentage: Math.round((currentPerformance.clientsActual / monthlyGoals.clientsTarget) * 100),
+        policiesPercentage: Math.round((currentPerformance.policiesActual / monthlyGoals.policiesTarget) * 100),
+        revenuePercentage: Math.round((currentPerformance.revenueActual / monthlyGoals.revenueTarget) * 100),
+      }
+    };
+  }
+
+  async getAgentProductivityMetrics(agentId: string, organizationId: number): Promise<any> {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    // Response time analysis
+    const averageResponseTime = 2.5; // Hours - placeholder for real tracking
+
+    // Activity metrics
+    const [recentQuotes] = await db.select({ count: count() })
+      .from(insuranceQuotes)
+      .where(
+        and(
+          eq(insuranceQuotes.userId, agentId),
+          gte(insuranceQuotes.createdAt, thirtyDaysAgo)
+        )
+      );
+
+    const [recentAssignments] = await db.select({ count: count() })
+      .from(clientAssignments)
+      .where(
+        and(
+          eq(clientAssignments.agentId, agentId),
+          eq(clientAssignments.organizationId, organizationId),
+          gte(clientAssignments.assignedAt, thirtyDaysAgo)
+        )
+      );
+
+    // Productivity calculations
+    const dailyQuoteAverage = (recentQuotes?.count || 0) / 30;
+    const weeklyClientAverage = (recentAssignments?.count || 0) / 4.3; // ~4.3 weeks in a month
+
+    return {
+      averageResponseTime,
+      dailyQuoteAverage: Math.round(dailyQuoteAverage * 10) / 10,
+      weeklyClientAverage: Math.round(weeklyClientAverage * 10) / 10,
+      productivityScore: Math.min(100, Math.round(
+        (dailyQuoteAverage * 10) + (weeklyClientAverage * 15) + (averageResponseTime < 4 ? 20 : 10)
+      )),
+      thirtyDayActivity: {
+        quotesGenerated: recentQuotes?.count || 0,
+        clientsAssigned: recentAssignments?.count || 0,
+      }
+    };
+  }
+
+  async generateAgentPerformanceReport(agentId: string, organizationId: number): Promise<any> {
+    // Get comprehensive agent data
+    const agentProfile = await this.getAgentProfile(agentId);
+    const performanceMetrics = await this.getAgentPerformanceMetrics(organizationId, agentId);
+    const performanceHistory = await this.getAgentPerformanceHistory(agentId, organizationId, 6);
+    const goalsAndTargets = await this.getAgentGoalsAndTargets(agentId, organizationId);
+    const productivityMetrics = await this.getAgentProductivityMetrics(agentId, organizationId);
+
+    if (!agentProfile) {
+      throw new Error('Agent profile not found');
+    }
+
+    const currentMetrics = performanceMetrics.length > 0 ? performanceMetrics[0] : null;
+
+    // Performance assessment
+    const overallScore = productivityMetrics.productivityScore;
+    let performanceRating = 'Excellent';
+    if (overallScore < 60) performanceRating = 'Needs Improvement';
+    else if (overallScore < 75) performanceRating = 'Good';
+    else if (overallScore < 90) performanceRating = 'Very Good';
+
+    // Recommendations
+    const recommendations = [];
+    if (goalsAndTargets.achievement.quotesPercentage < 80) {
+      recommendations.push('Focus on increasing quote generation through lead follow-up');
+    }
+    if (goalsAndTargets.achievement.clientsPercentage < 80) {
+      recommendations.push('Enhance client acquisition strategies');
+    }
+    if (productivityMetrics.averageResponseTime > 4) {
+      recommendations.push('Improve response time to client inquiries');
+    }
+
+    return {
+      agent: {
+        id: agentProfile.id,
+        email: agentProfile.email,
+        organizationId: agentProfile.organizationId,
+        profile: agentProfile.profile,
+      },
+      currentMetrics,
+      performanceHistory,
+      goalsAndTargets,
+      productivityMetrics,
+      assessment: {
+        overallScore,
+        performanceRating,
+        recommendations,
+      },
+      reportGenerated: new Date(),
+    };
+  }
+
+  async getOrganizationAgentPerformanceRankings(organizationId: number): Promise<any> {
+    const agents = await this.getAgentPerformanceMetrics(organizationId);
+    
+    // Enhanced ranking with multiple factors
+    const rankedAgents = agents.map(agent => {
+      const productivityScore = (agent.quotesGenerated * 2) + 
+                               (agent.activeClients * 5) + 
+                               (agent.policiesSold * 10) +
+                               (agent.totalClaims * -1); // Claims reduce score slightly
+
+      return {
+        ...agent,
+        productivityScore,
+        rank: 0, // Will be assigned after sorting
+      };
+    }).sort((a, b) => b.productivityScore - a.productivityScore);
+
+    // Assign ranks
+    rankedAgents.forEach((agent, index) => {
+      agent.rank = index + 1;
+    });
+
+    return {
+      rankings: rankedAgents,
+      topPerformer: rankedAgents[0] || null,
+      averageScore: rankedAgents.length > 0 
+        ? rankedAgents.reduce((sum, agent) => sum + agent.productivityScore, 0) / rankedAgents.length 
+        : 0,
+      totalAgents: rankedAgents.length,
+    };
+  }
 }
 
 export const storage = new DatabaseStorage();

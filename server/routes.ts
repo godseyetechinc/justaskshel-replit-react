@@ -2795,6 +2795,129 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== ENHANCED AGENT PERFORMANCE TRACKING ENDPOINTS =====
+
+  // Agent Performance History
+  app.get("/api/agents/:id/performance-history", auth, async (req: any, res) => {
+    try {
+      const agentId = req.params.id;
+      const months = parseInt(req.query.months as string) || 6;
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Agents can view their own history, TenantAdmin/SuperAdmin can view any agent's history
+      if (currentUser.id !== agentId && currentUser.privilegeLevel > 1) {
+        return res.status(403).json({ message: "Access denied." });
+      }
+
+      const performanceHistory = await storage.getAgentPerformanceHistory(agentId, currentUser.organizationId, months);
+      res.json(performanceHistory);
+    } catch (error) {
+      console.error("Error fetching agent performance history:", error);
+      res.status(500).json({ message: "Failed to fetch agent performance history" });
+    }
+  });
+
+  // Agent Goals and Targets
+  app.get("/api/agents/:id/goals", auth, async (req: any, res) => {
+    try {
+      const agentId = req.params.id;
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Agents can view their own goals, TenantAdmin/SuperAdmin can view any agent's goals
+      if (currentUser.id !== agentId && currentUser.privilegeLevel > 1) {
+        return res.status(403).json({ message: "Access denied." });
+      }
+
+      const goalsAndTargets = await storage.getAgentGoalsAndTargets(agentId, currentUser.organizationId);
+      res.json(goalsAndTargets);
+    } catch (error) {
+      console.error("Error fetching agent goals:", error);
+      res.status(500).json({ message: "Failed to fetch agent goals and targets" });
+    }
+  });
+
+  // Agent Productivity Metrics
+  app.get("/api/agents/:id/productivity", auth, async (req: any, res) => {
+    try {
+      const agentId = req.params.id;
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Agents can view their own productivity, TenantAdmin/SuperAdmin can view any agent's productivity
+      if (currentUser.id !== agentId && currentUser.privilegeLevel > 1) {
+        return res.status(403).json({ message: "Access denied." });
+      }
+
+      const productivityMetrics = await storage.getAgentProductivityMetrics(agentId, currentUser.organizationId);
+      res.json(productivityMetrics);
+    } catch (error) {
+      console.error("Error fetching agent productivity metrics:", error);
+      res.status(500).json({ message: "Failed to fetch agent productivity metrics" });
+    }
+  });
+
+  // Generate Comprehensive Agent Performance Report
+  app.get("/api/agents/:id/performance-report", auth, async (req: any, res) => {
+    try {
+      const agentId = req.params.id;
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Only TenantAdmin and SuperAdmin can generate comprehensive reports
+      if (currentUser.privilegeLevel > 1) {
+        return res.status(403).json({ message: "Access denied. Only administrators can generate performance reports." });
+      }
+
+      const performanceReport = await storage.generateAgentPerformanceReport(agentId, currentUser.organizationId);
+      res.json(performanceReport);
+    } catch (error) {
+      console.error("Error generating agent performance report:", error);
+      res.status(500).json({ message: "Failed to generate agent performance report" });
+    }
+  });
+
+  // Organization Agent Performance Rankings
+  app.get("/api/organizations/:id/agent-rankings", auth, async (req: any, res) => {
+    try {
+      const organizationId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Check access permissions (TenantAdmin or SuperAdmin)
+      if (currentUser.privilegeLevel > 1 && currentUser.organizationId !== organizationId) {
+        return res.status(403).json({ message: "Access denied." });
+      }
+
+      const agentRankings = await storage.getOrganizationAgentPerformanceRankings(organizationId);
+      res.json(agentRankings);
+    } catch (error) {
+      console.error("Error fetching agent performance rankings:", error);
+      res.status(500).json({ message: "Failed to fetch agent performance rankings" });
+    }
+  });
+
   // ===== AGENT DIRECTORY AND COLLABORATION ENDPOINTS =====
   
   // Get all agents in organization
