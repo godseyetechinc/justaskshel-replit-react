@@ -344,7 +344,7 @@ export default function DashboardSidebar() {
     setExpandedGroups(newExpanded);
     
     if (typeof window !== 'undefined') {
-      localStorage.setItem('sidebar-expanded-groups', JSON.stringify([...newExpanded]));
+      localStorage.setItem('sidebar-expanded-groups', JSON.stringify(Array.from(newExpanded)));
     }
   };
 
@@ -358,7 +358,7 @@ export default function DashboardSidebar() {
             newExpanded.add(group.id);
             setExpandedGroups(newExpanded);
             if (typeof window !== 'undefined') {
-              localStorage.setItem('sidebar-expanded-groups', JSON.stringify([...newExpanded]));
+              localStorage.setItem('sidebar-expanded-groups', JSON.stringify(Array.from(newExpanded)));
             }
           }
           return;
@@ -475,7 +475,7 @@ export default function DashboardSidebar() {
                 )}
                 aria-expanded={isExpanded}
                 aria-controls={`group-items-${group.id}`}
-                aria-label={`${group.label} group, ${group.items.length} items${isExpanded ? ', expanded' : ', collapsed'}`}
+                aria-label={`${group.label} group${isExpanded ? ', expanded' : ', collapsed'}`}
                 data-testid={`group-header-${group.id}`}
                 type="button"
               >
@@ -485,24 +485,12 @@ export default function DashboardSidebar() {
                     <span className="flex-1 text-sm font-semibold truncate">
                       {group.label}
                     </span>
-                    <div className="flex items-center space-x-1">
-                      {/* Badge for number of items */}
-                      {group.items.length > 0 && (
-                        <Badge 
-                          variant="outline" 
-                          className="text-xs h-5 px-1.5"
-                          aria-label={`${group.items.length} items`}
-                        >
-                          {group.items.length}
-                        </Badge>
-                      )}
-                      {/* Expand/collapse chevron */}
-                      {isExpanded ? (
-                        <ChevronDown className="h-4 w-4 text-gray-400" aria-hidden="true" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4 text-gray-400" aria-hidden="true" />
-                      )}
-                    </div>
+                    {/* Expand/collapse chevron */}
+                    {isExpanded ? (
+                      <ChevronDown className="h-4 w-4 text-gray-400" aria-hidden="true" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4 text-gray-400" aria-hidden="true" />
+                    )}
                   </>
                 )}
               </button>
