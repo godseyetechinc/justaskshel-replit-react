@@ -741,7 +741,7 @@ export default function OrganizationProfile() {
                   <CardContent>
                     {invitationsLoading ? (
                       <p className="text-sm text-gray-500">Loading invitations...</p>
-                    ) : !invitations || invitations.length === 0 ? (
+                    ) : !invitations || !Array.isArray(invitations) || invitations.length === 0 ? (
                       <p className="text-sm text-gray-500">No pending invitations</p>
                     ) : (
                       <div className="space-y-3">
@@ -808,7 +808,7 @@ export default function OrganizationProfile() {
                         </div>
                         <div className="text-center p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg">
                           <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-                            {invitations?.length || 0}
+                            {Array.isArray(invitations) ? invitations.length : 0}
                           </p>
                           <p className="text-sm text-gray-600 dark:text-gray-400">Pending</p>
                         </div>
@@ -841,7 +841,7 @@ export default function OrganizationProfile() {
                       <div className="text-sm text-gray-500">Loading analytics...</div>
                     </CardContent>
                   </Card>
-                ) : analytics ? (
+                ) : analytics && typeof analytics === 'object' ? (
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <Card className="p-4">
                       <div className="flex items-center space-x-3">
@@ -850,7 +850,7 @@ export default function OrganizationProfile() {
                         </div>
                         <div>
                           <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                            {analytics.totalAgents || 0}
+                            {(analytics as any)?.totalAgents || 0}
                           </p>
                           <p className="text-sm text-gray-600 dark:text-gray-400">Total Agents</p>
                         </div>
@@ -864,7 +864,7 @@ export default function OrganizationProfile() {
                         </div>
                         <div>
                           <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                            {analytics.totalMembers || 0}
+                            {(analytics as any)?.totalMembers || 0}
                           </p>
                           <p className="text-sm text-gray-600 dark:text-gray-400">Total Members</p>
                         </div>
@@ -878,7 +878,7 @@ export default function OrganizationProfile() {
                         </div>
                         <div>
                           <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                            {analytics.totalPolicies || 0}
+                            {(analytics as any)?.totalPolicies || 0}
                           </p>
                           <p className="text-sm text-gray-600 dark:text-gray-400">Active Policies</p>
                         </div>
@@ -892,7 +892,7 @@ export default function OrganizationProfile() {
                         </div>
                         <div>
                           <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-                            {analytics.totalQuotes || 0}
+                            {(analytics as any)?.totalQuotes || 0}
                           </p>
                           <p className="text-sm text-gray-600 dark:text-gray-400">Total Quotes</p>
                         </div>
@@ -926,7 +926,7 @@ export default function OrganizationProfile() {
                         <div className="flex items-center justify-center py-8">
                           <div className="text-sm text-gray-500">Loading growth data...</div>
                         </div>
-                      ) : memberGrowth && memberGrowth.length > 0 ? (
+                      ) : memberGrowth && Array.isArray(memberGrowth) && memberGrowth.length > 0 ? (
                         <div className="space-y-4">
                           {memberGrowth.slice(0, 6).map((month: any, index: number) => (
                             <div key={index} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
@@ -969,7 +969,7 @@ export default function OrganizationProfile() {
                         <div className="flex items-center justify-center py-8">
                           <div className="text-sm text-gray-500">Loading agent data...</div>
                         </div>
-                      ) : topAgents && topAgents.length > 0 ? (
+                      ) : topAgents && Array.isArray(topAgents) && topAgents.length > 0 ? (
                         <div className="space-y-3">
                           {topAgents.map((agent: any, index: number) => (
                             <div key={agent.id} className="flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
@@ -1023,24 +1023,24 @@ export default function OrganizationProfile() {
                         <div className="flex items-center justify-center py-8">
                           <div className="text-sm text-gray-500">Loading insights...</div>
                         </div>
-                      ) : insights ? (
+                      ) : insights && typeof insights === 'object' ? (
                         <div className="space-y-4">
                           <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border-l-4 border-blue-500">
                             <h4 className="font-medium text-blue-900 dark:text-blue-100">Growth Opportunity</h4>
                             <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
-                              {insights.growthRecommendation || "Consider expanding your agent team to handle increased member volume."}
+                              {(insights as any)?.growthRecommendation || "Consider expanding your agent team to handle increased member volume."}
                             </p>
                           </div>
                           <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border-l-4 border-green-500">
                             <h4 className="font-medium text-green-900 dark:text-green-100">Performance Highlight</h4>
                             <p className="text-sm text-green-700 dark:text-green-300 mt-1">
-                              {insights.performanceHighlight || "Your team is performing exceptionally well with strong client satisfaction scores."}
+                              {(insights as any)?.performanceHighlight || "Your team is performing exceptionally well with strong client satisfaction scores."}
                             </p>
                           </div>
                           <div className="p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg border-l-4 border-orange-500">
                             <h4 className="font-medium text-orange-900 dark:text-orange-100">Action Item</h4>
                             <p className="text-sm text-orange-700 dark:text-orange-300 mt-1">
-                              {insights.actionRecommendation || "Review agent workload distribution to optimize efficiency."}
+                              {(insights as any)?.actionRecommendation || "Review agent workload distribution to optimize efficiency."}
                             </p>
                           </div>
                         </div>
@@ -1068,7 +1068,7 @@ export default function OrganizationProfile() {
                         <div className="flex items-center justify-center py-8">
                           <div className="text-sm text-gray-500">Loading activity...</div>
                         </div>
-                      ) : activityFeed && activityFeed.length > 0 ? (
+                      ) : activityFeed && Array.isArray(activityFeed) && activityFeed.length > 0 ? (
                         <div className="space-y-3 max-h-80 overflow-y-auto">
                           {activityFeed.slice(0, 10).map((activity: any, index: number) => (
                             <div key={index} className="flex items-start space-x-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
@@ -1114,25 +1114,25 @@ export default function OrganizationProfile() {
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="text-center p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
                           <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
-                            {teamOverview.activeAgents || 0}
+                            {(teamOverview as any)?.activeAgents || 0}
                           </p>
                           <p className="text-sm text-gray-600 dark:text-gray-400">Active Agents</p>
                         </div>
                         <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
                           <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                            {teamOverview.averageClientLoad || 0}
+                            {(teamOverview as any)?.averageClientLoad || 0}
                           </p>
                           <p className="text-sm text-gray-600 dark:text-gray-400">Avg Client Load</p>
                         </div>
                         <div className="text-center p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
                           <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
-                            {teamOverview.teamEfficiency || 0}%
+                            {(teamOverview as any)?.teamEfficiency || 0}%
                           </p>
                           <p className="text-sm text-gray-600 dark:text-gray-400">Team Efficiency</p>
                         </div>
                         <div className="text-center p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
                           <p className="text-2xl font-bold text-red-600 dark:text-red-400">
-                            {teamOverview.activeProjects || 0}
+                            {(teamOverview as any)?.activeProjects || 0}
                           </p>
                           <p className="text-sm text-gray-600 dark:text-gray-400">Active Projects</p>
                         </div>
