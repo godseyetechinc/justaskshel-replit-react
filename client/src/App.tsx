@@ -38,6 +38,9 @@ const UserPointsInsights = lazy(() => import("@/pages/dashboard/user-points-insi
 const AchievementsPage = lazy(() => import("@/pages/dashboard/achievements"));
 const ReferralsPage = lazy(() => import("@/pages/dashboard/referrals"));
 const NotificationsPage = lazy(() => import("@/pages/dashboard/notifications"));
+const AgentsPage = lazy(() => import("@/pages/dashboard/agents"));
+const ClientAssignmentsPage = lazy(() => import("@/pages/dashboard/client-assignments"));
+const AgentPerformancePage = lazy(() => import("@/pages/dashboard/agent-performance"));
 
 // Phase 7 components - lazy-loaded for optimal performance
 const SocialFeaturesPage = lazy(() => import("@/pages/dashboard/social-features"));
@@ -133,6 +136,9 @@ function Router() {
           {/* Dashboard sub-routes must come before main dashboard route */}
           <Route path="/dashboard/members" component={MembersPage} />
           <Route path="/dashboard/organizations" component={OrganizationsPage} />
+          <Route path="/dashboard/agents" component={AgentsPage} />
+          <Route path="/dashboard/client-assignments" component={ClientAssignmentsPage} />
+          <Route path="/dashboard/agent-performance" component={AgentPerformancePage} />
           <Route path="/dashboard/claims-workflow" component={ClaimsWorkflow} />
           <Route path="/dashboard/profile" component={ProfilePage} />
           <Route path="/dashboard/my-profile" component={MyProfilePage} />

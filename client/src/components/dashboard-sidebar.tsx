@@ -123,6 +123,27 @@ const menuGroups: MenuGroup[] = [
         roles: ["Member"],
       },
       {
+        id: "agents",
+        label: "Agent Directory",
+        icon: Users,
+        href: "/dashboard/agents",
+        roles: ["SuperAdmin", "TenantAdmin", "Agent"],
+      },
+      {
+        id: "client-assignments",
+        label: "Client Assignments",
+        icon: Users,
+        href: "/dashboard/client-assignments",
+        roles: ["SuperAdmin", "TenantAdmin"],
+      },
+      {
+        id: "agent-performance",
+        label: "Agent Performance",
+        icon: BarChart3,
+        href: "/dashboard/agent-performance",
+        roles: ["SuperAdmin", "TenantAdmin"],
+      },
+      {
         id: "user-management",
         label: "User Management",
         icon: Settings,

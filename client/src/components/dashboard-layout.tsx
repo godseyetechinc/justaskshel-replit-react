@@ -4,6 +4,7 @@ import { useLogout } from "@/hooks/useLogout";
 import { Button } from "@/components/ui/button";
 import DashboardSidebar from "./dashboard-sidebar";
 import NotificationBell from "@/components/notifications/NotificationBell";
+import { OrganizationSelector } from "@/components/organization-selector";
 import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Home } from "lucide-react";
@@ -19,7 +20,7 @@ export default function DashboardLayout({
   title = "Dashboard",
   requiredRoles = ["Member", "Agent", "TenantAdmin", "SuperAdmin", "Guest"]
 }: DashboardLayoutProps) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   const { hasAnyRole, userRole } = useRoleAuth();
   const { logout, isLoggingOut } = useLogout();
   const { toast } = useToast();
@@ -126,6 +127,10 @@ export default function DashboardLayout({
               <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
             </div>
             <div className="flex items-center space-x-4">
+              <OrganizationSelector 
+                currentOrganizationId={user?.organizationId}
+                className="hidden sm:flex"
+              />
               <NotificationBell />
               <Button 
                 variant="outline" 
