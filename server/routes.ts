@@ -3510,17 +3510,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const currentUser = await storage.getUser(userId);
 
-      if (!currentUser || !currentUser.organizationId) {
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Handle SuperAdmin users (privilege level 0)
+      if (currentUser.privilegeLevel === 0) {
+        // SuperAdmin can access all agents, return from demo-org as default
+        const organizations = await storage.getOrganizations();
+        const demoOrg = organizations.find(org => org.name === 'demo-org') || organizations[0];
+        
+        if (!demoOrg) {
+          return res.status(404).json({ message: "No organizations found" });
+        }
+
+        const orgUsers = await storage.getOrganizationUsers(demoOrg.id);
+        const agents = orgUsers.filter((user) => user.role === "Agent");
+
+        return res.json({
+          agents,
+          organization: demoOrg,
+        });
+      }
+
+      // Check if user has organization assignment
+      if (!currentUser.organizationId) {
         return res
           .status(404)
           .json({ message: "No organization found for user" });
       }
 
-      // Only members can access this endpoint
-      if ((currentUser.privilegeLevel || 5) !== 3) {
+      // Only members and higher roles can access this endpoint
+      if ((currentUser.privilegeLevel || 5) > 3) {
         return res
           .status(403)
-          .json({ message: "This endpoint is only available for members" });
+          .json({ message: "Access denied" });
       }
 
       // Get all users in the organization with Agent role
