@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
+import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -302,25 +303,29 @@ export default function OrganizationProfile() {
 
   if (authLoading || isLoading) {
     return (
-      <div className="p-6">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-1/3"></div>
-          <div className="h-32 bg-gray-200 rounded"></div>
+      <DashboardLayout requiredRoles={["TenantAdmin", "SuperAdmin"]}>
+        <div className="p-6">
+          <div className="animate-pulse space-y-4">
+            <div className="h-8 bg-gray-200 rounded w-1/3"></div>
+            <div className="h-32 bg-gray-200 rounded"></div>
+          </div>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
   if (!hasOrganizationAccess) {
     return (
-      <div className="p-6">
-        <Alert>
-          <Shield className="h-4 w-4" />
-          <AlertDescription>
-            You don't have permission to access organization profile management. TenantAdmin or SuperAdmin privileges required.
-          </AlertDescription>
-        </Alert>
-      </div>
+      <DashboardLayout requiredRoles={["TenantAdmin", "SuperAdmin"]}>
+        <div className="p-6">
+          <Alert>
+            <Shield className="h-4 w-4" />
+            <AlertDescription>
+              You don't have permission to access organization profile management. TenantAdmin or SuperAdmin privileges required.
+            </AlertDescription>
+          </Alert>
+        </div>
+      </DashboardLayout>
     );
   }
 
@@ -351,7 +356,8 @@ export default function OrganizationProfile() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <DashboardLayout requiredRoles={["TenantAdmin", "SuperAdmin"]}>
+      <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Organization Profile</h1>
@@ -1247,6 +1253,7 @@ export default function OrganizationProfile() {
           </form>
         </Form>
       </Tabs>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }

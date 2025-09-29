@@ -2175,22 +2175,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         organizationId: user.organizationId,
       });
 
-      // Only LandlordAdmin can access their organization profile
-      if (user.privilegeLevel !== 1) {
+      // Only TenantAdmin (privilege level 1) and SuperAdmin (privilege level 0) can access organization profile
+      if (user.privilegeLevel > 1) {
         return res
           .status(403)
-          .json({ message: "Access denied. LandlordAdmin role required." });
+          .json({ message: "Access denied. TenantAdmin or SuperAdmin role required." });
       }
 
-      if (!user.organizationId) {
+      let organizationId = user.organizationId;
+      
+      // For SuperAdmin without an assigned organization, get the first available organization
+      if (!organizationId && user.privilegeLevel === 0) {
+        const organizations = await storage.getOrganizations();
+        if (organizations.length > 0) {
+          organizationId = organizations[0].id;
+        } else {
+          return res
+            .status(404)
+            .json({ message: "No organizations available." });
+        }
+      } else if (!organizationId) {
         return res
           .status(404)
           .json({ message: "No organization assigned to this user." });
       }
 
-      const organization = await storage.getOrganizationById(
-        user.organizationId,
-      );
+      const organization = await storage.getOrganizationById(organizationId);
       if (!organization) {
         return res.status(404).json({ message: "Organization not found" });
       }
@@ -2212,14 +2222,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
 
-      // Only LandlordAdmin can update their organization profile
-      if (user.privilegeLevel !== 1) {
+      // Only TenantAdmin (privilege level 1) and SuperAdmin (privilege level 0) can update organization profile
+      if (user.privilegeLevel > 1) {
         return res
           .status(403)
-          .json({ message: "Access denied. LandlordAdmin role required." });
+          .json({ message: "Access denied. TenantAdmin or SuperAdmin role required." });
       }
 
-      if (!user.organizationId) {
+      let organizationId = user.organizationId;
+      
+      // For SuperAdmin without an assigned organization, get the first available organization
+      if (!organizationId && user.privilegeLevel === 0) {
+        const organizations = await storage.getOrganizations();
+        if (organizations.length > 0) {
+          organizationId = organizations[0].id;
+        } else {
+          return res
+            .status(404)
+            .json({ message: "No organizations available." });
+        }
+      } else if (!organizationId) {
         return res
           .status(404)
           .json({ message: "No organization assigned to this user." });
@@ -2241,7 +2263,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } = req.body;
 
       const updatedOrganization = await storage.updateOrganization(
-        user.organizationId,
+        organizationId,
         {
           displayName,
           description,
