@@ -54,9 +54,12 @@ export default function AgentsPage() {
   const { user } = useAuth();
 
   // Fetch agents in organization
+  // For SuperAdmin users (privilegeLevel 0), use a different approach since they don't have agents in their SYSTEM_PLATFORM org
+  const isSuperAdmin = user?.privilegeLevel === 0;
+  
   const { data: agents, isLoading } = useQuery({
-    queryKey: ["/api/organizations", user?.organizationId, "agents"],
-    enabled: hasMinimumPrivilegeLevel(2) && !!user?.organizationId, // Agent level or higher and organization ID available
+    queryKey: isSuperAdmin ? ["/api/organizations", 2, "agents"] : ["/api/organizations", user?.organizationId, "agents"], // Use demo-org (ID 2) for SuperAdmin
+    enabled: hasMinimumPrivilegeLevel(2) && (isSuperAdmin || !!user?.organizationId),
   }) as { data: AgentProfile[] | undefined; isLoading: boolean };
 
   const filteredAgents = agents?.filter(agent => {
