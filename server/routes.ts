@@ -3386,6 +3386,135 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== PHASE 5: EXTENDED CROSS-ORGANIZATION ACCESS ENDPOINTS =====
+
+  /**
+   * Phase 5: Scope-aware Members endpoint
+   * SuperAdmin sees all orgs, others see their org
+   */
+  app.get("/api/members-scope", auth, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Parse pagination parameters
+      const page = Math.max(1, parseInt(req.query.page as string) || 1);
+      const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 50));
+      const offset = (page - 1) * limit;
+
+      // Create user context
+      const userContext = {
+        userId: currentUser.id,
+        privilegeLevel: currentUser.privilegeLevel,
+        organizationId: currentUser.organizationId,
+      };
+
+      const result = await storage.getMembersWithScope(userContext, { limit, offset });
+
+      // Add cache headers
+      res.setHeader('Cache-Control', 'private, max-age=300');
+      res.setHeader('Vary', 'Cookie');
+
+      res.json({
+        data: result.members,
+        pagination: {
+          page,
+          limit,
+          total: result.total,
+          totalPages: Math.ceil(result.total / limit),
+          hasMore: offset + result.members.length < result.total,
+        },
+      });
+    } catch (error) {
+      console.error("Error fetching members with scope:", error);
+      res.status(500).json({ message: "Failed to fetch members" });
+    }
+  });
+
+  /**
+   * Phase 5: Scope-aware Analytics endpoint
+   * SuperAdmin sees system-wide analytics, others see organization analytics
+   */
+  app.get("/api/analytics-scope", auth, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Create user context
+      const userContext = {
+        userId: currentUser.id,
+        privilegeLevel: currentUser.privilegeLevel,
+        organizationId: currentUser.organizationId,
+      };
+
+      const analytics = await storage.getAnalyticsWithScope(userContext);
+
+      // Add cache headers
+      res.setHeader('Cache-Control', 'private, max-age=300');
+      res.setHeader('Vary', 'Cookie');
+
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching analytics with scope:", error);
+      res.status(500).json({ message: "Failed to fetch analytics" });
+    }
+  });
+
+  /**
+   * Phase 5: Scope-aware Client Assignments endpoint
+   * SuperAdmin sees all orgs, others see their org
+   */
+  app.get("/api/client-assignments-scope", auth, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Parse pagination parameters
+      const page = Math.max(1, parseInt(req.query.page as string) || 1);
+      const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 50));
+      const offset = (page - 1) * limit;
+
+      // Create user context
+      const userContext = {
+        userId: currentUser.id,
+        privilegeLevel: currentUser.privilegeLevel,
+        organizationId: currentUser.organizationId,
+      };
+
+      const result = await storage.getClientAssignmentsWithScope(userContext, { limit, offset });
+
+      // Add cache headers
+      res.setHeader('Cache-Control', 'private, max-age=300');
+      res.setHeader('Vary', 'Cookie');
+
+      res.json({
+        data: result.assignments,
+        pagination: {
+          page,
+          limit,
+          total: result.total,
+          totalPages: Math.ceil(result.total / limit),
+          hasMore: offset + result.assignments.length < result.total,
+        },
+      });
+    } catch (error) {
+      console.error("Error fetching client assignments with scope:", error);
+      res.status(500).json({ message: "Failed to fetch client assignments" });
+    }
+  });
+
   // Enhanced Team Management Routes
 
   // Get Enhanced Member List with Search and Filtering
