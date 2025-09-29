@@ -153,6 +153,111 @@ export default function OrganizationProfile() {
     enabled: !authLoading && hasOrganizationAccess && !!organization?.id,
   });
 
+  // Enhanced Member Management State and Hooks
+  const [searchQuery, setSearchQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
+
+  // Enhanced member list query
+  const { data: enhancedMembers, isLoading: enhancedMembersLoading, refetch: refetchMembers } = useQuery({
+    queryKey: [`/api/organizations/${organization?.id}/enhanced-members`, { search: searchQuery, roleFilter, statusFilter }],
+    enabled: !authLoading && hasOrganizationAccess && !!organization?.id,
+  });
+
+  // Member management mutations
+  const updateMemberRoleMutation = useMutation({
+    mutationFn: async ({ memberId, newRole }: { memberId: string; newRole: string }) => {
+      return apiRequest(`/api/organizations/${organization?.id}/members/${memberId}/role`, {
+        method: 'PATCH',
+        body: JSON.stringify({ newRole }),
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Role Updated",
+        description: "Member role has been updated successfully.",
+      });
+      refetchMembers();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Update Failed",
+        description: error.message || "Failed to update member role",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateMemberStatusMutation = useMutation({
+    mutationFn: async ({ memberId, isActive }: { memberId: string; isActive: boolean }) => {
+      return apiRequest(`/api/organizations/${organization?.id}/members/${memberId}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ isActive }),
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Status Updated",
+        description: "Member status has been updated successfully.",
+      });
+      refetchMembers();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Update Failed",
+        description: error.message || "Failed to update member status",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const bulkUpdateMembersMutation = useMutation({
+    mutationFn: async ({ memberIds, updates }: { memberIds: string[]; updates: { role?: string; isActive?: boolean } }) => {
+      return apiRequest(`/api/organizations/${organization?.id}/members/bulk`, {
+        method: 'PATCH',
+        body: JSON.stringify({ memberIds, updates }),
+      });
+    },
+    onSuccess: (_, { memberIds }) => {
+      toast({
+        title: "Bulk Update Complete",
+        description: `Successfully updated ${memberIds.length} members.`,
+      });
+      refetchMembers();
+      setSelectedMembers([]);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Bulk Update Failed",
+        description: error.message || "Failed to update members",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const removeMemberMutation = useMutation({
+    mutationFn: async (memberId: string) => {
+      return apiRequest(`/api/organizations/${organization?.id}/members/${memberId}`, {
+        method: 'DELETE',
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Member Removed",
+        description: "Member has been removed from the organization.",
+      });
+      refetchMembers();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Removal Failed",
+        description: error.message || "Failed to remove member",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Organization activity feed
   const { data: activityFeed, isLoading: activityFeedLoading } = useQuery({
     queryKey: [`/api/organizations/${organization?.id}/activity-feed`],
@@ -849,12 +954,14 @@ export default function OrganizationProfile() {
                             <Input
                               placeholder="Search team members by name or email..."
                               className="pl-10"
+                              value={searchQuery}
+                              onChange={(e) => setSearchQuery(e.target.value)}
                               data-testid="input-search-members"
                             />
                           </div>
                         </div>
                         <div className="flex gap-2">
-                          <Select defaultValue="all">
+                          <Select value={roleFilter} onValueChange={setRoleFilter}>
                             <SelectTrigger className="w-40" data-testid="select-filter-role">
                               <SelectValue placeholder="Filter by role" />
                             </SelectTrigger>
@@ -865,7 +972,7 @@ export default function OrganizationProfile() {
                               <SelectItem value="TenantAdmin">Admins</SelectItem>
                             </SelectContent>
                           </Select>
-                          <Select defaultValue="all">
+                          <Select value={statusFilter} onValueChange={setStatusFilter}>
                             <SelectTrigger className="w-40" data-testid="select-filter-status">
                               <SelectValue placeholder="Filter by status" />
                             </SelectTrigger>
@@ -911,7 +1018,7 @@ export default function OrganizationProfile() {
                       <div className="space-y-4">
                         <h4 className="font-semibold text-gray-900 dark:text-gray-100">Active Team Members</h4>
                         
-                        {teamOverviewLoading ? (
+                        {enhancedMembersLoading ? (
                           <div className="space-y-3">
                             {[1, 2, 3].map((i) => (
                               <div key={i} className="animate-pulse p-4 border rounded-lg">
@@ -925,37 +1032,45 @@ export default function OrganizationProfile() {
                               </div>
                             ))}
                           </div>
-                        ) : teamOverview && (teamOverview as any)?.agents && Array.isArray((teamOverview as any).agents) ? (
+                        ) : enhancedMembers?.members && Array.isArray(enhancedMembers.members) && enhancedMembers.members.length > 0 ? (
                           <div className="space-y-3">
-                            {((teamOverview as any).agents as any[]).map((agent: any, index: number) => (
-                              <div key={agent.id || index} className="p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800" data-testid={`member-card-${agent.id || index}`}>
+                            {enhancedMembers.members.map((member: any, index: number) => (
+                              <div key={member.id || index} className="p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800" data-testid={`member-card-${member.id || index}`}>
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center space-x-4">
                                     <input
                                       type="checkbox"
                                       className="rounded border-gray-300"
-                                      data-testid={`checkbox-member-${agent.id || index}`}
+                                      checked={selectedMembers.includes(member.id)}
+                                      onChange={(e) => {
+                                        if (e.target.checked) {
+                                          setSelectedMembers([...selectedMembers, member.id]);
+                                        } else {
+                                          setSelectedMembers(selectedMembers.filter(id => id !== member.id));
+                                        }
+                                      }}
+                                      data-testid={`checkbox-member-${member.id || index}`}
                                     />
                                     <div className="flex items-center space-x-3">
                                       <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-medium">
-                                        {(agent.name || agent.email || 'U').charAt(0).toUpperCase()}
+                                        {(member.name || member.email || 'U').charAt(0).toUpperCase()}
                                       </div>
                                       <div>
                                         <h5 className="font-medium text-gray-900 dark:text-gray-100">
-                                          {agent.name || agent.email || 'Unknown User'}
+                                          {member.name || member.email || 'Unknown User'}
                                         </h5>
                                         <p className="text-sm text-gray-600 dark:text-gray-400">
-                                          {agent.email || 'No email'}
+                                          {member.email || 'No email'}
                                         </p>
                                         <div className="flex items-center space-x-2 mt-1">
                                           <Badge variant="secondary" className="text-xs">
-                                            {agent.role || 'Agent'}
+                                            {member.role || 'Agent'}
                                           </Badge>
                                           <Badge 
-                                            variant={agent.isActive ? "default" : "destructive"} 
+                                            variant={member.isActive ? "default" : "destructive"} 
                                             className="text-xs"
                                           >
-                                            {agent.isActive ? 'Active' : 'Inactive'}
+                                            {member.status || (member.isActive ? 'Active' : 'Inactive')}
                                           </Badge>
                                         </div>
                                       </div>
@@ -965,21 +1080,36 @@ export default function OrganizationProfile() {
                                   <div className="flex items-center space-x-4">
                                     <div className="text-right">
                                       <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                        {agent.clientCount || 0} clients
+                                        {member.clientCount || 0} clients
                                       </p>
                                       <p className="text-xs text-gray-500">
-                                        Joined: {agent.joiningDate ? new Date(agent.joiningDate).toLocaleDateString() : 'Unknown'}
+                                        Joined: {member.joiningDate ? new Date(member.joiningDate).toLocaleDateString() : 'Unknown'}
                                       </p>
                                     </div>
                                     
                                     <div className="flex space-x-2">
-                                      <Button variant="ghost" size="sm" data-testid={`button-edit-${agent.id || index}`}>
+                                      <Button 
+                                        variant="ghost" 
+                                        size="sm" 
+                                        onClick={() => updateMemberStatusMutation.mutate({ 
+                                          memberId: member.id, 
+                                          isActive: !member.isActive 
+                                        })}
+                                        disabled={updateMemberStatusMutation.isPending}
+                                        data-testid={`button-edit-${member.id || index}`}
+                                      >
                                         <Edit className="h-4 w-4" />
                                       </Button>
-                                      <Button variant="ghost" size="sm" data-testid={`button-view-${agent.id || index}`}>
+                                      <Button variant="ghost" size="sm" data-testid={`button-view-${member.id || index}`}>
                                         <Eye className="h-4 w-4" />
                                       </Button>
-                                      <Button variant="ghost" size="sm" data-testid={`button-settings-${agent.id || index}`}>
+                                      <Button 
+                                        variant="ghost" 
+                                        size="sm" 
+                                        onClick={() => removeMemberMutation.mutate(member.id)}
+                                        disabled={removeMemberMutation.isPending}
+                                        data-testid={`button-settings-${member.id || index}`}
+                                      >
                                         <Settings className="h-4 w-4" />
                                       </Button>
                                     </div>
@@ -991,27 +1121,27 @@ export default function OrganizationProfile() {
                                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
                                     <div>
                                       <p className="text-lg font-semibold text-blue-600 dark:text-blue-400">
-                                        {Math.floor(Math.random() * 100)}%
+                                        {member.performance?.performanceScore || 0}%
                                       </p>
                                       <p className="text-xs text-gray-500">Performance</p>
                                     </div>
                                     <div>
                                       <p className="text-lg font-semibold text-green-600 dark:text-green-400">
-                                        {Math.floor(Math.random() * 50)}
+                                        {member.performance?.quotesGenerated || 0}
                                       </p>
                                       <p className="text-xs text-gray-500">Quotes</p>
                                     </div>
                                     <div>
                                       <p className="text-lg font-semibold text-purple-600 dark:text-purple-400">
-                                        {Math.floor(Math.random() * 20)}
+                                        {member.performance?.policiesSold || 0}
                                       </p>
                                       <p className="text-xs text-gray-500">Policies</p>
                                     </div>
                                     <div>
                                       <p className="text-lg font-semibold text-orange-600 dark:text-orange-400">
-                                        {agent.lastLogin ? new Date(agent.lastLogin).toLocaleDateString() : 'Never'}
+                                        ${(member.performance?.totalRevenue || 0).toLocaleString()}
                                       </p>
-                                      <p className="text-xs text-gray-500">Last Login</p>
+                                      <p className="text-xs text-gray-500">Revenue</p>
                                     </div>
                                   </div>
                                 </div>
