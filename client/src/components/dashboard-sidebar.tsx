@@ -26,6 +26,9 @@ import {
   Trophy,
   Bell,
   UserCheck,
+  Users2,
+  Brain,
+  Calendar,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -160,6 +163,27 @@ const menuItems: MenuItem[] = [
     label: "Referrals",
     icon: UserCheck,
     href: "/dashboard/referrals",
+    roles: ["SuperAdmin", "TenantAdmin", "Agent", "Member"],
+  },
+  {
+    id: "social-features",
+    label: "Social Features",
+    icon: Users2,
+    href: "/dashboard/social-features",
+    roles: ["SuperAdmin", "TenantAdmin", "Agent", "Member"],
+  },
+  {
+    id: "advanced-redemptions",
+    label: "Advanced Redemptions",
+    icon: Brain,
+    href: "/dashboard/advanced-redemptions",
+    roles: ["SuperAdmin", "TenantAdmin", "Agent", "Member"],
+  },
+  {
+    id: "seasonal-campaigns",
+    label: "Seasonal Campaigns",
+    icon: Calendar,
+    href: "/dashboard/seasonal-campaigns",
     roles: ["SuperAdmin", "TenantAdmin", "Agent", "Member"],
   },
   {

@@ -48,6 +48,9 @@ import UserPointsInsights from "@/pages/dashboard/user-points-insights";
 import AchievementsPage from "@/pages/dashboard/achievements";
 import ReferralsPage from "@/pages/dashboard/referrals";
 import NotificationsPage from "@/pages/dashboard/notifications";
+import SocialFeaturesPage from "@/pages/dashboard/social-features";
+import AdvancedRedemptionsPage from "@/pages/dashboard/advanced-redemptions";
+import SeasonalCampaignsPage from "@/pages/dashboard/seasonal-campaigns";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -129,6 +132,9 @@ function Router() {
           <Route path="/dashboard/achievements" component={AchievementsPage} />
           <Route path="/dashboard/referrals" component={ReferralsPage} />
           <Route path="/dashboard/notifications" component={NotificationsPage} />
+          <Route path="/dashboard/social-features" component={SocialFeaturesPage} />
+          <Route path="/dashboard/advanced-redemptions" component={AdvancedRedemptionsPage} />
+          <Route path="/dashboard/seasonal-campaigns" component={SeasonalCampaignsPage} />
           {/* Main dashboard route comes last to avoid conflicts */}
           <Route path="/dashboard" component={Dashboard} />
           <Route path="/role-test" component={RoleTest} />
