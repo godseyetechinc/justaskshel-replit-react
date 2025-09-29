@@ -66,11 +66,13 @@ export default function AgentsPage() {
   const { user } = useAuth();
 
   // Fetch agents with scope awareness - SuperAdmin sees all orgs, others see their org
-  // Phase 1: SuperAdmin Cross-Organization Access
-  const { data: agents, isLoading } = useQuery({
+  // Phase 1-4: SuperAdmin Cross-Organization Access with Pagination
+  const { data: agentsResponse, isLoading } = useQuery({
     queryKey: ["/api/agents"],
     enabled: hasMinimumPrivilegeLevel(2),
-  }) as { data: AgentProfile[] | undefined; isLoading: boolean };
+  }) as { data: { data: AgentProfile[]; pagination: any } | undefined; isLoading: boolean };
+
+  const agents = agentsResponse?.data;
 
   const filteredAgents = agents?.filter(agent => {
     const searchMatch = agent.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
