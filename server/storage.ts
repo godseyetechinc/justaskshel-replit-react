@@ -459,6 +459,11 @@ export interface IStorage {
     growthRate: number; // percentage
   }>;
 
+  // Agent Directory and Collaboration - Phase 1-4
+  getOrganizationAgents(organizationId: number): Promise<any[]>;
+  getAgents(userContext: UserContext, pagination?: { limit: number; offset: number }): Promise<{ agents: any[]; total: number }>;
+  searchAgentsWithContext(userContext: UserContext, filters: any): Promise<any[]>;
+
 }
 
 /**
@@ -3112,7 +3117,7 @@ export class DatabaseStorage implements IStorage {
    * Get agents with scope-aware filtering (SuperAdmin sees all orgs, others see their org)
    * Phase 1.2: Enhanced Agent Query Methods
    */
-  async getAgents(userContext: UserContext): Promise<any[]> {
+  async getAgents(userContext: UserContext, pagination?: { limit: number; offset: number }): Promise<{ agents: any[]; total: number }> {
     const scope = resolveDataScope(userContext);
     
     // Build base query conditions
@@ -3126,8 +3131,13 @@ export class DatabaseStorage implements IStorage {
       conditions.push(eq(users.organizationId, scope.organizationId));
     }
 
+    // Get total count for pagination
+    const [{ count }] = await db.select({ count: sql<number>`count(*)::int` })
+      .from(users)
+      .where(and(...conditions));
+
     // Query agents with organization data
-    const agents = await db.select({
+    let agentsQuery = db.select({
       id: users.id,
       email: users.email,
       role: users.role,
@@ -3136,6 +3146,13 @@ export class DatabaseStorage implements IStorage {
     })
     .from(users)
     .where(and(...conditions));
+
+    // Apply pagination if provided
+    if (pagination) {
+      agentsQuery = agentsQuery.limit(pagination.limit).offset(pagination.offset);
+    }
+
+    const agents = await agentsQuery;
 
     // Get organization details for each agent
     const agentsWithOrgs = await Promise.all(agents.map(async (agent) => {
@@ -3171,7 +3188,7 @@ export class DatabaseStorage implements IStorage {
       };
     }));
 
-    return agentsWithOrgs;
+    return { agents: agentsWithOrgs, total: count };
   }
 
   /**

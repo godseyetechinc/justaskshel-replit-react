@@ -2921,8 +2921,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ===== AGENT DIRECTORY AND COLLABORATION ENDPOINTS =====
   
   /**
-   * Phase 1: SuperAdmin Cross-Organization Access
+   * Phase 1-4: SuperAdmin Cross-Organization Access with Pagination
    * Scope-aware agent query endpoint - SuperAdmin sees all orgs, others see their org
+   * Query params: page (default 1), limit (default 50)
    */
   app.get("/api/agents", auth, async (req: any, res) => {
     try {
@@ -2933,6 +2934,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
 
+      // Parse pagination parameters
+      const page = Math.max(1, parseInt(req.query.page as string) || 1);
+      const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 50));
+      const offset = (page - 1) * limit;
+
       // Create user context for scope resolution
       const userContext = {
         userId: currentUser.id,
@@ -2940,9 +2946,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         organizationId: currentUser.organizationId,
       };
 
-      // Get agents with automatic scope resolution
-      const agents = await storage.getAgents(userContext);
-      res.json(agents);
+      // Get agents with automatic scope resolution and pagination
+      const result = await storage.getAgents(userContext, { limit, offset });
+      
+      // Return paginated response
+      res.json({
+        data: result.agents,
+        pagination: {
+          page,
+          limit,
+          total: result.total,
+          totalPages: Math.ceil(result.total / limit),
+          hasMore: offset + result.agents.length < result.total,
+        },
+      });
     } catch (error) {
       console.error("Error fetching agents:", error);
       res.status(500).json({ message: "Failed to fetch agents" });
