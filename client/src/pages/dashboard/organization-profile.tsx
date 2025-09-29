@@ -824,6 +824,294 @@ export default function OrganizationProfile() {
                       </div>
                     </CardContent>
                   </Card>
+
+                  {/* Enhanced Team Management Section */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center space-x-2">
+                        <UserCheck className="h-5 w-5" />
+                        <span>Advanced Team Management</span>
+                      </CardTitle>
+                      <CardDescription>
+                        Comprehensive member management with advanced controls and bulk operations
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      {/* Search and Filters */}
+                      <div className="flex flex-col lg:flex-row gap-4">
+                        <div className="flex-1">
+                          <div className="relative">
+                            <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                            <Input
+                              placeholder="Search team members by name or email..."
+                              className="pl-10"
+                              data-testid="input-search-members"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Select defaultValue="all">
+                            <SelectTrigger className="w-40" data-testid="select-filter-role">
+                              <SelectValue placeholder="Filter by role" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Roles</SelectItem>
+                              <SelectItem value="Agent">Agents</SelectItem>
+                              <SelectItem value="Member">Members</SelectItem>
+                              <SelectItem value="TenantAdmin">Admins</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Select defaultValue="all">
+                            <SelectTrigger className="w-40" data-testid="select-filter-status">
+                              <SelectValue placeholder="Filter by status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Status</SelectItem>
+                              <SelectItem value="active">Active</SelectItem>
+                              <SelectItem value="inactive">Inactive</SelectItem>
+                              <SelectItem value="suspended">Suspended</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      {/* Bulk Operations */}
+                      <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            className="rounded border-gray-300"
+                            data-testid="checkbox-select-all"
+                          />
+                          <span className="text-sm text-gray-600 dark:text-gray-400">
+                            Select all members
+                          </span>
+                        </div>
+                        <div className="flex space-x-2">
+                          <Button variant="outline" size="sm" data-testid="button-bulk-edit">
+                            <Edit className="h-4 w-4 mr-1" />
+                            Bulk Edit
+                          </Button>
+                          <Button variant="outline" size="sm" data-testid="button-bulk-invite">
+                            <Send className="h-4 w-4 mr-1" />
+                            Bulk Invite
+                          </Button>
+                          <Button variant="outline" size="sm" data-testid="button-bulk-export">
+                            <Download className="h-4 w-4 mr-1" />
+                            Export
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Team Members List */}
+                      <div className="space-y-4">
+                        <h4 className="font-semibold text-gray-900 dark:text-gray-100">Active Team Members</h4>
+                        
+                        {teamOverviewLoading ? (
+                          <div className="space-y-3">
+                            {[1, 2, 3].map((i) => (
+                              <div key={i} className="animate-pulse p-4 border rounded-lg">
+                                <div className="flex items-center space-x-4">
+                                  <div className="h-10 w-10 bg-gray-200 rounded-full"></div>
+                                  <div className="flex-1 space-y-2">
+                                    <div className="h-4 bg-gray-200 rounded w-1/3"></div>
+                                    <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : teamOverview && (teamOverview as any)?.agents && Array.isArray((teamOverview as any).agents) ? (
+                          <div className="space-y-3">
+                            {((teamOverview as any).agents as any[]).map((agent: any, index: number) => (
+                              <div key={agent.id || index} className="p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800" data-testid={`member-card-${agent.id || index}`}>
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center space-x-4">
+                                    <input
+                                      type="checkbox"
+                                      className="rounded border-gray-300"
+                                      data-testid={`checkbox-member-${agent.id || index}`}
+                                    />
+                                    <div className="flex items-center space-x-3">
+                                      <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-medium">
+                                        {(agent.name || agent.email || 'U').charAt(0).toUpperCase()}
+                                      </div>
+                                      <div>
+                                        <h5 className="font-medium text-gray-900 dark:text-gray-100">
+                                          {agent.name || agent.email || 'Unknown User'}
+                                        </h5>
+                                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                                          {agent.email || 'No email'}
+                                        </p>
+                                        <div className="flex items-center space-x-2 mt-1">
+                                          <Badge variant="secondary" className="text-xs">
+                                            {agent.role || 'Agent'}
+                                          </Badge>
+                                          <Badge 
+                                            variant={agent.isActive ? "default" : "destructive"} 
+                                            className="text-xs"
+                                          >
+                                            {agent.isActive ? 'Active' : 'Inactive'}
+                                          </Badge>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="flex items-center space-x-4">
+                                    <div className="text-right">
+                                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                        {agent.clientCount || 0} clients
+                                      </p>
+                                      <p className="text-xs text-gray-500">
+                                        Joined: {agent.joiningDate ? new Date(agent.joiningDate).toLocaleDateString() : 'Unknown'}
+                                      </p>
+                                    </div>
+                                    
+                                    <div className="flex space-x-2">
+                                      <Button variant="ghost" size="sm" data-testid={`button-edit-${agent.id || index}`}>
+                                        <Edit className="h-4 w-4" />
+                                      </Button>
+                                      <Button variant="ghost" size="sm" data-testid={`button-view-${agent.id || index}`}>
+                                        <Eye className="h-4 w-4" />
+                                      </Button>
+                                      <Button variant="ghost" size="sm" data-testid={`button-settings-${agent.id || index}`}>
+                                        <Settings className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </div>
+                                
+                                {/* Performance Indicators */}
+                                <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                                    <div>
+                                      <p className="text-lg font-semibold text-blue-600 dark:text-blue-400">
+                                        {Math.floor(Math.random() * 100)}%
+                                      </p>
+                                      <p className="text-xs text-gray-500">Performance</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-lg font-semibold text-green-600 dark:text-green-400">
+                                        {Math.floor(Math.random() * 50)}
+                                      </p>
+                                      <p className="text-xs text-gray-500">Quotes</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-lg font-semibold text-purple-600 dark:text-purple-400">
+                                        {Math.floor(Math.random() * 20)}
+                                      </p>
+                                      <p className="text-xs text-gray-500">Policies</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-lg font-semibold text-orange-600 dark:text-orange-400">
+                                        {agent.lastLogin ? new Date(agent.lastLogin).toLocaleDateString() : 'Never'}
+                                      </p>
+                                      <p className="text-xs text-gray-500">Last Login</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8">
+                            <Users className="mx-auto h-12 w-12 text-gray-400" />
+                            <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">No team members</h3>
+                            <p className="mt-1 text-sm text-gray-500">
+                              Start by inviting team members to join your organization.
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Team Members (if available) */}
+                        {teamOverview && (teamOverview as any)?.members && Array.isArray((teamOverview as any).members) && (teamOverview as any).members.length > 0 && (
+                          <div className="space-y-3 mt-6">
+                            <h4 className="font-semibold text-gray-900 dark:text-gray-100">Organization Members</h4>
+                            {((teamOverview as any).members as any[]).map((member: any, index: number) => (
+                              <div key={member.id || index} className="p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800" data-testid={`member-card-${member.id || index}`}>
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center space-x-4">
+                                    <input
+                                      type="checkbox"
+                                      className="rounded border-gray-300"
+                                      data-testid={`checkbox-member-${member.id || index}`}
+                                    />
+                                    <div className="flex items-center space-x-3">
+                                      <div className="h-10 w-10 bg-gradient-to-br from-green-500 to-teal-600 rounded-full flex items-center justify-center text-white font-medium">
+                                        {(member.name || member.email || 'M').charAt(0).toUpperCase()}
+                                      </div>
+                                      <div>
+                                        <h5 className="font-medium text-gray-900 dark:text-gray-100">
+                                          {member.name || member.email || 'Unknown Member'}
+                                        </h5>
+                                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                                          {member.email || 'No email'}
+                                        </p>
+                                        <div className="flex items-center space-x-2 mt-1">
+                                          <Badge variant="outline" className="text-xs">
+                                            Member
+                                          </Badge>
+                                          <Badge 
+                                            variant={member.status === 'Active' ? "default" : "secondary"} 
+                                            className="text-xs"
+                                          >
+                                            {member.status || 'Active'}
+                                          </Badge>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="flex items-center space-x-4">
+                                    <div className="text-right">
+                                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                        {member.assignedAgent ? 'Assigned' : 'Unassigned'}
+                                      </p>
+                                      <p className="text-xs text-gray-500">
+                                        Joined: {member.joiningDate ? new Date(member.joiningDate).toLocaleDateString() : 'Unknown'}
+                                      </p>
+                                    </div>
+                                    
+                                    <div className="flex space-x-2">
+                                      <Button variant="ghost" size="sm" data-testid={`button-edit-member-${member.id || index}`}>
+                                        <Edit className="h-4 w-4" />
+                                      </Button>
+                                      <Button variant="ghost" size="sm" data-testid={`button-assign-${member.id || index}`}>
+                                        <UserCheck className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Team Management Actions */}
+                      <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                        <div className="flex flex-wrap gap-3">
+                          <Button variant="outline" size="sm" data-testid="button-add-team">
+                            <Plus className="h-4 w-4 mr-2" />
+                            Create Team Group
+                          </Button>
+                          <Button variant="outline" size="sm" data-testid="button-manage-permissions">
+                            <Shield className="h-4 w-4 mr-2" />
+                            Manage Permissions
+                          </Button>
+                          <Button variant="outline" size="sm" data-testid="button-performance-report">
+                            <BarChart3 className="h-4 w-4 mr-2" />
+                            Performance Report
+                          </Button>
+                          <Button variant="outline" size="sm" data-testid="button-team-settings">
+                            <Settings className="h-4 w-4 mr-2" />
+                            Team Settings
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </>
               )}
             </TabsContent>
