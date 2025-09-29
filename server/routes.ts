@@ -2591,7 +2591,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Not authenticated" });
       }
 
-      const achievements = await achievementService.getUserAchievements(userId);
+      // Return all achievements for the achievements gallery page
+      const achievements = await achievementService.getAllAchievements();
       res.json(achievements);
     } catch (error) {
       console.error("Error fetching achievements:", error);
