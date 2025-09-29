@@ -145,6 +145,7 @@ CREATE TABLE organization_invitations (
 
 **New Features:**
 - **Team Management**: View, invite, and manage organization members
+- **Permission Management**: Configure role-based and user-specific permissions
 - **Agent Performance**: Track agent activities, quotes, and conversions
 - **Client Relationship Management**: Organize client assignments and interactions
 - **Subscription Management**: View usage, upgrade/downgrade plans, billing history
@@ -153,6 +154,7 @@ CREATE TABLE organization_invitations (
 **UI Components:**
 - `OrganizationDashboard.tsx` - Main overview with key metrics
 - `TeamManagement.tsx` - Member management with invitation system
+- `PermissionMatrix.tsx` - Visual permission management interface
 - `ClientAssignment.tsx` - Client-agent relationship management
 - `OrganizationAnalytics.tsx` - Performance metrics and insights
 
@@ -173,6 +175,54 @@ CREATE TABLE organization_invitations (
 - **Transfer Capabilities**: Move clients between agents with proper handoff
 - **Activity Tracking**: Track all client interactions across the organization
 - **Performance Metrics**: Client satisfaction, conversion rates per agent
+
+### **Phase 2.5: Fine-Grained Permission System**
+
+#### **2.5.1 Feature-Based Permission Framework**
+**Objective**: Implement comprehensive CRUD permission system for all application features
+
+**Implementation:**
+- **Feature Registration**: Catalog all application features with their permission requirements
+- **Permission Types**: Define standard CRUD operations (Create, Read, Update, Delete, Manage)
+- **Role-Based Matrix**: Default permission templates for each role within organizations
+- **User Overrides**: Individual user permission exceptions and temporary grants
+- **Permission Inheritance**: Hierarchical permission inheritance with override capabilities
+
+**Core Features:**
+```typescript
+// Application features to be managed
+const APPLICATION_FEATURES = [
+  'members', 'policies', 'quotes', 'claims', 'analytics', 
+  'organizations', 'invitations', 'reports', 'settings',
+  'providers', 'commissions', 'notifications', 'achievements',
+  'points', 'rewards', 'referrals', 'documents'
+];
+
+// Permission types
+const PERMISSION_TYPES = [
+  'create', 'read', 'update', 'delete', 'manage', 'approve'
+];
+```
+
+#### **2.5.2 Permission Management Interface**
+**Objective**: Provide intuitive UI for permission administration
+
+**Features:**
+- **Permission Matrix View**: Grid showing roles vs features with permission checkboxes
+- **Bulk Permission Assignment**: Apply permission templates across multiple roles/users
+- **Permission Conflicts Resolution**: Handle conflicts between role and user-specific permissions
+- **Permission Testing**: Preview mode to test permission changes before applying
+- **Audit Trail**: Complete history of permission changes with rollback capabilities
+
+#### **2.5.3 Runtime Permission Enforcement**
+**Objective**: Secure application with real-time permission checking
+
+**Implementation:**
+- **Middleware Protection**: API route protection based on feature permissions
+- **UI Component Guards**: Conditional rendering based on user permissions
+- **Bulk Permission Checks**: Efficient checking for dashboard and list views
+- **Permission Caching**: Redis-backed permission cache for performance
+- **Real-time Updates**: WebSocket updates when permissions change
 
 ### **Phase 3: Advanced Multi-Tenant Features**
 
@@ -240,13 +290,20 @@ CREATE TABLE organization_invitations (
 3. **User-Organization Assignment**: Improved assignment and context management
 4. **Enhanced Organization Dashboard**: Expanded management capabilities
 
-### **Priority 3: Advanced Features (Week 5-6)**
+### **Priority 2.5: Permission System (Week 4-5)**
+1. **Permission Database Schema**: Implement fine-grained permission tables
+2. **Feature Registration**: Catalog and register all application features
+3. **Permission Matrix UI**: Build intuitive permission management interface
+4. **Runtime Permission Checks**: Implement middleware and UI guards
+5. **Permission Migration**: Migrate existing role system to new permission framework
+
+### **Priority 3: Advanced Features (Week 6-7)**
 1. **Agent Directory**: Internal organization directory and collaboration tools
 2. **Client Management**: Enhanced client assignment and tracking
 3. **Analytics Foundation**: Basic organization and agent performance metrics
 4. **Provider Customization**: Organization-specific provider configurations
 
-### **Priority 4: Platform Enhancement (Week 7-8)**
+### **Priority 4: Platform Enhancement (Week 8-9)**
 1. **Organization Marketplace**: Public directory and application system
 2. **Advanced Analytics**: Comprehensive reporting and insights
 3. **Branding Customization**: White-label capabilities and custom domains
@@ -285,10 +342,65 @@ CREATE TABLE client_assignments (
 -- Organization settings enhancement
 ALTER TABLE agent_organizations 
 ADD COLUMN custom_domain VARCHAR(255),
-ADD COLUMN email_settings JSONB,
-ADD COLUMN workflow_settings JSONB,
-ADD COLUMN branding_settings JSONB;
+ADD COLUMN email_from_name VARCHAR(255),
+ADD COLUMN email_from_address VARCHAR(255),
+ADD COLUMN logo_url VARCHAR(500),
+ADD COLUMN primary_color VARCHAR(7),
+ADD COLUMN secondary_color VARCHAR(7);
 ```
+
+-- Fine-grained permission system
+CREATE TABLE application_features (
+  id SERIAL PRIMARY KEY,
+  feature_name VARCHAR(100) NOT NULL UNIQUE,
+  feature_category VARCHAR(50) NOT NULL,
+  description TEXT,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE permission_types (
+  id SERIAL PRIMARY KEY,
+  permission_name VARCHAR(50) NOT NULL UNIQUE, -- 'create', 'read', 'update', 'delete', 'manage'
+  description TEXT
+);
+
+CREATE TABLE role_feature_permissions (
+  id SERIAL PRIMARY KEY,
+  organization_id INTEGER REFERENCES agent_organizations(id),
+  user_role VARCHAR(50) NOT NULL, -- 'SuperAdmin', 'TenantAdmin', 'Agent', 'Member', 'Guest'
+  feature_id INTEGER REFERENCES application_features(id),
+  permission_id INTEGER REFERENCES permission_types(id),
+  is_granted BOOLEAN DEFAULT false,
+  granted_by VARCHAR REFERENCES users(id),
+  granted_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(organization_id, user_role, feature_id, permission_id)
+);
+
+CREATE TABLE user_specific_permissions (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR REFERENCES users(id),
+  organization_id INTEGER REFERENCES agent_organizations(id),
+  feature_id INTEGER REFERENCES application_features(id),
+  permission_id INTEGER REFERENCES permission_types(id),
+  is_granted BOOLEAN DEFAULT false,
+  granted_by VARCHAR REFERENCES users(id),
+  expires_at TIMESTAMP,
+  granted_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(user_id, organization_id, feature_id, permission_id)
+);
+
+-- Permission audit trail
+CREATE TABLE permission_audit_log (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR REFERENCES users(id),
+  organization_id INTEGER REFERENCES agent_organizations(id),
+  feature_id INTEGER REFERENCES application_features(id),
+  permission_id INTEGER REFERENCES permission_types(id),
+  action VARCHAR(20) NOT NULL, -- 'granted', 'revoked', 'checked'
+  granted_by VARCHAR REFERENCES users(id),
+  created_at TIMESTAMP DEFAULT NOW()
+);
 
 ### **API Enhancements Required:**
 ```typescript
@@ -298,6 +410,14 @@ POST /api/organizations/:id/invite - Send organization invitation
 POST /api/organizations/:id/members - Manage organization members
 GET /api/organizations/public - Public organization directory
 POST /api/invitations/:token/accept - Accept organization invitation
+
+// Permission management endpoints
+GET /api/organizations/:id/permissions - Get organization permission matrix
+PUT /api/organizations/:id/permissions - Update role-based permissions
+GET /api/organizations/:id/permissions/users/:userId - Get user-specific permissions
+PUT /api/organizations/:id/permissions/users/:userId - Update user-specific permissions
+GET /api/features - Get all application features
+POST /api/permissions/check - Bulk permission check for current user
 ```
 
 ### **UI Components to Create/Enhance:**
@@ -308,6 +428,9 @@ OrganizationInviteModal.tsx - Invitation management
 TeamManagement.tsx - Member management dashboard
 ClientAssignment.tsx - Client-agent relationship management
 OrganizationMarketplace.tsx - Public organization discovery
+PermissionMatrix.tsx - Role-based permission management
+UserPermissionOverride.tsx - User-specific permission overrides
+FeatureAccessControl.tsx - Feature-level access control wrapper
 
 // Enhanced components
 signup.tsx - Add organization creation flow
@@ -328,6 +451,8 @@ organization-profile.tsx - Expand management capabilities
 - ✅ **Organization Growth**: Enable 3x faster organization expansion through invitation system
 - ✅ **Agent Productivity**: 40% improvement in agent performance through better tools and analytics
 - ✅ **Client Management**: 50% reduction in client assignment errors and better tracking
+- ✅ **Security Enhancement**: 90% reduction in permission-related security incidents through fine-grained access control
+- ✅ **Compliance Improvement**: 100% audit trail coverage for all permission changes and access attempts
 
 ### **Platform Scalability:**
 - ✅ **Multi-Tenant Efficiency**: Support 10x more organizations with proper data isolation
@@ -347,6 +472,6 @@ This comprehensive improvement plan addresses all identified issues with the mul
 
 **Ready for Implementation**: This plan provides a clear roadmap for transforming the current basic multi-tenancy into a comprehensive agent organization platform that rivals enterprise-grade solutions.
 
-**Estimated Timeline**: 8 weeks for complete implementation across 4 priority phases
+**Estimated Timeline**: 9 weeks for complete implementation across 4 priority phases plus permission system
 **Resource Requirements**: Frontend & backend development, UI/UX design, database optimization
 **Business Impact**: Significant improvement in agent productivity, organization management, and platform scalability
