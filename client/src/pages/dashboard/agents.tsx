@@ -28,6 +28,11 @@ interface AgentProfile {
   email: string;
   role: string;
   isActive: boolean;
+  organization?: {
+    id: number;
+    name: string;
+    displayName: string;
+  };
   profile?: {
     id: number;
     specializations: string[];
@@ -53,13 +58,11 @@ export default function AgentsPage() {
   const { hasMinimumPrivilegeLevel } = useRoleAuth();
   const { user } = useAuth();
 
-  // Fetch agents in organization
-  // For SuperAdmin users (privilegeLevel 0), use a different approach since they don't have agents in their SYSTEM_PLATFORM org
-  const isSuperAdmin = user?.privilegeLevel === 0;
-  
+  // Fetch agents with scope awareness - SuperAdmin sees all orgs, others see their org
+  // Phase 1: SuperAdmin Cross-Organization Access
   const { data: agents, isLoading } = useQuery({
-    queryKey: isSuperAdmin ? ["/api/organizations", 2, "agents"] : ["/api/organizations", user?.organizationId, "agents"], // Use demo-org (ID 2) for SuperAdmin
-    enabled: hasMinimumPrivilegeLevel(2) && (isSuperAdmin || !!user?.organizationId),
+    queryKey: ["/api/agents"],
+    enabled: hasMinimumPrivilegeLevel(2),
   }) as { data: AgentProfile[] | undefined; isLoading: boolean };
 
   const filteredAgents = agents?.filter(agent => {
@@ -216,6 +219,12 @@ export default function AgentsPage() {
                     <CardTitle className="text-lg" data-testid={`agent-email-${agent.id}`}>
                       {agent.email}
                     </CardTitle>
+                    {/* Organization Badge - Phase 1: SuperAdmin Cross-Organization Access */}
+                    {agent.organization && user?.privilegeLevel === 0 && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {agent.organization.displayName || agent.organization.name}
+                      </p>
+                    )}
                     <div className="flex items-center gap-2 mt-1">
                       <Badge variant={agent.profile?.isAcceptingNewClients ? "default" : "secondary"}>
                         {agent.profile?.isAcceptingNewClients ? "Available" : "Busy"}
