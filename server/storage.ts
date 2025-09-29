@@ -3016,6 +3016,152 @@ export class DatabaseStorage implements IStorage {
       growthRate,
     };
   }
+
+  // ===== AGENT DIRECTORY AND COLLABORATION METHODS =====
+  
+  async getOrganizationAgents(organizationId: number): Promise<any[]> {
+    const agents = await db.select({
+      id: users.id,
+      email: users.email,
+      role: users.role,
+      isActive: users.isActive,
+      profile: {
+        id: agentProfiles.id,
+        specializations: agentProfiles.specializations,
+        bio: agentProfiles.bio,
+        yearsExperience: agentProfiles.yearsExperience,
+        languagesSpoken: agentProfiles.languagesSpoken,
+        certifications: agentProfiles.certifications,
+        contactPreferences: agentProfiles.contactPreferences,
+        availabilitySchedule: agentProfiles.availabilitySchedule,
+        clientCapacity: agentProfiles.clientCapacity,
+        currentClientCount: agentProfiles.currentClientCount,
+        isAcceptingNewClients: agentProfiles.isAcceptingNewClients,
+        performanceRating: agentProfiles.performanceRating,
+        lastActiveAt: agentProfiles.lastActiveAt,
+      }
+    })
+    .from(users)
+    .leftJoin(agentProfiles, eq(users.id, agentProfiles.userId))
+    .where(
+      and(
+        eq(users.organizationId, organizationId),
+        eq(users.role, 'Agent'),
+        eq(users.isActive, true)
+      )
+    );
+
+    return agents;
+  }
+
+  async searchAgents(organizationId: number, filters: {
+    specializations?: string[];
+    availableNow?: boolean;
+    acceptingClients?: boolean;
+    languages?: string[];
+    experienceMin?: number;
+    ratingMin?: number;
+  }): Promise<any[]> {
+    let query = db.select({
+      id: users.id,
+      email: users.email,
+      role: users.role,
+      isActive: users.isActive,
+      profile: {
+        id: agentProfiles.id,
+        specializations: agentProfiles.specializations,
+        bio: agentProfiles.bio,
+        yearsExperience: agentProfiles.yearsExperience,
+        languagesSpoken: agentProfiles.languagesSpoken,
+        certifications: agentProfiles.certifications,
+        contactPreferences: agentProfiles.contactPreferences,
+        availabilitySchedule: agentProfiles.availabilitySchedule,
+        clientCapacity: agentProfiles.clientCapacity,
+        currentClientCount: agentProfiles.currentClientCount,
+        isAcceptingNewClients: agentProfiles.isAcceptingNewClients,
+        performanceRating: agentProfiles.performanceRating,
+        lastActiveAt: agentProfiles.lastActiveAt,
+      }
+    })
+    .from(users)
+    .leftJoin(agentProfiles, eq(users.id, agentProfiles.userId))
+    .where(
+      and(
+        eq(users.organizationId, organizationId),
+        eq(users.role, 'Agent'),
+        eq(users.isActive, true),
+        filters.acceptingClients !== undefined ? eq(agentProfiles.isAcceptingNewClients, filters.acceptingClients) : undefined,
+        filters.experienceMin !== undefined ? gte(agentProfiles.yearsExperience, filters.experienceMin) : undefined,
+        filters.ratingMin !== undefined ? gte(agentProfiles.performanceRating, sql`${filters.ratingMin}`) : undefined
+      )
+    );
+
+    return await query;
+  }
+
+  async getAgentProfile(userId: string): Promise<any | null> {
+    const [result] = await db.select({
+      id: users.id,
+      email: users.email,
+      role: users.role,
+      organizationId: users.organizationId,
+      isActive: users.isActive,
+      profile: {
+        id: agentProfiles.id,
+        specializations: agentProfiles.specializations,
+        bio: agentProfiles.bio,
+        licenseNumber: agentProfiles.licenseNumber,
+        yearsExperience: agentProfiles.yearsExperience,
+        languagesSpoken: agentProfiles.languagesSpoken,
+        certifications: agentProfiles.certifications,
+        contactPreferences: agentProfiles.contactPreferences,
+        availabilitySchedule: agentProfiles.availabilitySchedule,
+        profileImageUrl: agentProfiles.profileImageUrl,
+        clientCapacity: agentProfiles.clientCapacity,
+        currentClientCount: agentProfiles.currentClientCount,
+        isAcceptingNewClients: agentProfiles.isAcceptingNewClients,
+        collaborationPreferences: agentProfiles.collaborationPreferences,
+        performanceRating: agentProfiles.performanceRating,
+        lastActiveAt: agentProfiles.lastActiveAt,
+        isActive: agentProfiles.isActive,
+      }
+    })
+    .from(users)
+    .leftJoin(agentProfiles, eq(users.id, agentProfiles.userId))
+    .where(eq(users.id, userId));
+
+    return result || null;
+  }
+
+  async updateAgentProfile(userId: string, profileData: any): Promise<any> {
+    // Check if profile exists
+    const [existingProfile] = await db.select({ id: agentProfiles.id })
+      .from(agentProfiles)
+      .where(eq(agentProfiles.userId, userId));
+
+    if (existingProfile) {
+      // Update existing profile
+      const [updated] = await db
+        .update(agentProfiles)
+        .set({
+          ...profileData,
+          updatedAt: new Date(),
+        })
+        .where(eq(agentProfiles.userId, userId))
+        .returning();
+      return updated;
+    } else {
+      // Create new profile
+      const [created] = await db
+        .insert(agentProfiles)
+        .values({
+          userId,
+          ...profileData,
+        })
+        .returning();
+      return created;
+    }
+  }
 }
 
 export const storage = new DatabaseStorage();

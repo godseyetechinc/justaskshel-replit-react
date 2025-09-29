@@ -387,6 +387,7 @@ export const organizationInvitations = pgTable("organization_invitations", {
   index("idx_organization_invitations_token").on(table.invitationToken),
 ]);
 
+
 // Contacts - general contact information
 export const contacts = pgTable("contacts", {
   id: serial("id").primaryKey(),

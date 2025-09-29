@@ -2697,6 +2697,116 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== AGENT DIRECTORY AND COLLABORATION ENDPOINTS =====
+  
+  // Get all agents in organization
+  app.get("/api/organizations/:id/agents", auth, async (req: any, res) => {
+    try {
+      const organizationId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Check access permissions
+      if (currentUser.privilegeLevel > 2 && currentUser.organizationId !== organizationId) {
+        return res.status(403).json({ message: "Access denied." });
+      }
+
+      const agents = await storage.getOrganizationAgents(organizationId);
+      res.json(agents);
+    } catch (error) {
+      console.error("Error fetching organization agents:", error);
+      res.status(500).json({ message: "Failed to fetch organization agents" });
+    }
+  });
+
+  // Search and filter agents
+  app.get("/api/organizations/:id/agents/search", auth, async (req: any, res) => {
+    try {
+      const organizationId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Check access permissions
+      if (currentUser.privilegeLevel > 2 && currentUser.organizationId !== organizationId) {
+        return res.status(403).json({ message: "Access denied." });
+      }
+
+      const filters = {
+        specializations: req.query.specializations ? JSON.parse(req.query.specializations as string) : undefined,
+        acceptingClients: req.query.acceptingClients ? req.query.acceptingClients === 'true' : undefined,
+        languages: req.query.languages ? JSON.parse(req.query.languages as string) : undefined,
+        experienceMin: req.query.experienceMin ? parseInt(req.query.experienceMin as string) : undefined,
+        ratingMin: req.query.ratingMin ? parseFloat(req.query.ratingMin as string) : undefined,
+      };
+
+      const agents = await storage.searchAgents(organizationId, filters);
+      res.json(agents);
+    } catch (error) {
+      console.error("Error searching agents:", error);
+      res.status(500).json({ message: "Failed to search agents" });
+    }
+  });
+
+  // Get agent profile details
+  app.get("/api/agents/:id/profile", auth, async (req: any, res) => {
+    try {
+      const agentId = req.params.id;
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const agentProfile = await storage.getAgentProfile(agentId);
+      if (!agentProfile) {
+        return res.status(404).json({ message: "Agent profile not found" });
+      }
+
+      // Check access permissions - only allow access within same organization or for SuperAdmin
+      if (currentUser.privilegeLevel > 0 && currentUser.organizationId !== agentProfile.organizationId) {
+        return res.status(403).json({ message: "Access denied." });
+      }
+
+      res.json(agentProfile);
+    } catch (error) {
+      console.error("Error fetching agent profile:", error);
+      res.status(500).json({ message: "Failed to fetch agent profile" });
+    }
+  });
+
+  // Update agent profile
+  app.put("/api/agents/:id/profile", auth, async (req: any, res) => {
+    try {
+      const agentId = req.params.id;
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Only allow agents to update their own profile or TenantAdmin/SuperAdmin to update any profile
+      if (currentUser.id !== agentId && currentUser.privilegeLevel > 1) {
+        return res.status(403).json({ message: "Access denied. Can only update your own profile." });
+      }
+
+      const updatedProfile = await storage.updateAgentProfile(agentId, req.body);
+      res.json(updatedProfile);
+    } catch (error) {
+      console.error("Error updating agent profile:", error);
+      res.status(500).json({ message: "Failed to update agent profile" });
+    }
+  });
+
   // Client Assignment Management
   app.get("/api/organizations/:id/client-assignments", auth, async (req: any, res) => {
     try {
