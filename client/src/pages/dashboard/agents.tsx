@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { 
   Search, 
   Star, 
@@ -17,11 +19,14 @@ import {
   Clock,
   CheckCircle,
   Filter,
-  UserCheck
+  UserCheck,
+  LayoutGrid,
+  List
 } from "lucide-react";
 import DashboardLayout from "@/components/dashboard-layout";
 import { useRoleAuth } from "@/hooks/useRoleAuth";
 import { useAuth } from "@/hooks/useAuth";
+import { OrganizationBadge } from "@/components/organization-badge";
 
 interface AgentProfile {
   id: string;
@@ -55,6 +60,8 @@ export default function AgentsPage() {
   const [specializationFilter, setSpecializationFilter] = useState("all");
   const [availabilityFilter, setAvailabilityFilter] = useState("all");
   const [experienceFilter, setExperienceFilter] = useState("all");
+  const [organizationFilter, setOrganizationFilter] = useState("all");
+  const [groupByOrganization, setGroupByOrganization] = useState(false);
   const { hasMinimumPrivilegeLevel } = useRoleAuth();
   const { user } = useAuth();
 
@@ -83,9 +90,34 @@ export default function AgentsPage() {
                            (experienceFilter === "junior" && (agent.profile?.yearsExperience || 0) < 3) ||
                            (experienceFilter === "mid" && (agent.profile?.yearsExperience || 0) >= 3 && (agent.profile?.yearsExperience || 0) < 8) ||
                            (experienceFilter === "senior" && (agent.profile?.yearsExperience || 0) >= 8);
+    
+    const organizationMatch = organizationFilter === "all" || 
+                             agent.organization?.id.toString() === organizationFilter;
 
-    return searchMatch && specializationMatch && availabilityMatch && experienceMatch;
+    return searchMatch && specializationMatch && availabilityMatch && experienceMatch && organizationMatch;
   }) || [];
+
+  // Get unique organizations for filter dropdown
+  const organizations = Array.from(
+    new Map(
+      agents?.map(agent => agent.organization).filter(Boolean).map(org => [org!.id, org])
+    ).values()
+  ).sort((a, b) => (a?.id ?? 0) - (b?.id ?? 0));
+
+  // Group agents by organization if enabled
+  const groupedAgents = groupByOrganization
+    ? filteredAgents.reduce((acc, agent) => {
+        const orgKey = agent.organization?.id.toString() || 'unknown';
+        if (!acc[orgKey]) {
+          acc[orgKey] = {
+            organization: agent.organization,
+            agents: []
+          };
+        }
+        acc[orgKey].agents.push(agent);
+        return acc;
+      }, {} as Record<string, { organization: AgentProfile['organization']; agents: AgentProfile[] }>)
+    : null;
 
   const getExperienceLevel = (years: number) => {
     if (years < 3) return "Junior";
@@ -135,7 +167,7 @@ export default function AgentsPage() {
               Agent Directory
             </h1>
             <p className="text-muted-foreground">
-              Find and connect with agents in your organization
+              {user?.privilegeLevel === 0 ? "Find and connect with agents across all organizations" : "Find and connect with agents in your organization"}
             </p>
           </div>
         </div>
@@ -200,13 +232,49 @@ export default function AgentsPage() {
                 </Select>
               </div>
             </div>
+            
+            {/* SuperAdmin Organization Filter and Grouping - Phase 3 */}
+            {user?.privilegeLevel === 0 && organizations.length > 0 && (
+              <div className="border-t pt-4 mt-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Select value={organizationFilter} onValueChange={setOrganizationFilter}>
+                      <SelectTrigger data-testid="filter-organization">
+                        <SelectValue placeholder="Organization" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Organizations</SelectItem>
+                        {organizations.map((org) => org && (
+                          <SelectItem key={org.id} value={org.id.toString()}>
+                            {org.displayName || org.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="group-by-org"
+                      checked={groupByOrganization}
+                      onCheckedChange={setGroupByOrganization}
+                      data-testid="toggle-grouping"
+                    />
+                    <Label htmlFor="group-by-org" className="flex items-center gap-2 cursor-pointer">
+                      {groupByOrganization ? <LayoutGrid className="h-4 w-4" /> : <List className="h-4 w-4" />}
+                      Group by Organization
+                    </Label>
+                  </div>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        {/* Agents Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" data-testid="agents-grid">
-          {filteredAgents.map((agent) => (
-            <Card key={agent.id} className="hover:shadow-lg transition-shadow" data-testid={`agent-card-${agent.id}`}>
+        {/* Agents Grid - Flat or Grouped */}
+        {!groupByOrganization ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" data-testid="agents-grid">
+            {filteredAgents.map((agent) => (
+              <Card key={agent.id} className="hover:shadow-lg transition-shadow" data-testid={`agent-card-${agent.id}`}>
               <CardHeader className="pb-3">
                 <div className="flex items-center gap-4">
                   <Avatar className="h-16 w-16">
@@ -219,11 +287,11 @@ export default function AgentsPage() {
                     <CardTitle className="text-lg" data-testid={`agent-email-${agent.id}`}>
                       {agent.email}
                     </CardTitle>
-                    {/* Organization Badge - Phase 1: SuperAdmin Cross-Organization Access */}
+                    {/* Organization Badge - Phase 3: Enhanced UI */}
                     {agent.organization && user?.privilegeLevel === 0 && (
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {agent.organization.displayName || agent.organization.name}
-                      </p>
+                      <div className="mt-1">
+                        <OrganizationBadge organization={agent.organization} showIcon={false} />
+                      </div>
                     )}
                     <div className="flex items-center gap-2 mt-1">
                       <Badge variant={agent.profile?.isAcceptingNewClients ? "default" : "secondary"}>
@@ -296,8 +364,109 @@ export default function AgentsPage() {
                 </div>
               </CardContent>
             </Card>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-8">
+            {Object.entries(groupedAgents || {}).map(([orgKey, { organization, agents: orgAgents }]) => (
+              <div key={orgKey}>
+                <div className="mb-4">
+                  {organization ? (
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-2xl font-bold">{organization.displayName || organization.name}</h2>
+                      <Badge variant="outline">{orgAgents.length} agents</Badge>
+                    </div>
+                  ) : (
+                    <h2 className="text-2xl font-bold">Unknown Organization</h2>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" data-testid={`agents-grid-org-${orgKey}`}>
+                  {orgAgents.map((agent) => (
+                    <Card key={agent.id} className="hover:shadow-lg transition-shadow" data-testid={`agent-card-${agent.id}`}>
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center gap-4">
+                          <Avatar className="h-16 w-16">
+                            <AvatarImage src={""} alt={agent.email} />
+                            <AvatarFallback className="text-lg font-semibold">
+                              {getInitials(agent.email)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <CardTitle className="text-lg" data-testid={`agent-email-${agent.id}`}>
+                              {agent.email}
+                            </CardTitle>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Badge variant={agent.profile?.isAcceptingNewClients ? "default" : "secondary"}>
+                                {agent.profile?.isAcceptingNewClients ? "Available" : "Busy"}
+                              </Badge>
+                              <Badge variant="outline">
+                                {getExperienceLevel(agent.profile?.yearsExperience || 0)}
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      
+                      <CardContent className="space-y-4">
+                        {agent.profile?.performanceRating && (
+                          <div data-testid={`agent-rating-${agent.id}`}>
+                            {renderStarRating(agent.profile.performanceRating)}
+                          </div>
+                        )}
+
+                        {agent.profile?.specializations && (
+                          <div>
+                            <p className="text-sm font-medium text-muted-foreground mb-2">Specializations:</p>
+                            <div className="flex flex-wrap gap-1">
+                              {agent.profile.specializations.slice(0, 3).map((spec) => (
+                                <Badge key={spec} variant="outline" className="text-xs">
+                                  {spec}
+                                </Badge>
+                              ))}
+                              {agent.profile.specializations.length > 3 && (
+                                <Badge variant="outline" className="text-xs">
+                                  +{agent.profile.specializations.length - 3} more
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <Clock className="h-4 w-4" />
+                            {agent.profile?.yearsExperience || 0} years
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Users className="h-4 w-4" />
+                            {agent.profile?.currentClientCount || 0}/{agent.profile?.clientCapacity || 0}
+                          </div>
+                        </div>
+
+                        {agent.profile?.bio && (
+                          <p className="text-sm text-muted-foreground line-clamp-2">
+                            {agent.profile.bio}
+                          </p>
+                        )}
+
+                        <div className="flex gap-2 pt-2">
+                          <Button size="sm" className="flex-1" data-testid={`contact-agent-${agent.id}`}>
+                            <Mail className="h-4 w-4 mr-1" />
+                            Contact
+                          </Button>
+                          <Button size="sm" variant="outline" data-testid={`view-profile-${agent.id}`}>
+                            <UserCheck className="h-4 w-4 mr-1" />
+                            Profile
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* No Results */}
         {filteredAgents.length === 0 && !isLoading && (
@@ -315,7 +484,10 @@ export default function AgentsPage() {
                   setSpecializationFilter("all");
                   setAvailabilityFilter("all");
                   setExperienceFilter("all");
+                  setOrganizationFilter("all");
+                  setGroupByOrganization(false);
                 }}
+                data-testid="clear-filters"
               >
                 Clear Filters
               </Button>
