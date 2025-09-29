@@ -2083,36 +2083,58 @@ export class DatabaseStorage implements IStorage {
     const orgUserIds = await db.select({ id: users.id }).from(users)
       .where(eq(users.organizationId, organizationId));
     
-    const userIdList = orgUserIds.map(u => u.id);
-    const [quoteStats] = userIdList.length > 0 ? await db.select({
-      totalQuotes: count(),
-    }).from(insuranceQuotes).where(
-      sql`${insuranceQuotes.userId} = ANY(${userIdList})`
-    ) : [{ totalQuotes: 0 }];
+    let quoteStats = { totalQuotes: 0 };
+    if (orgUserIds.length > 0) {
+      const userIdList = orgUserIds.map(u => u.id);
+      const [quotesResult] = await db.select({
+        totalQuotes: count(),
+      }).from(insuranceQuotes).where(
+        sql`${insuranceQuotes.userId} IN (${sql.join(userIdList.map(id => sql`${id}`), sql`, `)})`
+      );
+      quoteStats = quotesResult || { totalQuotes: 0 };
+    }
 
-    // Count policies for organization members
-    const [policyStats] = await db.select({
-      totalPolicies: count(),
-    }).from(policies)
-      .innerJoin(members, eq(policies.memberId, members.id))
-      .where(eq(members.organizationId, organizationId));
+    // Count policies for organization members (gracefully handle missing table)
+    let policyStats = { totalPolicies: 0 };
+    try {
+      const [result] = await db.select({
+        totalPolicies: count(),
+      }).from(policies)
+        .innerJoin(members, eq(policies.memberId, members.id))
+        .where(eq(members.organizationId, organizationId));
+      policyStats = result || { totalPolicies: 0 };
+    } catch (error) {
+      console.log("Policies table not available, using default value");
+    }
 
-    // Count claims for organization members
-    const [claimStats] = await db.select({
-      totalClaims: count(),
-    }).from(claims)
-      .innerJoin(members, eq(claims.memberId, members.id))
-      .where(eq(members.organizationId, organizationId));
+    // Count claims for organization members (gracefully handle missing table)
+    let claimStats = { totalClaims: 0 };
+    try {
+      const [result] = await db.select({
+        totalClaims: count(),
+      }).from(claims)
+        .innerJoin(members, eq(claims.memberId, members.id))
+        .where(eq(members.organizationId, organizationId));
+      claimStats = result || { totalClaims: 0 };
+    } catch (error) {
+      console.log("Claims table not available, using default value");
+    }
 
-    // Count pending invitations
-    const [invitationStats] = await db.select({
-      pendingInvitations: count(),
-    }).from(organizationInvitations).where(
-      and(
-        eq(organizationInvitations.organizationId, organizationId),
-        eq(organizationInvitations.status, 'Pending')
-      )
-    );
+    // Count pending invitations (gracefully handle missing table)
+    let invitationStats = { pendingInvitations: 0 };
+    try {
+      const [result] = await db.select({
+        pendingInvitations: count(),
+      }).from(organizationInvitations).where(
+        and(
+          eq(organizationInvitations.organizationId, organizationId),
+          eq(organizationInvitations.status, 'Pending')
+        )
+      );
+      invitationStats = result || { pendingInvitations: 0 };
+    } catch (error) {
+      console.log("Organization invitations table not available, using default value");
+    }
 
     return {
       totalAgents: agentStats?.totalAgents || 0,
