@@ -226,7 +226,7 @@ export default function SeasonalCampaignsPage() {
   };
 
   const isEnrolledInCampaign = (campaignId: string) => {
-    return enrolledCampaigns?.some(progress => progress.campaignId === campaignId && progress.status === 'enrolled');
+    return enrolledCampaigns?.some(progress => progress.campaignId === campaignId && progress.status === 'enrolled') || false;
   };
 
   return (
