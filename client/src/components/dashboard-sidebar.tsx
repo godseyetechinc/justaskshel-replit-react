@@ -23,6 +23,9 @@ import {
   Gift,
   Building,
   LogOut,
+  Trophy,
+  Bell,
+  UserCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -136,6 +139,27 @@ const menuItems: MenuItem[] = [
     label: "My Points Insights",
     icon: Star,
     href: "/dashboard/user-insights",
+    roles: ["SuperAdmin", "TenantAdmin", "Agent", "Member"],
+  },
+  {
+    id: "achievements",
+    label: "Achievements",
+    icon: Trophy,
+    href: "/dashboard/achievements",
+    roles: ["SuperAdmin", "TenantAdmin", "Agent", "Member"],
+  },
+  {
+    id: "notifications",
+    label: "Notifications",
+    icon: Bell,
+    href: "/dashboard/notifications",
+    roles: ["SuperAdmin", "TenantAdmin", "Agent", "Member"],
+  },
+  {
+    id: "referrals",
+    label: "Referrals",
+    icon: UserCheck,
+    href: "/dashboard/referrals",
     roles: ["SuperAdmin", "TenantAdmin", "Agent", "Member"],
   },
   {

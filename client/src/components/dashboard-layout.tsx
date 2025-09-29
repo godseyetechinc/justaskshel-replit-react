@@ -3,6 +3,7 @@ import { useRoleAuth } from "@/hooks/useRoleAuth";
 import { useLogout } from "@/hooks/useLogout";
 import { Button } from "@/components/ui/button";
 import DashboardSidebar from "./dashboard-sidebar";
+import NotificationBell from "@/components/notifications/NotificationBell";
 import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Home } from "lucide-react";
@@ -10,13 +11,13 @@ import { Home } from "lucide-react";
 interface DashboardLayoutProps {
   children: React.ReactNode;
   title?: string;
-  requiredRoles?: Array<"SuperAdmin" | "LandlordAdmin" | "Agent" | "Member" | "Guest" | "Visitor">;
+  requiredRoles?: Array<"SuperAdmin" | "TenantAdmin" | "Agent" | "Member" | "Guest" | "Visitor">;
 }
 
 export default function DashboardLayout({ 
   children, 
   title = "Dashboard",
-  requiredRoles = ["Member", "Agent", "LandlordAdmin", "SuperAdmin", "Guest"]
+  requiredRoles = ["Member", "Agent", "TenantAdmin", "SuperAdmin", "Guest"]
 }: DashboardLayoutProps) {
   const { isAuthenticated, isLoading } = useAuth();
   const { hasAnyRole, userRole } = useRoleAuth();
@@ -125,6 +126,7 @@ export default function DashboardLayout({
               <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
             </div>
             <div className="flex items-center space-x-4">
+              <NotificationBell />
               <Button 
                 variant="outline" 
                 size="sm"

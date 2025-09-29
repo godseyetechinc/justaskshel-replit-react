@@ -45,6 +45,9 @@ import OrganizationProfilePage from "@/pages/dashboard/organization-profile";
 import AdminProviderManagement from "@/pages/admin-provider-management";
 import PointsAnalyticsDashboard from "@/pages/dashboard/points-analytics";
 import UserPointsInsights from "@/pages/dashboard/user-points-insights";
+import AchievementsPage from "@/pages/dashboard/achievements";
+import ReferralsPage from "@/pages/dashboard/referrals";
+import NotificationsPage from "@/pages/dashboard/notifications";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -123,6 +126,9 @@ function Router() {
           <Route path="/dashboard/analytics" component={AnalyticsPage} />
           <Route path="/dashboard/points-analytics" component={PointsAnalyticsDashboard} />
           <Route path="/dashboard/user-insights" component={UserPointsInsights} />
+          <Route path="/dashboard/achievements" component={AchievementsPage} />
+          <Route path="/dashboard/referrals" component={ReferralsPage} />
+          <Route path="/dashboard/notifications" component={NotificationsPage} />
           {/* Main dashboard route comes last to avoid conflicts */}
           <Route path="/dashboard" component={Dashboard} />
           <Route path="/role-test" component={RoleTest} />
