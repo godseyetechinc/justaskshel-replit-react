@@ -157,6 +157,10 @@ export interface IStorage {
   getActiveClientAssignment(clientId: number): Promise<ClientAssignment | undefined>;
   getOrganizationDefaultAgent(organizationId: number): Promise<User | undefined>;
   
+  // Phase 3: Policy Transfer & Reassignment
+  transferPolicyServicing(policyId: number, newServicingAgentId: string, transferredBy: string, reason: string): Promise<void>;
+  getPolicyTransferHistory(policyId: number): Promise<PolicyTransfer[]>;
+  
   // Policy Documents
   createPolicyDocument(document: InsertPolicyDocument): Promise<PolicyDocument>;
   getPolicyDocuments(policyId: number): Promise<PolicyDocument[]>;
@@ -998,6 +1002,49 @@ export class DatabaseStorage implements IStorage {
       .limit(1);
     
     return agent;
+  }
+
+  // Phase 3: Policy Transfer & Reassignment
+  async transferPolicyServicing(
+    policyId: number,
+    newServicingAgentId: string,
+    transferredBy: string,
+    reason: string
+  ): Promise<void> {
+    // Get current policy state
+    const policy = await this.getPolicy(policyId);
+    
+    if (!policy) {
+      throw new Error('Policy not found');
+    }
+    
+    // Create transfer record
+    await db.insert(policyTransfers).values({
+      policyId,
+      fromAgentId: policy.servicingAgentId || null,
+      toAgentId: newServicingAgentId,
+      transferredBy,
+      transferReason: reason,
+      transferType: 'servicing',
+      transferredAt: new Date(),
+    });
+    
+    // Update policy servicing agent
+    await db
+      .update(policies)
+      .set({
+        servicingAgentId: newServicingAgentId,
+        updatedAt: new Date(),
+      })
+      .where(eq(policies.id, policyId));
+  }
+
+  async getPolicyTransferHistory(policyId: number): Promise<PolicyTransfer[]> {
+    return await db
+      .select()
+      .from(policyTransfers)
+      .where(eq(policyTransfers.policyId, policyId))
+      .orderBy(desc(policyTransfers.transferredAt));
   }
 
   // Policy Documents
