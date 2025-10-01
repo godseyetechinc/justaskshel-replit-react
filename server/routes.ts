@@ -1359,6 +1359,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Phase 2: Agent-Policy Association Routes
+  app.get("/api/agents/:agentId/policies", auth, async (req: any, res) => {
+    try {
+      const { agentId } = req.params;
+      const { type = 'servicing' } = req.query; // 'selling' or 'servicing'
+      
+      // Only agents and admins can query agent policies
+      const currentUser = await storage.getUser(req.user.claims.sub);
+      if (!currentUser || currentUser.privilegeLevel > 2) {
+        return res.status(403).json({ message: "Insufficient privileges" });
+      }
+
+      // Validate type parameter
+      if (type !== 'selling' && type !== 'servicing') {
+        return res.status(400).json({ message: "Invalid type. Use 'selling' or 'servicing'" });
+      }
+
+      const policies = await storage.getAgentPolicies(agentId, type as 'selling' | 'servicing');
+      res.json(policies);
+    } catch (error) {
+      console.error("Error fetching agent policies:", error);
+      res.status(500).json({ message: "Failed to fetch agent policies" });
+    }
+  });
+
+  app.get("/api/organizations/:orgId/policies", auth, async (req: any, res) => {
+    try {
+      const { orgId } = req.params;
+      
+      // Check authorization
+      const currentUser = await storage.getUser(req.user.claims.sub);
+      if (!currentUser) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // SuperAdmin can access all org policies, others can only see their own org
+      if (currentUser.privilegeLevel > 0 && currentUser.organizationId !== parseInt(orgId)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const policies = await storage.getOrganizationPolicies(parseInt(orgId));
+      res.json(policies);
+    } catch (error) {
+      console.error("Error fetching organization policies:", error);
+      res.status(500).json({ message: "Failed to fetch organization policies" });
+    }
+  });
+
+  app.get("/api/policies/:id/agent-details", auth, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Check if policy exists and user has access
+      const policy = await storage.getPolicy(parseInt(id));
+      if (!policy) {
+        return res.status(404).json({ message: "Policy not found" });
+      }
+
+      const currentUser = await storage.getUser(req.user.claims.sub);
+      const userId = req.user.claims.sub;
+      
+      // Users can only see their own policy details unless they're admin/agent
+      if (policy.userId !== userId && (currentUser?.privilegeLevel ?? 5) > 2) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const policyWithAgents = await storage.getPolicyWithAgentDetails(parseInt(id));
+      if (!policyWithAgents) {
+        return res.status(404).json({ message: "Policy not found" });
+      }
+
+      res.json(policyWithAgents);
+    } catch (error) {
+      console.error("Error fetching policy agent details:", error);
+      res.status(500).json({ message: "Failed to fetch policy agent details" });
+    }
+  });
+
   // Claims - protected routes
   app.get("/api/claims", auth, async (req: any, res) => {
     try {
