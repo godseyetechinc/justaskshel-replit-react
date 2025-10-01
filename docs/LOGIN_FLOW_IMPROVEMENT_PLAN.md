@@ -547,72 +547,579 @@ function AccessRequestForm({ organizations, onSuccess }) {
 
 ### Phase 3: Organization Access Management UI (Week 3)
 
-#### 3.1 Admin Access Requests Page
+#### 3.1 Dashboard Navigation Integration
+
+##### Step 3.1.1: Update Dashboard Sidebar Menu
+Add new navigation items to `client/src/components/dashboard-sidebar.tsx`:
+
 ```typescript
-// New page: /dashboard/organization-access-requests
-export default function AccessRequestsManagement() {
-  const { user } = useAuth();
+// Add to menuGroups array in the "People & Contacts" section
+{
+  id: "people-contacts",
+  label: "People & Contacts",
+  icon: Users,
+  defaultExpanded: false,
+  roles: ["SuperAdmin", "TenantAdmin", "Agent", "Member"],
+  items: [
+    // ... existing items ...
+    {
+      id: "access-requests",
+      label: "Access Requests",
+      icon: UserPlus,
+      href: "/dashboard/access-requests",
+      roles: ["SuperAdmin", "TenantAdmin"],
+      badge: "new"  // Optional: show badge for pending requests
+    },
+    {
+      id: "pending-invitations",
+      label: "My Invitations",
+      icon: Mail,
+      href: "/dashboard/my-invitations",
+      roles: ["Agent", "Member"],  // For users to view their pending invitations
+    }
+  ]
+}
+```
+
+##### Step 3.1.2: Register Dashboard Routes
+Add new routes to `client/src/App.tsx`:
+
+```typescript
+// Add lazy-loaded components
+const AccessRequestsPage = lazy(() => import("@/pages/dashboard/access-requests"));
+const MyInvitationsPage = lazy(() => import("@/pages/dashboard/my-invitations"));
+const AccessRequestDetailsPage = lazy(() => import("@/pages/dashboard/access-request-details"));
+
+// Add routes in the authenticated user section
+<Suspense fallback={<PageLoadingFallback />}>
+  {/* ... existing routes ... */}
   
-  const { data: requests } = useQuery({
-    queryKey: [`/api/organizations/${user.organizationId}/access-requests`],
+  {/* Access Management Routes */}
+  <Route path="/dashboard/access-requests" component={AccessRequestsPage} />
+  <Route path="/dashboard/access-requests/:id" component={AccessRequestDetailsPage} />
+  <Route path="/dashboard/my-invitations" component={MyInvitationsPage} />
+  
+  {/* ... other routes ... */}
+</Suspense>
+```
+
+#### 3.2 Admin Access Requests Management Page
+
+##### Step 3.2.1: Create Access Requests List Page
+File: `client/src/pages/dashboard/access-requests.tsx`
+
+```typescript
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { DashboardLayout } from "@/components/dashboard-layout";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { format } from "date-fns";
+import { CheckCircle, XCircle, Clock, Eye } from "lucide-react";
+import { AccessRequestApprovalDialog } from "@/components/access-request-approval-dialog";
+import { AccessRequestRejectionDialog } from "@/components/access-request-rejection-dialog";
+
+export default function AccessRequestsPage() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [statusFilter, setStatusFilter] = useState<string>("pending");
+  const [selectedRequest, setSelectedRequest] = useState<any>(null);
+  const [approvalDialogOpen, setApprovalDialogOpen] = useState(false);
+  const [rejectionDialogOpen, setRejectionDialogOpen] = useState(false);
+
+  // Fetch access requests for organization
+  const { data: requests, isLoading } = useQuery({
+    queryKey: [`/api/organizations/${user.organizationId}/access-requests`, statusFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (statusFilter !== 'all') params.append('status', statusFilter);
+      return apiRequest(`/api/organizations/${user.organizationId}/access-requests?${params}`);
+    },
     enabled: user.privilegeLevel <= 1  // Admin only
   });
-  
-  const approveMutation = useMutation({
-    mutationFn: (id: number) => 
-      apiRequest(`/api/organizations/access-requests/${id}/approve`, {
-        method: "PUT"
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ 
-        predicate: (query) => 
-          query.queryKey[0]?.toString().includes('access-requests')
-      });
-    }
+
+  // Fetch pending count for badge
+  const { data: pendingCount } = useQuery({
+    queryKey: [`/api/organizations/${user.organizationId}/access-requests/pending/count`],
+    enabled: user.privilegeLevel <= 1
   });
-  
+
+  const statusColors = {
+    pending: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+    approved: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+    rejected: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+  };
+
+  const handleApprove = (request: any) => {
+    setSelectedRequest(request);
+    setApprovalDialogOpen(true);
+  };
+
+  const handleReject = (request: any) => {
+    setSelectedRequest(request);
+    setRejectionDialogOpen(true);
+  };
+
   return (
     <DashboardLayout>
-      <Card>
-        <CardHeader>
-          <CardTitle>Organization Access Requests</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>User</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Reason</TableHead>
-                <TableHead>Requested</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {requests?.map(request => (
-                <TableRow key={request.id}>
-                  <TableCell>{request.userName}</TableCell>
-                  <TableCell>{request.userEmail}</TableCell>
-                  <TableCell>{request.requestReason}</TableCell>
-                  <TableCell>{formatDate(request.createdAt)}</TableCell>
-                  <TableCell>
-                    <Button 
-                      size="sm" 
-                      onClick={() => approveMutation.mutate(request.id)}
-                    >
-                      Approve
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <div className="space-y-6" data-testid="page-access-requests">
+        {/* Page Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight" data-testid="text-page-title">
+              Organization Access Requests
+            </h1>
+            <p className="text-muted-foreground" data-testid="text-page-description">
+              Review and manage user requests to join your organization
+            </p>
+          </div>
+          {pendingCount > 0 && (
+            <Badge variant="destructive" className="text-lg px-4 py-2">
+              {pendingCount} Pending
+            </Badge>
+          )}
+        </div>
+
+        {/* Summary Cards */}
+        <div className="grid gap-4 md:grid-cols-3">
+          <Card data-testid="card-pending-requests">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Pending</CardTitle>
+              <Clock className="h-4 w-4 text-yellow-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold" data-testid="text-pending-count">
+                {requests?.filter((r: any) => r.status === 'pending').length || 0}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card data-testid="card-approved-requests">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Approved</CardTitle>
+              <CheckCircle className="h-4 w-4 text-green-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold" data-testid="text-approved-count">
+                {requests?.filter((r: any) => r.status === 'approved').length || 0}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card data-testid="card-rejected-requests">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Rejected</CardTitle>
+              <XCircle className="h-4 w-4 text-red-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold" data-testid="text-rejected-count">
+                {requests?.filter((r: any) => r.status === 'rejected').length || 0}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Requests Table */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle data-testid="text-requests-title">Access Requests</CardTitle>
+                <CardDescription>Manage user requests to join your organization</CardDescription>
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[180px]" data-testid="select-status-filter">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Requests</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="approved">Approved</SelectItem>
+                  <SelectItem value="rejected">Rejected</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="text-center py-8 text-muted-foreground">Loading requests...</div>
+            ) : requests?.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">No access requests found</div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>User</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Desired Role</TableHead>
+                    <TableHead>Reason</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Requested</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {requests?.map((request: any) => (
+                    <TableRow key={request.id} data-testid={`row-request-${request.id}`}>
+                      <TableCell className="font-medium" data-testid={`text-user-${request.id}`}>
+                        {request.userName || "Unknown User"}
+                      </TableCell>
+                      <TableCell data-testid={`text-email-${request.id}`}>
+                        {request.userEmail}
+                      </TableCell>
+                      <TableCell data-testid={`text-role-${request.id}`}>
+                        {request.desiredRole || "Member"}
+                      </TableCell>
+                      <TableCell className="max-w-md truncate" data-testid={`text-reason-${request.id}`}>
+                        {request.requestReason}
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={statusColors[request.status as keyof typeof statusColors]}>
+                          {request.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell data-testid={`text-date-${request.id}`}>
+                        {format(new Date(request.createdAt), "MMM dd, yyyy")}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          {request.status === "pending" && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="default"
+                                onClick={() => handleApprove(request)}
+                                data-testid={`button-approve-${request.id}`}
+                              >
+                                <CheckCircle className="h-4 w-4 mr-1" />
+                                Approve
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => handleReject(request)}
+                                data-testid={`button-reject-${request.id}`}
+                              >
+                                <XCircle className="h-4 w-4 mr-1" />
+                                Reject
+                              </Button>
+                            </>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => window.location.href = `/dashboard/access-requests/${request.id}`}
+                            data-testid={`button-view-${request.id}`}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Approval Dialog */}
+        {selectedRequest && (
+          <>
+            <AccessRequestApprovalDialog
+              open={approvalDialogOpen}
+              onOpenChange={setApprovalDialogOpen}
+              request={selectedRequest}
+            />
+            <AccessRequestRejectionDialog
+              open={rejectionDialogOpen}
+              onOpenChange={setRejectionDialogOpen}
+              request={selectedRequest}
+            />
+          </>
+        )}
+      </div>
     </DashboardLayout>
   );
 }
 ```
+
+##### Step 3.2.2: Create Approval/Rejection Dialog Components
+
+File: `client/src/components/access-request-approval-dialog.tsx`
+
+```typescript
+import { useMutation } from "@tanstack/react-query";
+import { useState } from "react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+
+export function AccessRequestApprovalDialog({ open, onOpenChange, request }: any) {
+  const { toast } = useToast();
+  const [assignedRole, setAssignedRole] = useState(request?.desiredRole || "Member");
+
+  const approveMutation = useMutation({
+    mutationFn: (data: { role: string }) =>
+      apiRequest(`/api/organizations/access-requests/${request.id}/approve`, {
+        method: "PUT",
+        body: JSON.stringify(data)
+      }),
+    onSuccess: () => {
+      toast({
+        title: "Request Approved",
+        description: `${request.userEmail} has been granted ${assignedRole} access`
+      });
+      queryClient.invalidateQueries({
+        predicate: (query) => query.queryKey[0]?.toString().includes('access-requests')
+      });
+      onOpenChange(false);
+    }
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent data-testid="dialog-approve-request">
+        <DialogHeader>
+          <DialogTitle>Approve Access Request</DialogTitle>
+          <DialogDescription>
+            Grant {request?.userEmail} access to your organization
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="role">Assign Role</Label>
+            <Select value={assignedRole} onValueChange={setAssignedRole}>
+              <SelectTrigger id="role" data-testid="select-role">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Agent">Agent</SelectItem>
+                <SelectItem value="Member">Member</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="rounded-lg bg-muted p-4">
+            <p className="text-sm"><strong>Reason:</strong></p>
+            <p className="text-sm text-muted-foreground mt-1">{request?.requestReason}</p>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button
+            onClick={() => approveMutation.mutate({ role: assignedRole })}
+            disabled={approveMutation.isPending}
+            data-testid="button-confirm-approve"
+          >
+            {approveMutation.isPending ? "Approving..." : "Approve Request"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+```
+
+#### 3.3 User Invitations View (For Regular Users)
+
+##### Step 3.3.1: Create My Invitations Page
+File: `client/src/pages/dashboard/my-invitations.tsx`
+
+```typescript
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/useAuth";
+import { DashboardLayout } from "@/components/dashboard-layout";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { format } from "date-fns";
+import { Mail, Building2, CheckCircle, XCircle } from "lucide-react";
+
+export default function MyInvitationsPage() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  const { data: invitations, isLoading } = useQuery({
+    queryKey: [`/api/invitations/my-invitations`]
+  });
+
+  const acceptMutation = useMutation({
+    mutationFn: (token: string) =>
+      apiRequest(`/api/invitations/${token}/accept`, {
+        method: "POST",
+        body: JSON.stringify({ userId: user.id })
+      }),
+    onSuccess: () => {
+      toast({ title: "Invitation accepted successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/invitations/my-invitations"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+    }
+  });
+
+  const declineMutation = useMutation({
+    mutationFn: (token: string) =>
+      apiRequest(`/api/invitations/${token}/decline`, { method: "POST" }),
+    onSuccess: () => {
+      toast({ title: "Invitation declined" });
+      queryClient.invalidateQueries({ queryKey: ["/api/invitations/my-invitations"] });
+    }
+  });
+
+  return (
+    <DashboardLayout>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">My Invitations</h1>
+          <p className="text-muted-foreground">
+            View and manage your organization invitations
+          </p>
+        </div>
+
+        {isLoading ? (
+          <div className="text-center py-8">Loading invitations...</div>
+        ) : invitations?.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <Mail className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <p className="text-muted-foreground">No pending invitations</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-4">
+            {invitations?.map((invitation: any) => (
+              <Card key={invitation.id}>
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <Building2 className="h-8 w-8 text-primary" />
+                      <div>
+                        <CardTitle>{invitation.organizationName}</CardTitle>
+                        <CardDescription>
+                          Invited as {invitation.role} by {invitation.invitedByName}
+                        </CardDescription>
+                      </div>
+                    </div>
+                    <Badge variant={invitation.status === "Pending" ? "default" : "secondary"}>
+                      {invitation.status}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-muted-foreground">
+                      Expires: {format(new Date(invitation.expiresAt), "MMM dd, yyyy")}
+                    </div>
+                    {invitation.status === "Pending" && (
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => acceptMutation.mutate(invitation.invitationToken)}
+                          disabled={acceptMutation.isPending}
+                        >
+                          <CheckCircle className="h-4 w-4 mr-1" />
+                          Accept
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => declineMutation.mutate(invitation.invitationToken)}
+                          disabled={declineMutation.isPending}
+                        >
+                          <XCircle className="h-4 w-4 mr-1" />
+                          Decline
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+    </DashboardLayout>
+  );
+}
+```
+
+#### 3.4 Notification System Integration
+
+##### Step 3.4.1: Add Real-time Notifications for Access Requests
+Update the notification system to include access request notifications:
+
+```typescript
+// Add to server/routes.ts notification creation
+async function notifyAdminsOfAccessRequest(request: AccessRequest) {
+  const admins = await storage.getOrganizationAdmins(request.organizationId);
+  
+  for (const admin of admins) {
+    await storage.createNotification({
+      userId: admin.id,
+      type: 'access_request',
+      title: 'New Access Request',
+      message: `${request.userEmail} has requested access to your organization`,
+      link: `/dashboard/access-requests/${request.id}`,
+      isRead: false
+    });
+  }
+}
+```
+
+##### Step 3.4.2: Add Badge Count to Sidebar Menu Item
+Update sidebar to show pending count:
+
+```typescript
+// In dashboard-sidebar.tsx
+const { data: pendingAccessRequests } = useQuery({
+  queryKey: [`/api/organizations/${user.organizationId}/access-requests/pending/count`],
+  enabled: user.privilegeLevel <= 1
+});
+
+// Update menu item
+{
+  id: "access-requests",
+  label: "Access Requests",
+  icon: UserPlus,
+  href: "/dashboard/access-requests",
+  roles: ["SuperAdmin", "TenantAdmin"],
+  badge: pendingAccessRequests > 0 ? `${pendingAccessRequests}` : undefined
+}
+```
+
+#### 3.5 Dashboard Integration Checklist
+
+**Week 3 Tasks:**
+- [ ] Step 3.1.1: Add navigation items to dashboard sidebar
+- [ ] Step 3.1.2: Register new routes in App.tsx
+- [ ] Step 3.2.1: Create access requests management page
+- [ ] Step 3.2.2: Build approval/rejection dialog components
+- [ ] Step 3.3.1: Create my invitations page for users
+- [ ] Step 3.4.1: Integrate real-time notifications
+- [ ] Step 3.4.2: Add badge counts to menu items
+- [ ] Test role-based access control for all new pages
+- [ ] Verify notification delivery to admins
+- [ ] Test responsive design on mobile/tablet
+
+**Integration Points:**
+1. **Navigation**: Sidebar menu items with role-based visibility
+2. **Routing**: New dashboard routes with lazy loading
+3. **State Management**: TanStack Query for data fetching and cache invalidation
+4. **Notifications**: WebSocket or polling for real-time updates
+5. **Permissions**: Role-based access control (privilege level checks)
+6. **UI Consistency**: Use existing shadcn/ui components and design patterns
 
 ## User Experience Flows
 
