@@ -14,8 +14,20 @@
 **Completion Date:** October 1, 2025  
 **Method:** Direct SQL execution via execute_sql_tool (drizzle-kit push had interactive prompts)
 
-### Phase 2-7: Pending Implementation
-- Phase 2: Policy-Agent Association Logic
+### Phase 2: Policy-Agent Association Logic ✅ COMPLETED
+- ✅ **Policy Creation Auto-Assignment** - Enhanced POST /api/policies to automatically assign selling/servicing agents based on context
+- ✅ **Agent Determination Logic** - Implemented smart helper functions: determineSellingAgent(), determineServicingAgent(), determinePolicySource()
+- ✅ **Storage Methods** - Added 5 new query methods: getAgentPolicies(), getOrganizationPolicies(), getPolicyWithAgentDetails(), getActiveClientAssignment(), getOrganizationDefaultAgent()
+- ✅ **API Endpoints** - Added 3 new REST endpoints for agent-policy queries with proper authorization
+- ✅ **Agent Priority Logic** - Implemented 4-tier priority: explicit override → current agent → member's assigned agent → org default agent
+
+**Completion Date:** October 1, 2025  
+**New Endpoints:**
+- GET /api/agents/:agentId/policies?type=selling|servicing
+- GET /api/organizations/:orgId/policies
+- GET /api/policies/:id/agent-details
+
+### Phase 3-7: Pending Implementation
 - Phase 3: Policy Transfer & Reassignment
 - Phase 4: Commission & Performance Tracking
 - Phase 5: API Endpoint Enhancements

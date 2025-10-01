@@ -30,6 +30,28 @@ The loyalty program includes core automation for point awarding and tier progres
 ## Multi-Tenant Architecture
 The system supports comprehensive multi-tenancy with a SuperAdmin default organization architecture (ID: 0, Privilege Level 0). It ensures complete data separation between organizations and implements role-based access control. A `resolveDataScope()` helper function determines access level (global for SuperAdmin, organization-specific for others) for data types like Agents, Members, Analytics, and Client Assignments. This pattern is applied across various API endpoints with performance optimizations like database indexing, pagination, and caching.
 
+## Agent-Policy Relationship Enhancement
+
+### Phase 1: Database Schema Updates ✅ COMPLETED (October 1, 2025)
+Established complete database infrastructure for agent-policy relationships, commission tracking, and policy lifecycle management:
+- **New Tables**: client_assignments (16 columns), policy_transfers (9 columns), agent_commissions (15 columns)
+- **Enhanced policies table**: Added 9 agent relationship fields (selling_agent_id, servicing_agent_id, organization_id, commission tracking fields)
+- **Performance indexes**: 13 indexes on agent and organization foreign keys for optimal query performance
+- **Full referential integrity**: 12 foreign key constraints ensuring data consistency
+
+### Phase 2: Policy-Agent Association Logic ✅ COMPLETED (October 1, 2025)
+Implemented automatic agent assignment system and comprehensive query capabilities:
+- **Auto-Assignment**: POST /api/policies enhanced with 4-tier agent determination logic (explicit override → current agent → assigned agent → org default)
+- **Smart Routing**: Policy creation automatically assigns selling agent, servicing agent, organization, and tracks policy source
+- **Query Methods**: 5 new storage methods for agent-policy queries (getAgentPolicies, getOrganizationPolicies, getPolicyWithAgentDetails, getActiveClientAssignment, getOrganizationDefaultAgent)
+- **API Endpoints**: 3 new REST endpoints with role-based authorization
+  - GET /api/agents/:agentId/policies?type=selling|servicing
+  - GET /api/organizations/:orgId/policies
+  - GET /api/policies/:id/agent-details
+
+### Pending Phases (3-7)
+Policy Transfer/Reassignment, Commission Automation, Enhanced API Features, Frontend UI, Data Migration. Details: `docs/AGENT_POLICY_RELATIONSHIP_ENHANCEMENT_PLAN.md`
+
 # External Dependencies
 
 ## Database Services
