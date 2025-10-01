@@ -28,6 +28,9 @@ import {
   personUsers,
   personMembers,
   personContacts,
+  clientAssignments,
+  policyTransfers,
+  agentCommissions,
   type User,
   type UpsertUser,
   type Member,
@@ -84,6 +87,12 @@ import {
   type InsertOrganizationInvitation,
   type AgentOrganization,
   type InsertAgentOrganization,
+  type ClientAssignment,
+  type InsertClientAssignment,
+  type PolicyTransfer,
+  type InsertPolicyTransfer,
+  type AgentCommission,
+  type InsertAgentCommission,
   organizationInvitations,
   agentOrganizations,
 } from "@shared/schema";
@@ -140,6 +149,13 @@ export interface IStorage {
   getPolicy(id: number): Promise<Policy | undefined>;
   getUserPolicies(userId: string): Promise<(Policy & { quote: InsuranceQuote & { type: InsuranceType; provider: InsuranceProvider } })[]>;
   getAllPolicies(): Promise<(Policy & { quote: InsuranceQuote & { type: InsuranceType; provider: InsuranceProvider } })[]>;
+  
+  // Phase 2: Agent-Policy Association
+  getAgentPolicies(agentId: string, type: 'selling' | 'servicing'): Promise<Policy[]>;
+  getOrganizationPolicies(organizationId: number): Promise<Policy[]>;
+  getPolicyWithAgentDetails(policyId: number): Promise<any>;
+  getActiveClientAssignment(clientId: number): Promise<ClientAssignment | undefined>;
+  getOrganizationDefaultAgent(organizationId: number): Promise<User | undefined>;
   
   // Policy Documents
   createPolicyDocument(document: InsertPolicyDocument): Promise<PolicyDocument>;
@@ -892,6 +908,96 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(insuranceTypes, eq(insuranceQuotes.typeId, insuranceTypes.id))
       .leftJoin(insuranceProviders, eq(insuranceQuotes.providerId, insuranceProviders.id))
       .orderBy(desc(policies.createdAt));
+  }
+
+  // Phase 2: Agent-Policy Association Methods
+  async getAgentPolicies(agentId: string, type: 'selling' | 'servicing'): Promise<Policy[]> {
+    const field = type === 'selling' ? policies.sellingAgentId : policies.servicingAgentId;
+    
+    return await db
+      .select()
+      .from(policies)
+      .where(eq(field, agentId))
+      .orderBy(desc(policies.createdAt));
+  }
+
+  async getOrganizationPolicies(organizationId: number): Promise<Policy[]> {
+    return await db
+      .select()
+      .from(policies)
+      .where(eq(policies.organizationId, organizationId))
+      .orderBy(desc(policies.createdAt));
+  }
+
+  async getPolicyWithAgentDetails(policyId: number): Promise<any> {
+    // Create aliases for the agent users table to distinguish between selling and servicing agents
+    const sellingAgentUser = users;
+    const servicingAgentUser = users;
+    
+    const result = await db
+      .select({
+        // Policy fields
+        id: policies.id,
+        userId: policies.userId,
+        quoteId: policies.quoteId,
+        policyNumber: policies.policyNumber,
+        status: policies.status,
+        startDate: policies.startDate,
+        endDate: policies.endDate,
+        nextPaymentDate: policies.nextPaymentDate,
+        sellingAgentId: policies.sellingAgentId,
+        servicingAgentId: policies.servicingAgentId,
+        organizationId: policies.organizationId,
+        agentCommissionRate: policies.agentCommissionRate,
+        agentCommissionPaid: policies.agentCommissionPaid,
+        agentAssignedAt: policies.agentAssignedAt,
+        policySource: policies.policySource,
+        referralSource: policies.referralSource,
+        createdAt: policies.createdAt,
+        updatedAt: policies.updatedAt,
+        // Simplified agent details - just basic info
+        sellingAgentEmail: sql<string>`(SELECT email FROM users WHERE id = ${policies.sellingAgentId})`,
+        servicingAgentEmail: sql<string>`(SELECT email FROM users WHERE id = ${policies.servicingAgentId})`,
+      })
+      .from(policies)
+      .where(eq(policies.id, policyId))
+      .limit(1);
+      
+    return result[0] || null;
+  }
+
+  async getActiveClientAssignment(clientId: number): Promise<ClientAssignment | undefined> {
+    const [assignment] = await db
+      .select()
+      .from(clientAssignments)
+      .where(
+        and(
+          eq(clientAssignments.clientId, clientId),
+          eq(clientAssignments.isActive, true),
+          eq(clientAssignments.status, 'Active')
+        )
+      )
+      .orderBy(desc(clientAssignments.assignedAt))
+      .limit(1);
+    
+    return assignment;
+  }
+
+  async getOrganizationDefaultAgent(organizationId: number): Promise<User | undefined> {
+    // Get the first agent (by creation date) from the organization
+    const [agent] = await db
+      .select()
+      .from(users)
+      .where(
+        and(
+          eq(users.organizationId, organizationId),
+          eq(users.role, 'Agent')
+        )
+      )
+      .orderBy(asc(users.createdAt))
+      .limit(1);
+    
+    return agent;
   }
 
   // Policy Documents
