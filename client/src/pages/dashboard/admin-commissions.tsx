@@ -30,15 +30,19 @@ export default function AdminCommissionsPage() {
 
   // Fetch organization commissions summary
   const { data: orgSummary, isLoading: summaryLoading } = useQuery({
-    queryKey: user?.organizationId ? ["/api/organizations", user.organizationId, "policies/summary"] : [],
+    queryKey: user?.organizationId ? [`/api/organizations/${user.organizationId}/policies/summary`] : [],
     enabled: !!user?.organizationId && isAdmin,
   });
 
   // Fetch all commissions
   const { data: allCommissions = [], isLoading: commissionsLoading } = useQuery({
     queryKey: user?.organizationId 
-      ? ["/api/organizations", user.organizationId, "commissions", { status: statusFilter === "all" ? undefined : statusFilter }]
-      : ["/api/commissions", { status: statusFilter === "all" ? undefined : statusFilter }],
+      ? (statusFilter === "all" 
+          ? [`/api/organizations/${user.organizationId}/commissions`]
+          : [`/api/organizations/${user.organizationId}/commissions?status=${statusFilter}`])
+      : (statusFilter === "all"
+          ? ["/api/commissions"]
+          : [`/api/commissions?status=${statusFilter}`]),
     enabled: isAdmin,
   });
 

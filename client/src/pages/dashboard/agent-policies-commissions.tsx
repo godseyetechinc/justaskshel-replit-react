@@ -33,19 +33,23 @@ export default function AgentPoliciesCommissionsPage() {
 
   // Fetch agent policies summary
   const { data: policiesSummary, isLoading: summaryLoading } = useQuery({
-    queryKey: ["/api/agents", user?.id, "policies/summary"],
+    queryKey: [`/api/agents/${user?.id}/policies/summary`],
     enabled: !!user?.id && isAgent,
   });
 
   // Fetch agent policies (with type filter)
   const { data: policies = [], isLoading: policiesLoading } = useQuery({
-    queryKey: ["/api/agents", user?.id, "policies", { type: policyTypeFilter === "all" ? undefined : policyTypeFilter }],
+    queryKey: policyTypeFilter === "all" 
+      ? [`/api/agents/${user?.id}/policies`]
+      : [`/api/agents/${user?.id}/policies?type=${policyTypeFilter}`],
     enabled: !!user?.id && isAgent,
   });
 
   // Fetch agent commissions (with status filter)
   const { data: commissions = [], isLoading: commissionsLoading } = useQuery({
-    queryKey: ["/api/agents", user?.id, "commissions", { status: commissionStatusFilter === "all" ? undefined : commissionStatusFilter }],
+    queryKey: commissionStatusFilter === "all"
+      ? [`/api/agents/${user?.id}/commissions`]
+      : [`/api/agents/${user?.id}/commissions?status=${commissionStatusFilter}`],
     enabled: !!user?.id && isAgent,
   });
 

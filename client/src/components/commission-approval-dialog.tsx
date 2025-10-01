@@ -45,8 +45,33 @@ export function CommissionApprovalDialog({
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/commissions"] });
+      // Invalidate agent-specific queries including filtered variants
+      if (commission.agentId) {
+        queryClient.invalidateQueries({ 
+          predicate: (query) => {
+            const key = query.queryKey[0] as string;
+            return key?.startsWith(`/api/agents/${commission.agentId}/commissions`) ||
+                   key?.startsWith(`/api/agents/${commission.agentId}/policies/summary`);
+          }
+        });
+      }
+      // Invalidate organization-specific queries including filtered variants
+      if (commission.organizationId) {
+        queryClient.invalidateQueries({ 
+          predicate: (query) => {
+            const key = query.queryKey[0] as string;
+            return key?.startsWith(`/api/organizations/${commission.organizationId}/commissions`) ||
+                   key?.startsWith(`/api/organizations/${commission.organizationId}/policies/summary`);
+          }
+        });
+      }
+      // Invalidate all commission queries
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const key = query.queryKey[0] as string;
+          return key?.startsWith('/api/commissions');
+        }
+      });
       toast({
         title: "Commission Approved",
         description: "The commission has been approved successfully.",
@@ -71,8 +96,33 @@ export function CommissionApprovalDialog({
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/commissions"] });
+      // Invalidate agent-specific queries including filtered variants
+      if (commission.agentId) {
+        queryClient.invalidateQueries({ 
+          predicate: (query) => {
+            const key = query.queryKey[0] as string;
+            return key?.startsWith(`/api/agents/${commission.agentId}/commissions`) ||
+                   key?.startsWith(`/api/agents/${commission.agentId}/policies/summary`);
+          }
+        });
+      }
+      // Invalidate organization-specific queries including filtered variants
+      if (commission.organizationId) {
+        queryClient.invalidateQueries({ 
+          predicate: (query) => {
+            const key = query.queryKey[0] as string;
+            return key?.startsWith(`/api/organizations/${commission.organizationId}/commissions`) ||
+                   key?.startsWith(`/api/organizations/${commission.organizationId}/policies/summary`);
+          }
+        });
+      }
+      // Invalidate all commission queries
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const key = query.queryKey[0] as string;
+          return key?.startsWith('/api/commissions');
+        }
+      });
       toast({
         title: "Payment Recorded",
         description: "The commission payment has been recorded successfully.",

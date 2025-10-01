@@ -32,7 +32,7 @@ export function PolicyTransferDialog({ open, onOpenChange, policy }: PolicyTrans
 
   // Fetch available agents
   const { data: agents = [], isLoading: agentsLoading } = useQuery({
-    queryKey: user?.organizationId ? ["/api/organizations", user.organizationId, "agents"] : ["/api/users"],
+    queryKey: user?.organizationId ? [`/api/organizations/${user.organizationId}/agents`] : ["/api/users"],
     enabled: open,
   });
 
@@ -45,9 +45,31 @@ export function PolicyTransferDialog({ open, onOpenChange, policy }: PolicyTrans
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/policies"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/policies/all"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/policies", policy.id] });
+      // Invalidate all policy-related queries with predicate matching
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const key = query.queryKey[0] as string;
+          return key?.startsWith('/api/policies');
+        }
+      });
+      // Invalidate agent-specific queries including filtered variants
+      if (user?.id) {
+        queryClient.invalidateQueries({ 
+          predicate: (query) => {
+            const key = query.queryKey[0] as string;
+            return key?.startsWith(`/api/agents/${user.id}/policies`);
+          }
+        });
+      }
+      // Invalidate organization-specific queries including filtered variants
+      if (user?.organizationId) {
+        queryClient.invalidateQueries({ 
+          predicate: (query) => {
+            const key = query.queryKey[0] as string;
+            return key?.startsWith(`/api/organizations/${user.organizationId}/policies`);
+          }
+        });
+      }
       toast({
         title: "Transfer Successful",
         description: "Policy servicing agent has been transferred successfully.",
