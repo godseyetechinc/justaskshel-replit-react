@@ -97,7 +97,7 @@ import {
   agentOrganizations,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, count, sql, gte, lte, ne, gt, asc, isNull, isNotNull, ilike, inArray } from "drizzle-orm";
+import { eq, and, or, desc, count, sql, gte, lte, ne, gt, asc, isNull, isNotNull, ilike, inArray } from "drizzle-orm";
 
 // Interface for storage operations
 export interface IStorage {

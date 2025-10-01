@@ -139,7 +139,7 @@ export default function Login() {
                       <span>Individual Access (Members Only)</span>
                     </div>
                   </SelectItem>
-                  {organizations?.map((org: Organization) => (
+                  {Array.isArray(organizations) && organizations.map((org: Organization) => (
                     <SelectItem key={org.id} value={org.id}>
                       <div className="flex items-center space-x-2">
                         {org.logoUrl ? (

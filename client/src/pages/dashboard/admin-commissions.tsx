@@ -110,7 +110,7 @@ export default function AdminCommissionsPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold" data-testid="text-total-commissions">
-                  ${orgSummary.commissions.total?.toFixed(2) || "0.00"}
+                  ${Number(orgSummary.commissions.total || 0).toFixed(2)}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   {orgSummary.commissions.count || 0} total commissions
@@ -125,7 +125,7 @@ export default function AdminCommissionsPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold" data-testid="text-pending-commissions">
-                  ${orgSummary.commissions.pending?.toFixed(2) || "0.00"}
+                  ${Number(orgSummary.commissions.pending || 0).toFixed(2)}
                 </div>
                 <p className="text-xs text-muted-foreground">Awaiting approval</p>
               </CardContent>
@@ -138,7 +138,7 @@ export default function AdminCommissionsPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold" data-testid="text-approved-commissions">
-                  ${orgSummary.commissions.approved?.toFixed(2) || "0.00"}
+                  ${Number(orgSummary.commissions.approved || 0).toFixed(2)}
                 </div>
                 <p className="text-xs text-muted-foreground">Ready for payment</p>
               </CardContent>
@@ -151,7 +151,7 @@ export default function AdminCommissionsPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold" data-testid="text-paid-commissions">
-                  ${orgSummary.commissions.paid?.toFixed(2) || "0.00"}
+                  ${Number(orgSummary.commissions.paid || 0).toFixed(2)}
                 </div>
                 <p className="text-xs text-muted-foreground">Completed payments</p>
               </CardContent>
@@ -213,13 +213,13 @@ export default function AdminCommissionsPage() {
                         {commission.commissionType?.replace("_", " ").toUpperCase()}
                       </TableCell>
                       <TableCell data-testid={`text-base-${commission.id}`}>
-                        ${commission.baseAmount?.toFixed(2)}
+                        ${Number(commission.baseAmount || 0).toFixed(2)}
                       </TableCell>
                       <TableCell data-testid={`text-rate-${commission.id}`}>
                         {commission.commissionRate}%
                       </TableCell>
                       <TableCell className="font-semibold" data-testid={`text-amount-${commission.id}`}>
-                        ${commission.commissionAmount?.toFixed(2)}
+                        ${Number(commission.commissionAmount || 0).toFixed(2)}
                       </TableCell>
                       <TableCell>
                         <Badge className={statusColors[commission.paymentStatus?.toLowerCase()] || statusColors.pending}>

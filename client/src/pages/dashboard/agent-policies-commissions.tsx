@@ -145,10 +145,10 @@ export default function AgentPoliciesCommissionsPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold" data-testid="text-commission-total">
-                  ${policiesSummary.commissions?.total?.toFixed(2) || "0.00"}
+                  ${Number(policiesSummary.commissions?.total || 0).toFixed(2)}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  ${policiesSummary.commissions?.paid?.toFixed(2) || "0.00"} paid
+                  ${Number(policiesSummary.commissions?.paid || 0).toFixed(2)} paid
                 </p>
               </CardContent>
             </Card>
@@ -286,10 +286,10 @@ export default function AgentPoliciesCommissionsPage() {
                           <TableCell data-testid={`text-type-${commission.id}`}>
                             {commission.commissionType?.replace("_", " ").toUpperCase()}
                           </TableCell>
-                          <TableCell data-testid={`text-base-${commission.id}`}>${commission.baseAmount?.toFixed(2)}</TableCell>
+                          <TableCell data-testid={`text-base-${commission.id}`}>${Number(commission.baseAmount || 0).toFixed(2)}</TableCell>
                           <TableCell data-testid={`text-rate-${commission.id}`}>{commission.commissionRate}%</TableCell>
                           <TableCell className="font-semibold" data-testid={`text-amount-${commission.id}`}>
-                            ${commission.commissionAmount?.toFixed(2)}
+                            ${Number(commission.commissionAmount || 0).toFixed(2)}
                           </TableCell>
                           <TableCell>
                             <Badge className={statusColors[commission.paymentStatus?.toLowerCase()] || statusColors.pending}>
@@ -319,7 +319,7 @@ export default function AgentPoliciesCommissionsPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold" data-testid="text-pending-amount">
-                      ${policiesSummary.commissions.pending?.toFixed(2) || "0.00"}
+                      ${Number(policiesSummary.commissions.pending || 0).toFixed(2)}
                     </div>
                   </CardContent>
                 </Card>
@@ -331,7 +331,7 @@ export default function AgentPoliciesCommissionsPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold" data-testid="text-approved-amount">
-                      ${policiesSummary.commissions.approved?.toFixed(2) || "0.00"}
+                      ${Number(policiesSummary.commissions.approved || 0).toFixed(2)}
                     </div>
                   </CardContent>
                 </Card>
@@ -343,7 +343,7 @@ export default function AgentPoliciesCommissionsPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold" data-testid="text-paid-amount">
-                      ${policiesSummary.commissions.paid?.toFixed(2) || "0.00"}
+                      ${Number(policiesSummary.commissions.paid || 0).toFixed(2)}
                     </div>
                   </CardContent>
                 </Card>
