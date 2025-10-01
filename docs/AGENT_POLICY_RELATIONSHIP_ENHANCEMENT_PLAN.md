@@ -41,9 +41,9 @@
 ### Phase 3: Policy Transfer & Reassignment ✅ COMPLETED
 ### Phase 4: Commission & Performance Tracking ✅ COMPLETED  
 ### Phase 5: API Endpoint Enhancements ✅ COMPLETED
+### Phase 6: Frontend UI Updates ✅ COMPLETED
 
-### Phase 6-7: Pending Implementation
-- Phase 6: Frontend UI Updates
+### Phase 7: Pending Implementation
 - Phase 7: Data Migration & Backfill
 
 ## Executive Summary
@@ -584,27 +584,57 @@ Response: {
 }
 ```
 
-### Phase 6: Frontend UI Updates
+### Phase 6: Frontend UI Updates ✅ COMPLETED (October 1, 2025)
+Implemented comprehensive frontend interface for agent and admin policy/commission management:
 
-#### 6.1 Agent Dashboard Enhancements
-**New Views:**
-- "My Policies" tab showing agent's sold and serviced policies
-- Commission tracking dashboard with payment status
-- Policy performance metrics
+**Implementation:**
+- **Agent Dashboard Page**: Created `/dashboard/my-policies-commissions` with two main tabs
+  - "My Policies" tab: Shows policies where agent is selling/servicing agent with filters
+  - "My Commissions" tab: Displays commission earnings with status filters and payment tracking
+  - Summary cards: Real-time metrics for total policies, selling count, servicing count, total commissions
+  - Integration with Phase 5 backend APIs for data fetching
+  
+- **Admin Commission Management Page**: Created `/dashboard/admin-commissions` for administrators
+  - Comprehensive commission table with filtering by status (pending/approved/paid)
+  - Organization-wide summary cards showing pending, approved, and paid amounts
+  - In-line approval and payment marking with validation
+  - Role-based authorization (TenantAdmin and SuperAdmin only)
+  
+- **Reusable Dialog Components**: Created modular UI components for administrative actions
+  - `PolicyTransferDialog`: Transfer servicing agent with reason and audit trail
+  - `CommissionApprovalDialog`: Approve commissions and record payment details (method, reference, notes)
+  - Both dialogs include proper validation and error handling
+  
+- **Data Integration**: Full integration with Phase 5 backend APIs
+  - GET /api/agents/:id/policies/summary - Agent summary metrics
+  - GET /api/agents/:id/policies - Agent policies with type filter
+  - GET /api/agents/:id/commissions - Agent commissions with status filter
+  - GET /api/organizations/:id/policies/summary - Organization summary
+  - PUT /api/policies/:id/transfer-servicing - Policy transfer
+  - PUT /api/commissions/:id/approve - Commission approval
+  - PUT /api/commissions/:id/mark-paid - Payment recording
 
-#### 6.2 Policy Detail Page Updates
-**Add Agent Information Section:**
-- Selling agent details with profile
-- Current servicing agent
-- Transfer history timeline
-- Commission status (admin view)
+**Components Created:**
+- `client/src/pages/dashboard/agent-policies-commissions.tsx` (333 lines)
+- `client/src/pages/dashboard/admin-commissions.tsx` (255 lines)
+- `client/src/components/policy-transfer-dialog.tsx` (159 lines)
+- `client/src/components/commission-approval-dialog.tsx` (167 lines)
 
-#### 6.3 Admin Policy Management
-**New Features:**
-- Bulk policy assignment/transfer
-- Agent workload balancing view
-- Commission approval workflow
-- Policy-agent relationship reports
+**Routes Registered:**
+- `/dashboard/my-policies-commissions` - Agent view (privilege ≥ 2)
+- `/dashboard/admin-commissions` - Admin view (privilege ≤ 1)
+
+**UI Features:**
+- ✅ **Responsive Design**: Mobile-friendly with Tailwind CSS and shadcn/ui components
+- ✅ **Real-time Data**: TanStack Query for caching and automatic refetching
+- ✅ **Role-based Access**: useRoleAuth hook for privilege-level enforcement
+- ✅ **Loading States**: Skeleton loaders and pending indicators throughout
+- ✅ **Error Handling**: Toast notifications for success and error states
+- ✅ **Data Validation**: Form validation with client-side checks before API calls
+- ✅ **Accessibility**: data-testid attributes on all interactive and display elements
+- ✅ **Status Badges**: Color-coded badges for policy and commission statuses
+- ✅ **Filter Controls**: Status and type filters for policies and commissions
+- ✅ **Summary Cards**: Dashboard-style metrics with icons and descriptions
 
 ### Phase 7: Data Migration & Backfill
 
