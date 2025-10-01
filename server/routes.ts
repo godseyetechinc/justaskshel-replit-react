@@ -1471,6 +1471,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Phase 3: Policy Transfer & Reassignment
+  app.put("/api/policies/:id/transfer-servicing", auth, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { newAgentId, reason } = req.body;
+      
+      if (!newAgentId || !reason) {
+        return res.status(400).json({ message: "newAgentId and reason are required" });
+      }
+
+      const currentUser = await storage.getUser(req.user.claims.sub);
+      if (!currentUser) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      // Only SuperAdmin (0) and TenantAdmin (1) can transfer policies
+      if (currentUser.privilegeLevel > 1) {
+        return res.status(403).json({ message: "Access denied. Only admins can transfer policies." });
+      }
+
+      // Get policy to check organization scope
+      const policy = await storage.getPolicy(parseInt(id));
+      if (!policy) {
+        return res.status(404).json({ message: "Policy not found" });
+      }
+
+      // SuperAdmin can transfer any policy, TenantAdmin can only transfer within their org
+      if (currentUser.privilegeLevel === 1 && policy.organizationId !== currentUser.organizationId) {
+        return res.status(403).json({ message: "Access denied. You can only transfer policies in your organization." });
+      }
+
+      // Verify new agent exists and is in the correct organization
+      const newAgent = await storage.getUser(newAgentId);
+      if (!newAgent || newAgent.role !== 'Agent') {
+        return res.status(400).json({ message: "Invalid agent ID" });
+      }
+
+      // TenantAdmin can only transfer to agents in their organization
+      if (currentUser.privilegeLevel === 1 && newAgent.organizationId !== currentUser.organizationId) {
+        return res.status(403).json({ message: "You can only transfer to agents in your organization." });
+      }
+
+      await storage.transferPolicyServicing(
+        parseInt(id),
+        newAgentId,
+        req.user.claims.sub,
+        reason
+      );
+
+      res.json({ message: "Policy servicing agent transferred successfully" });
+    } catch (error) {
+      console.error("Error transferring policy:", error);
+      res.status(500).json({ message: "Failed to transfer policy" });
+    }
+  });
+
+  app.get("/api/policies/:id/transfer-history", auth, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Check if policy exists
+      const policy = await storage.getPolicy(parseInt(id));
+      if (!policy) {
+        return res.status(404).json({ message: "Policy not found" });
+      }
+
+      const currentUser = await storage.getUser(req.user.claims.sub);
+      const userId = req.user.claims.sub;
+      
+      // Users can only see their own policy transfer history unless they're admin/agent
+      if (policy.userId !== userId && (currentUser?.privilegeLevel ?? 5) > 2) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const history = await storage.getPolicyTransferHistory(parseInt(id));
+      res.json(history);
+    } catch (error) {
+      console.error("Error fetching policy transfer history:", error);
+      res.status(500).json({ message: "Failed to fetch policy transfer history" });
+    }
+  });
+
   // Claims - protected routes
   app.get("/api/claims", auth, async (req: any, res) => {
     try {
