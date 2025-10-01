@@ -81,6 +81,59 @@ function deobfuscateOrgId(obfuscated: string): number | null {
   }
 }
 
+// Phase 2: Agent Determination Logic Helper Functions
+async function determineSellingAgent(reqBody: any, currentUser: any): Promise<string | null> {
+  // Priority order:
+  // 1. Explicitly specified in request (admin override)
+  if (reqBody.sellingAgentId) {
+    return reqBody.sellingAgentId;
+  }
+  
+  // 2. Current user if they're an agent
+  if (currentUser.role === 'Agent') {
+    return currentUser.id;
+  }
+  
+  // 3. Member's assigned agent from client_assignments
+  if (currentUser.role === 'Member') {
+    // Get member record to find client assignment
+    const members = await storage.getMembers();
+    const member = members.find(m => m.userId === currentUser.id);
+    
+    if (member) {
+      const assignment = await storage.getActiveClientAssignment(member.id);
+      if (assignment) {
+        return assignment.agentId;
+      }
+    }
+  }
+  
+  // 4. Organization default agent
+  if (currentUser.organizationId) {
+    const orgDefaultAgent = await storage.getOrganizationDefaultAgent(
+      currentUser.organizationId
+    );
+    if (orgDefaultAgent) {
+      return orgDefaultAgent.id;
+    }
+  }
+  
+  return null;
+}
+
+async function determineServicingAgent(reqBody: any, currentUser: any): Promise<string | null> {
+  // Servicing agent typically same as selling agent initially
+  return await determineSellingAgent(reqBody, currentUser);
+}
+
+function determinePolicySource(reqBody: any, currentUser: any): string {
+  // Logic to determine policy source
+  if (reqBody.isRenewal) return 'renewal';
+  if (reqBody.referralCode || reqBody.referralSource) return 'referral';
+  if (currentUser.role === 'Agent') return 'agent_direct';
+  return 'web_application';
+}
+
 // Initialize Phase 2 services
 const achievementService = new AchievementService();
 const notificationService = new NotificationService();
@@ -954,9 +1007,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/policies", auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+      
+      if (!currentUser) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      // Phase 2: Auto-assign agent based on context
+      const sellingAgentId = await determineSellingAgent(req.body, currentUser);
+      const servicingAgentId = await determineServicingAgent(req.body, currentUser);
+      const policySource = determinePolicySource(req.body, currentUser);
+      
       const validatedData = insertPolicySchema.parse({
         ...req.body,
         userId,
+        // Phase 2: Add agent associations
+        sellingAgentId,
+        servicingAgentId,
+        organizationId: currentUser.organizationId || null,
+        agentAssignedAt: sellingAgentId ? new Date() : null,
+        policySource,
+        referralSource: req.body.referralSource || null,
       });
       const policy = await storage.createPolicy(validatedData);
       
