@@ -144,6 +144,13 @@ const menuGroups: MenuGroup[] = [
         roles: ["SuperAdmin", "TenantAdmin"],
       },
       {
+        id: "admin-commissions",
+        label: "Commission Management",
+        icon: Briefcase,
+        href: "/dashboard/admin-commissions",
+        roles: ["SuperAdmin", "TenantAdmin"],
+      },
+      {
         id: "user-management",
         label: "User Management",
         icon: Settings,
@@ -165,6 +172,13 @@ const menuGroups: MenuGroup[] = [
         icon: Shield,
         href: "/dashboard/policies",
         roles: ["SuperAdmin", "TenantAdmin", "Agent", "Member"],
+      },
+      {
+        id: "my-policies-commissions",
+        label: "My Policies & Commissions",
+        icon: Briefcase,
+        href: "/dashboard/my-policies-commissions",
+        roles: ["Agent"],
       },
       {
         id: "wishlist",
