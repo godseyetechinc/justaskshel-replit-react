@@ -785,9 +785,47 @@ Implemented policy transfer functionality and history tracking with comprehensiv
 - Transferred by admin2@justaskshel.com with reason "Testing Phase 3 policy transfer functionality"
 - All organization constraints maintained (org 1), complete audit trail created
 
+### Phase 4: Commission & Performance Tracking ✅ COMPLETED (October 1, 2025)
+Implemented comprehensive commission tracking system with automatic calculation and payment workflow:
+
+**Implementation:**
+- **Storage Methods**: 
+  - `createPolicyCommission()` - Automatic commission creation with rate and base amount
+  - `getAgentCommissions()` - Retrieve agent commissions with optional filters (status, date range)
+  - `getCommissionById()` - Fetch single commission by ID
+  - `updateCommissionStatus()` - Update commission status (approved, paid, cancelled) with payment details
+  - `getOrganizationCommissions()` - Retrieve all commissions for an organization with filters
+- **API Endpoints**: 
+  - GET /api/agents/:agentId/commissions - Get agent commissions with filters (status, startDate, endDate)
+  - GET /api/commissions/:id - Get commission details by ID
+  - PUT /api/commissions/:id/approve - Approve commission (Admin-only)
+  - PUT /api/commissions/:id/mark-paid - Mark commission as paid with payment details (Admin-only)
+- **Authorization**: 
+  - Agents can view their own commissions
+  - Admins can view and manage all commissions (with org scope for TenantAdmin)
+  - Only SuperAdmin (0) and TenantAdmin (1) can approve/pay commissions
+- **Commission Workflow**: 
+  - Pending → Approved → Paid status progression
+  - Payment tracking with date, method, reference, and notes
+  - Automatic commission calculation (base_amount × commission_rate / 100)
+
+**Database Infrastructure:**
+- ✅ **Table Structure**: 15 columns tracking complete commission lifecycle
+- ✅ **Commission Types**: initial_sale, renewal, bonus
+- ✅ **Payment Statuses**: pending, approved, paid, cancelled
+- ✅ **Performance Indexes**: 4 indexes (agent_id, policy_id, payment_status, payment_date)
+- ✅ **Referential Integrity**: Foreign keys to users, policies, agent_organizations
+
+**Test Validation:**
+- ✅ **Commission Creation**: Commission ID 2 created for policy 351 with 10% rate on $5000 base = $500 commission
+- ✅ **Status Progression**: Pending → Approved → Paid workflow validated
+- ✅ **Payment Details**: Payment date, method (ACH Transfer), reference (REF-2025-001), and notes captured
+- ✅ **Timestamp Management**: created_at and updated_at timestamps properly managed
+- ✅ **Organization Scope**: TenantAdmin restricted to own organization commissions
+
 ---
 
-## 📋 Phases 1-3 Completion Summary
+## 📋 Phases 1-4 Completion Summary
 
 ### ✅ Phase 1: Database Schema Updates - COMPLETED
 **Status:** Production Ready | **Validation:** 100% Pass Rate
@@ -853,10 +891,41 @@ Implemented policy transfer functionality and history tracking with comprehensiv
   - [x] Performance: Queries <50ms, Transfers <100ms
   - [x] Zero errors in production environment
 
+### ✅ Phase 4: Commission & Performance Tracking - COMPLETED
+**Status:** Production Ready | **Validation:** All Tests Pass
+
+- [x] **Storage Methods (5 new)**
+  - [x] createPolicyCommission() - Automatic commission creation
+  - [x] getAgentCommissions() - Retrieve with filters (status, date range)
+  - [x] getCommissionById() - Fetch single commission
+  - [x] updateCommissionStatus() - Approve/pay commissions with payment details
+  - [x] getOrganizationCommissions() - Org-level commission retrieval
+- [x] **API Endpoints (4 new)**
+  - [x] GET /api/agents/:agentId/commissions (with filters)
+  - [x] GET /api/commissions/:id
+  - [x] PUT /api/commissions/:id/approve (Admin-only)
+  - [x] PUT /api/commissions/:id/mark-paid (Admin-only)
+- [x] **Authorization & Security**
+  - [x] Agents view own commissions only
+  - [x] Admins view/manage all commissions (org-scoped for TenantAdmin)
+  - [x] SuperAdmin (0) and TenantAdmin (1) approve/pay permissions
+- [x] **Commission Workflow**
+  - [x] Pending → Approved → Paid status progression
+  - [x] Payment tracking (date, method, reference, notes)
+  - [x] Automatic calculation (base_amount × rate / 100)
+- [x] **Database Infrastructure**
+  - [x] 15 columns in agent_commissions table
+  - [x] 4 performance indexes (agent_id, policy_id, payment_status, payment_date)
+  - [x] Foreign keys to users, policies, agent_organizations
+- [x] **Validation & Testing**
+  - [x] Commission ID 2: $500 on $5000 base at 10% rate
+  - [x] Status progression tested (pending → approved → paid)
+  - [x] Payment details captured successfully
+
 ### 📊 Overall Achievement Metrics
 - **Database Tables:** 3/3 created ✅
-- **Storage Methods:** 7/7 implemented ✅
-- **API Endpoints:** 5/5 operational ✅
+- **Storage Methods:** 12/12 implemented ✅
+- **API Endpoints:** 9/9 operational ✅
 - **Security Controls:** 100% validated ✅
 - **Performance:** All <100ms ✅
 - **Organization Integrity:** 100% maintained ✅
@@ -866,6 +935,7 @@ Implemented policy transfer functionality and history tracking with comprehensiv
 - ✅ **Complete Agent-Policy Association:** Every policy linked to responsible agents
 - ✅ **Automated Agent Assignment:** Reduces manual overhead, improves accuracy
 - ✅ **Policy Transfer Workflows:** Enable agent workload management and reassignment
+- ✅ **Commission Tracking System:** Complete commission lifecycle from creation to payment
 - ✅ **Audit Trail for Compliance:** Complete regulatory compliance with full transfer history
 - ✅ **Multi-Tenant Data Isolation:** Organization boundaries maintained across all operations
 - ✅ **Performance Optimized:** Sub-100ms operations for all agent-policy queries
@@ -874,7 +944,6 @@ Implemented policy transfer functionality and history tracking with comprehensiv
 ---
 
 ### Pending Phases
-- **Phase 4**: Commission & Performance Tracking
 - **Phase 5**: API Endpoint Enhancements
 - **Phase 6**: Frontend UI Updates
 - **Phase 7**: Data Migration & Backfill
