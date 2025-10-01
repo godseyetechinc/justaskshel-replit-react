@@ -1078,7 +1078,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Don't fail the policy creation if points awarding fails
       }
       
-      res.status(201).json(policy);
+      // Phase 5: Enhance response with full agent and organization objects
+      const enrichedPolicy: any = { ...policy };
+      
+      if (policy.sellingAgentId) {
+        const sellingAgent = await storage.getUser(policy.sellingAgentId);
+        if (sellingAgent) {
+          enrichedPolicy.sellingAgent = {
+            id: sellingAgent.id,
+            email: sellingAgent.email,
+            profile: {
+              firstName: sellingAgent.firstName,
+              lastName: sellingAgent.lastName,
+              phoneNumber: sellingAgent.phoneNumber,
+            }
+          };
+        }
+      }
+      
+      if (policy.servicingAgentId) {
+        const servicingAgent = await storage.getUser(policy.servicingAgentId);
+        if (servicingAgent) {
+          enrichedPolicy.servicingAgent = {
+            id: servicingAgent.id,
+            email: servicingAgent.email,
+            profile: {
+              firstName: servicingAgent.firstName,
+              lastName: servicingAgent.lastName,
+              phoneNumber: servicingAgent.phoneNumber,
+            }
+          };
+        }
+      }
+      
+      if (policy.organizationId) {
+        const organization = await storage.getOrganizationById(policy.organizationId);
+        if (organization) {
+          enrichedPolicy.organization = {
+            id: organization.id,
+            name: organization.name,
+            displayName: organization.displayName,
+          };
+        }
+      }
+      
+      res.status(201).json(enrichedPolicy);
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res
@@ -1698,6 +1742,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error marking commission as paid:", error);
       res.status(500).json({ message: "Failed to mark commission as paid" });
+    }
+  });
+
+  // Phase 5: Summary Endpoints
+  // Get agent policies summary
+  app.get("/api/agents/:agentId/policies/summary", auth, async (req: any, res) => {
+    try {
+      const { agentId } = req.params;
+      const { type } = req.query; // Optional: 'selling', 'servicing', or undefined for all
+      
+      const currentUser = await storage.getUser(req.user.claims.sub);
+      if (!currentUser || currentUser.privilegeLevel > 2) {
+        return res.status(403).json({ message: "Insufficient privileges" });
+      }
+
+      // Validate type parameter if provided
+      if (type && type !== 'selling' && type !== 'servicing') {
+        return res.status(400).json({ message: "Invalid type. Use 'selling' or 'servicing'" });
+      }
+
+      // Agents can only view their own summary, admins can view any
+      if (currentUser.privilegeLevel === 2 && currentUser.id !== agentId) {
+        return res.status(403).json({ message: "Access denied. Agents can only view their own summary." });
+      }
+
+      // TenantAdmin can only view summaries for agents in their organization
+      if (currentUser.privilegeLevel === 1) {
+        const targetAgent = await storage.getUser(agentId);
+        if (targetAgent?.organizationId !== currentUser.organizationId) {
+          return res.status(403).json({ message: "Access denied. You can only view summaries for agents in your organization." });
+        }
+      }
+
+      const summary = await storage.getAgentPoliciesSummary(agentId, type as 'selling' | 'servicing' | undefined);
+      res.json(summary);
+    } catch (error) {
+      console.error("Error fetching agent policies summary:", error);
+      res.status(500).json({ message: "Failed to fetch agent policies summary" });
+    }
+  });
+
+  // Get organization policies summary
+  app.get("/api/organizations/:id/policies/summary", auth, async (req: any, res) => {
+    try {
+      const organizationId = parseInt(req.params.id);
+      
+      const currentUser = await storage.getUser(req.user.claims.sub);
+      if (!currentUser) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      // Only admins can view organization summaries
+      if (currentUser.privilegeLevel > 1) {
+        return res.status(403).json({ message: "Insufficient privileges. Only administrators can view organization summaries." });
+      }
+
+      // TenantAdmin can only view their own organization's summary
+      if (currentUser.privilegeLevel === 1 && currentUser.organizationId !== organizationId) {
+        return res.status(403).json({ message: "Access denied. You can only view your own organization's summary." });
+      }
+
+      const summary = await storage.getOrganizationPoliciesSummary(organizationId);
+      res.json(summary);
+    } catch (error) {
+      console.error("Error fetching organization policies summary:", error);
+      res.status(500).json({ message: "Failed to fetch organization policies summary" });
     }
   });
 

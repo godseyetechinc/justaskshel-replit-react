@@ -168,6 +168,10 @@ export interface IStorage {
   updateCommissionStatus(id: number, status: 'approved' | 'paid' | 'cancelled', paymentDetails?: { paymentDate?: Date; paymentMethod?: string; paymentReference?: string; notes?: string }): Promise<AgentCommission>;
   getOrganizationCommissions(organizationId: number, filters?: { status?: string; startDate?: Date; endDate?: Date }): Promise<AgentCommission[]>;
   
+  // Phase 5: API Enhancements - Summary Endpoints
+  getAgentPoliciesSummary(agentId: string, type?: 'selling' | 'servicing'): Promise<any>;
+  getOrganizationPoliciesSummary(organizationId: number): Promise<any>;
+  
   // Policy Documents
   createPolicyDocument(document: InsertPolicyDocument): Promise<PolicyDocument>;
   getPolicyDocuments(policyId: number): Promise<PolicyDocument[]>;
@@ -1165,6 +1169,129 @@ export class DatabaseStorage implements IStorage {
     }
     
     return await query.orderBy(desc(agentCommissions.createdAt));
+  }
+
+  // Phase 5: API Enhancements - Summary Endpoints
+  async getAgentPoliciesSummary(agentId: string, type?: 'selling' | 'servicing'): Promise<any> {
+    const sellingPolicies = await db
+      .select()
+      .from(policies)
+      .where(eq(policies.sellingAgentId, agentId));
+    
+    const servicingPolicies = await db
+      .select()
+      .from(policies)
+      .where(eq(policies.servicingAgentId, agentId));
+    
+    const relevantPolicies = type === 'selling' 
+      ? sellingPolicies 
+      : type === 'servicing' 
+      ? servicingPolicies 
+      : [...sellingPolicies, ...servicingPolicies];
+    
+    const agentCommissionsData = await db
+      .select()
+      .from(agentCommissions)
+      .where(eq(agentCommissions.agentId, agentId));
+    
+    const recentTransfers = await db
+      .select()
+      .from(policyTransfers)
+      .where(or(
+        eq(policyTransfers.fromAgentId, agentId),
+        eq(policyTransfers.toAgentId, agentId)
+      ))
+      .orderBy(desc(policyTransfers.transferredAt))
+      .limit(5);
+    
+    const totalPolicies = relevantPolicies.length;
+    const activePolicies = relevantPolicies.filter(p => p.status === 'active').length;
+    const inactivePolicies = totalPolicies - activePolicies;
+    
+    const sellingCount = sellingPolicies.length;
+    const servicingCount = servicingPolicies.length;
+    
+    const totalCommissions = agentCommissionsData.reduce((sum, c) => sum + Number(c.commissionAmount), 0);
+    const pendingCommissions = agentCommissionsData.filter(c => c.paymentStatus === 'pending').reduce((sum, c) => sum + Number(c.commissionAmount), 0);
+    const paidCommissions = agentCommissionsData.filter(c => c.paymentStatus === 'paid').reduce((sum, c) => sum + Number(c.commissionAmount), 0);
+    
+    return {
+      agentId,
+      type: type || 'all',
+      policyCounts: {
+        total: totalPolicies,
+        active: activePolicies,
+        inactive: inactivePolicies,
+        selling: sellingCount,
+        servicing: servicingCount,
+      },
+      commissions: {
+        total: totalCommissions,
+        pending: pendingCommissions,
+        paid: paidCommissions,
+        count: agentCommissionsData.length,
+      },
+      recentActivity: {
+        transfers: recentTransfers.length,
+        lastTransferDate: recentTransfers[0]?.transferredAt || null,
+      },
+    };
+  }
+
+  async getOrganizationPoliciesSummary(organizationId: number): Promise<any> {
+    const orgPolicies = await db
+      .select()
+      .from(policies)
+      .where(eq(policies.organizationId, organizationId));
+    
+    const orgCommissions = await db
+      .select()
+      .from(agentCommissions)
+      .where(eq(agentCommissions.organizationId, organizationId));
+    
+    const orgTransfers = await db
+      .select()
+      .from(policyTransfers)
+      .leftJoin(policies, eq(policyTransfers.policyId, policies.id))
+      .where(eq(policies.organizationId, organizationId))
+      .orderBy(desc(policyTransfers.transferredAt))
+      .limit(10);
+    
+    const totalPolicies = orgPolicies.length;
+    const activePolicies = orgPolicies.filter(p => p.status === 'active').length;
+    const inactivePolicies = totalPolicies - activePolicies;
+    
+    const totalCommissions = orgCommissions.reduce((sum, c) => sum + Number(c.commissionAmount), 0);
+    const pendingCommissions = orgCommissions.filter(c => c.paymentStatus === 'pending').reduce((sum, c) => sum + Number(c.commissionAmount), 0);
+    const paidCommissions = orgCommissions.filter(c => c.paymentStatus === 'paid').reduce((sum, c) => sum + Number(c.commissionAmount), 0);
+    const approvedCommissions = orgCommissions.filter(c => c.paymentStatus === 'approved').reduce((sum, c) => sum + Number(c.commissionAmount), 0);
+    
+    const agentIds = [...new Set(orgPolicies.map(p => p.sellingAgentId || p.servicingAgentId).filter(Boolean))];
+    const activeAgents = agentIds.length;
+    
+    return {
+      organizationId,
+      policyCounts: {
+        total: totalPolicies,
+        active: activePolicies,
+        inactive: inactivePolicies,
+      },
+      commissions: {
+        total: totalCommissions,
+        pending: pendingCommissions,
+        approved: approvedCommissions,
+        paid: paidCommissions,
+        count: orgCommissions.length,
+      },
+      agents: {
+        active: activeAgents,
+        totalAssigned: agentIds.length,
+      },
+      recentActivity: {
+        transfers: orgTransfers.length,
+        lastTransferDate: orgTransfers[0]?.policy_transfers?.transferredAt || null,
+      },
+    };
   }
 
   // Policy Documents
