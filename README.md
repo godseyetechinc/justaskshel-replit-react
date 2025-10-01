@@ -5,6 +5,24 @@ JustAskShel is a comprehensive insurance comparison and management platform that
 ## Recent Updates (October 2025)
 *Last updated: October 1, 2025*
 
+### 🔐 Test User Credentials for Agent-Policy Features
+
+Test the complete Agent-Policy Relationship Enhancement system with these accounts:
+
+**Agent Dashboard** (`agent1@justaskshel.com` - Agent, Org 1):
+- Access "My Policies & Commissions" page
+- View 15 policies and $1,500 in commissions
+- Filter by policy type and commission status
+
+**Admin Commission Management** (`admin1@justaskshel.com` - TenantAdmin, Org 1):
+- Access "Commission Management" page
+- Manage 129 commissions ($13,575 total)
+- Approve/pay commissions, transfer policies
+
+**SuperAdmin Access** (`superadmin@justaskshel.com` - SuperAdmin, System):
+- Full cross-organization access
+- System-wide policy and commission management
+
 ### 🎊 PROJECT COMPLETION - ALL 8 PHASES SUCCESSFULLY DELIVERED
 **JustAskShel has been transformed into an enterprise-grade loyalty platform with comprehensive social features, AI recommendations, and production-ready optimization!**
 

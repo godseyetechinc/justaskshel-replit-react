@@ -88,6 +88,43 @@ Executed comprehensive data migration to backfill agent assignments for all exis
 - **Data Integrity:** All foreign keys validated, zero orphaned records
 - **Validation Method:** Direct SQL query validation (migration script report function had non-critical syntax issue)
 
+## Test User Credentials
+
+To test the Agent-Policy Relationship Enhancement features, use the following test accounts:
+
+### Agent Dashboard Testing
+**Email:** `agent1@justaskshel.com`  
+**Role:** Agent (Privilege Level 2)  
+**Organization:** Organization 1  
+**Test Features:**
+- Access "My Policies & Commissions" page via dashboard sidebar under "Insurance & Policies"
+- View personal policy portfolio (15 policies as selling agent)
+- View commission records (15 commissions totaling $1,500)
+- Filter policies by type (selling/servicing)
+- Filter commissions by status
+
+### Admin Commission Management Testing
+**Email:** `admin1@justaskshel.com`  
+**Role:** TenantAdmin (Privilege Level 1)  
+**Organization:** Organization 1  
+**Test Features:**
+- Access "Commission Management" page via dashboard sidebar under "People & Contacts"
+- View all organization commissions (129 total: 2 paid, 127 pending)
+- Approve pending commissions
+- Mark approved commissions as paid with payment details
+- Transfer policies between agents
+- View policy transfer history
+
+### SuperAdmin Cross-Organization Testing
+**Email:** `superadmin@justaskshel.com`  
+**Role:** SuperAdmin (Privilege Level 0)  
+**Organization:** SYSTEM_PLATFORM (ID: 0)  
+**Test Features:**
+- Access all agent and admin features across all organizations
+- View system-wide policy and commission data
+- Manage cross-organization policy transfers
+- Access analytics and reporting across all tenants
+
 ## Executive Summary
 This document analyzes the current association structure between agents, policies, and policy owners in the JustAskShel insurance platform, identifies critical gaps, and proposes comprehensive enhancements to establish proper agent-policy relationships, commission tracking, and policy lifecycle management.
 

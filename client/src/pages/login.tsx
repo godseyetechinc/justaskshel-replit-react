@@ -257,10 +257,24 @@ export default function Login() {
 
           {/* Test Account Info */}
           <Alert>
-            <AlertDescription className="text-xs">
-              <strong>Test Account:</strong> Use any seeded user email (e.g.,
-              admin1@justaskshel.com, agent1@justaskshel.com,
-              member1@example.com) with password "password123"
+            <AlertDescription className="text-xs space-y-2">
+              <div>
+                <strong>Test Accounts (password: "password123"):</strong>
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-start">
+                  <span className="font-medium mr-2">Agent:</span>
+                  <span>agent1@justaskshel.com - View "My Policies & Commissions" (15 policies, $1,500 commissions)</span>
+                </div>
+                <div className="flex items-start">
+                  <span className="font-medium mr-2">Admin:</span>
+                  <span>admin1@justaskshel.com - Manage commissions & transfers (129 total commissions)</span>
+                </div>
+                <div className="flex items-start">
+                  <span className="font-medium mr-2">SuperAdmin:</span>
+                  <span>superadmin@justaskshel.com - Full cross-organization access</span>
+                </div>
+              </div>
             </AlertDescription>
           </Alert>
         </CardContent>
