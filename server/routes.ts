@@ -1553,6 +1553,154 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Phase 4: Commission & Performance Tracking Endpoints
+  
+  // Get agent commissions with filters
+  app.get("/api/agents/:agentId/commissions", auth, async (req: any, res) => {
+    try {
+      const { agentId } = req.params;
+      const { status, startDate, endDate } = req.query;
+      
+      const currentUser = await storage.getUser(req.user.claims.sub);
+      if (!currentUser) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      // Agents can only view their own commissions, admins can view any
+      if (currentUser.privilegeLevel > 2 && currentUser.id !== agentId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // TenantAdmin can only view commissions for agents in their organization
+      if (currentUser.privilegeLevel === 1) {
+        const targetAgent = await storage.getUser(agentId);
+        if (targetAgent?.organizationId !== currentUser.organizationId) {
+          return res.status(403).json({ message: "Access denied. You can only view commissions in your organization." });
+        }
+      }
+
+      const filters: any = {};
+      if (status) filters.status = status;
+      if (startDate) filters.startDate = new Date(startDate as string);
+      if (endDate) filters.endDate = new Date(endDate as string);
+
+      const commissions = await storage.getAgentCommissions(agentId, filters);
+      res.json(commissions);
+    } catch (error) {
+      console.error("Error fetching agent commissions:", error);
+      res.status(500).json({ message: "Failed to fetch commissions" });
+    }
+  });
+
+  // Get commission by ID
+  app.get("/api/commissions/:id", auth, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      
+      const commission = await storage.getCommissionById(parseInt(id));
+      if (!commission) {
+        return res.status(404).json({ message: "Commission not found" });
+      }
+
+      const currentUser = await storage.getUser(req.user.claims.sub);
+      if (!currentUser) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      // Only the agent or admins can view commission details
+      if (currentUser.privilegeLevel > 2 && currentUser.id !== commission.agentId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // TenantAdmin can only view commissions in their organization
+      if (currentUser.privilegeLevel === 1 && commission.organizationId !== currentUser.organizationId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      res.json(commission);
+    } catch (error) {
+      console.error("Error fetching commission:", error);
+      res.status(500).json({ message: "Failed to fetch commission" });
+    }
+  });
+
+  // Approve commission (Admin only)
+  app.put("/api/commissions/:id/approve", auth, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      
+      const currentUser = await storage.getUser(req.user.claims.sub);
+      if (!currentUser) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      // Only SuperAdmin (0) and TenantAdmin (1) can approve commissions
+      if (currentUser.privilegeLevel > 1) {
+        return res.status(403).json({ message: "Access denied. Only admins can approve commissions." });
+      }
+
+      const commission = await storage.getCommissionById(parseInt(id));
+      if (!commission) {
+        return res.status(404).json({ message: "Commission not found" });
+      }
+
+      // TenantAdmin can only approve commissions in their organization
+      if (currentUser.privilegeLevel === 1 && commission.organizationId !== currentUser.organizationId) {
+        return res.status(403).json({ message: "Access denied. You can only approve commissions in your organization." });
+      }
+
+      const updatedCommission = await storage.updateCommissionStatus(parseInt(id), 'approved');
+      res.json(updatedCommission);
+    } catch (error) {
+      console.error("Error approving commission:", error);
+      res.status(500).json({ message: "Failed to approve commission" });
+    }
+  });
+
+  // Mark commission as paid (Admin only)
+  app.put("/api/commissions/:id/mark-paid", auth, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { paymentMethod, paymentReference, notes } = req.body;
+      
+      const currentUser = await storage.getUser(req.user.claims.sub);
+      if (!currentUser) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      // Only SuperAdmin (0) and TenantAdmin (1) can mark commissions as paid
+      if (currentUser.privilegeLevel > 1) {
+        return res.status(403).json({ message: "Access denied. Only admins can mark commissions as paid." });
+      }
+
+      const commission = await storage.getCommissionById(parseInt(id));
+      if (!commission) {
+        return res.status(404).json({ message: "Commission not found" });
+      }
+
+      // TenantAdmin can only update commissions in their organization
+      if (currentUser.privilegeLevel === 1 && commission.organizationId !== currentUser.organizationId) {
+        return res.status(403).json({ message: "Access denied. You can only update commissions in your organization." });
+      }
+
+      const updatedCommission = await storage.updateCommissionStatus(
+        parseInt(id), 
+        'paid',
+        {
+          paymentDate: new Date(),
+          paymentMethod,
+          paymentReference,
+          notes
+        }
+      );
+      
+      res.json(updatedCommission);
+    } catch (error) {
+      console.error("Error marking commission as paid:", error);
+      res.status(500).json({ message: "Failed to mark commission as paid" });
+    }
+  });
+
   // Claims - protected routes
   app.get("/api/claims", auth, async (req: any, res) => {
     try {
