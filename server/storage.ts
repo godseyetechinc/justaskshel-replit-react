@@ -161,6 +161,13 @@ export interface IStorage {
   transferPolicyServicing(policyId: number, newServicingAgentId: string, transferredBy: string, reason: string): Promise<void>;
   getPolicyTransferHistory(policyId: number): Promise<PolicyTransfer[]>;
   
+  // Phase 4: Commission & Performance Tracking
+  createPolicyCommission(policyId: number, agentId: string, organizationId: number, commissionRate: number, baseAmount: number): Promise<AgentCommission>;
+  getAgentCommissions(agentId: string, filters?: { status?: string; startDate?: Date; endDate?: Date }): Promise<AgentCommission[]>;
+  getCommissionById(id: number): Promise<AgentCommission | undefined>;
+  updateCommissionStatus(id: number, status: 'approved' | 'paid' | 'cancelled', paymentDetails?: { paymentDate?: Date; paymentMethod?: string; paymentReference?: string; notes?: string }): Promise<AgentCommission>;
+  getOrganizationCommissions(organizationId: number, filters?: { status?: string; startDate?: Date; endDate?: Date }): Promise<AgentCommission[]>;
+  
   // Policy Documents
   createPolicyDocument(document: InsertPolicyDocument): Promise<PolicyDocument>;
   getPolicyDocuments(policyId: number): Promise<PolicyDocument[]>;
@@ -1045,6 +1052,119 @@ export class DatabaseStorage implements IStorage {
       .from(policyTransfers)
       .where(eq(policyTransfers.policyId, policyId))
       .orderBy(desc(policyTransfers.transferredAt));
+  }
+
+  // Phase 4: Commission & Performance Tracking
+  async createPolicyCommission(
+    policyId: number,
+    agentId: string,
+    organizationId: number,
+    commissionRate: number,
+    baseAmount: number
+  ): Promise<AgentCommission> {
+    const commissionAmount = (baseAmount * commissionRate) / 100;
+    
+    const [commission] = await db.insert(agentCommissions).values({
+      policyId,
+      agentId,
+      organizationId,
+      commissionType: 'initial_sale',
+      commissionRate: commissionRate.toString(),
+      baseAmount: baseAmount.toString(),
+      commissionAmount: commissionAmount.toString(),
+      paymentStatus: 'pending',
+    }).returning();
+    
+    return commission;
+  }
+
+  async getAgentCommissions(
+    agentId: string,
+    filters?: { status?: string; startDate?: Date; endDate?: Date }
+  ): Promise<AgentCommission[]> {
+    let query = db
+      .select()
+      .from(agentCommissions)
+      .where(eq(agentCommissions.agentId, agentId));
+    
+    if (filters?.status) {
+      query = query.where(eq(agentCommissions.paymentStatus, filters.status));
+    }
+    
+    if (filters?.startDate) {
+      query = query.where(gte(agentCommissions.createdAt, filters.startDate));
+    }
+    
+    if (filters?.endDate) {
+      query = query.where(lte(agentCommissions.createdAt, filters.endDate));
+    }
+    
+    return await query.orderBy(desc(agentCommissions.createdAt));
+  }
+
+  async getCommissionById(id: number): Promise<AgentCommission | undefined> {
+    const [commission] = await db
+      .select()
+      .from(agentCommissions)
+      .where(eq(agentCommissions.id, id))
+      .limit(1);
+    
+    return commission;
+  }
+
+  async updateCommissionStatus(
+    id: number,
+    status: 'approved' | 'paid' | 'cancelled',
+    paymentDetails?: { 
+      paymentDate?: Date; 
+      paymentMethod?: string; 
+      paymentReference?: string; 
+      notes?: string 
+    }
+  ): Promise<AgentCommission> {
+    const updateData: any = {
+      paymentStatus: status,
+      updatedAt: new Date(),
+    };
+    
+    if (paymentDetails) {
+      if (paymentDetails.paymentDate) updateData.paymentDate = paymentDetails.paymentDate;
+      if (paymentDetails.paymentMethod) updateData.paymentMethod = paymentDetails.paymentMethod;
+      if (paymentDetails.paymentReference) updateData.paymentReference = paymentDetails.paymentReference;
+      if (paymentDetails.notes) updateData.notes = paymentDetails.notes;
+    }
+    
+    const [commission] = await db
+      .update(agentCommissions)
+      .set(updateData)
+      .where(eq(agentCommissions.id, id))
+      .returning();
+    
+    return commission;
+  }
+
+  async getOrganizationCommissions(
+    organizationId: number,
+    filters?: { status?: string; startDate?: Date; endDate?: Date }
+  ): Promise<AgentCommission[]> {
+    let query = db
+      .select()
+      .from(agentCommissions)
+      .where(eq(agentCommissions.organizationId, organizationId));
+    
+    if (filters?.status) {
+      query = query.where(eq(agentCommissions.paymentStatus, filters.status));
+    }
+    
+    if (filters?.startDate) {
+      query = query.where(gte(agentCommissions.createdAt, filters.startDate));
+    }
+    
+    if (filters?.endDate) {
+      query = query.where(lte(agentCommissions.createdAt, filters.endDate));
+    }
+    
+    return await query.orderBy(desc(agentCommissions.createdAt));
   }
 
   // Policy Documents
