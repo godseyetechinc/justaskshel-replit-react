@@ -84,9 +84,23 @@ function deobfuscateOrgId(obfuscated: string): number | null {
 // Phase 2: Agent Determination Logic Helper Functions
 async function determineSellingAgent(reqBody: any, currentUser: any): Promise<string | null> {
   // Priority order:
-  // 1. Explicitly specified in request (admin override)
+  // 1. Explicitly specified in request (admin override - restricted to SuperAdmin/TenantAdmin)
   if (reqBody.sellingAgentId) {
-    return reqBody.sellingAgentId;
+    // Only SuperAdmin (privilege 0) and TenantAdmin (privilege 1) can override agent assignment
+    if (currentUser.privilegeLevel <= 1) {
+      // Verify the agent exists and is accessible
+      const agents = await storage.getAgents();
+      const targetAgent = agents.find(a => a.id === reqBody.sellingAgentId);
+      
+      if (targetAgent) {
+        // SuperAdmin can assign any agent; TenantAdmin only within their organization
+        if (currentUser.privilegeLevel === 0 || 
+            targetAgent.organizationId === currentUser.organizationId) {
+          return reqBody.sellingAgentId;
+        }
+      }
+    }
+    // If not authorized or agent not found, fall through to automatic assignment
   }
   
   // 2. Current user if they're an agent
@@ -121,9 +135,29 @@ async function determineSellingAgent(reqBody: any, currentUser: any): Promise<st
   return null;
 }
 
-async function determineServicingAgent(reqBody: any, currentUser: any): Promise<string | null> {
-  // Servicing agent typically same as selling agent initially
-  return await determineSellingAgent(reqBody, currentUser);
+async function determineServicingAgent(reqBody: any, currentUser: any, sellingAgentId: string | null): Promise<string | null> {
+  // Priority order for servicing agent:
+  // 1. Explicitly specified in request (admin override - restricted to SuperAdmin/TenantAdmin)
+  if (reqBody.servicingAgentId) {
+    // Only SuperAdmin (privilege 0) and TenantAdmin (privilege 1) can override agent assignment
+    if (currentUser.privilegeLevel <= 1) {
+      // Verify the agent exists and is accessible
+      const agents = await storage.getAgents();
+      const targetAgent = agents.find(a => a.id === reqBody.servicingAgentId);
+      
+      if (targetAgent) {
+        // SuperAdmin can assign any agent; TenantAdmin only within their organization
+        if (currentUser.privilegeLevel === 0 || 
+            targetAgent.organizationId === currentUser.organizationId) {
+          return reqBody.servicingAgentId;
+        }
+      }
+    }
+    // If not authorized or agent not found, fall through to automatic assignment
+  }
+  
+  // 2. Default to selling agent if not explicitly set
+  return sellingAgentId;
 }
 
 function determinePolicySource(reqBody: any, currentUser: any): string {
@@ -1015,7 +1049,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Phase 2: Auto-assign agent based on context
       const sellingAgentId = await determineSellingAgent(req.body, currentUser);
-      const servicingAgentId = await determineServicingAgent(req.body, currentUser);
+      const servicingAgentId = await determineServicingAgent(req.body, currentUser, sellingAgentId);
       const policySource = determinePolicySource(req.body, currentUser);
       
       const validatedData = insertPolicySchema.parse({
