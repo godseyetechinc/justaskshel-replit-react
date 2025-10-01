@@ -2005,3 +2005,23 @@ export type InsertClientActivityInput = z.infer<typeof insertClientActivitySchem
 export type InsertOrganizationAnalyticsInput = z.infer<typeof insertOrganizationAnalyticsSchema>;
 export type InsertAgentCollaborationInput = z.infer<typeof insertAgentCollaborationSchema>;
 export type InsertOrganizationKnowledgeBaseInput = z.infer<typeof insertOrganizationKnowledgeBaseSchema>;
+
+// Phase 1: Agent-Policy Relationship Enhancement types and schemas
+export type PolicyTransfer = typeof policyTransfers.$inferSelect;
+export type InsertPolicyTransfer = typeof policyTransfers.$inferInsert;
+export type AgentCommission = typeof agentCommissions.$inferSelect;
+export type InsertAgentCommission = typeof agentCommissions.$inferInsert;
+
+export const insertPolicyTransferSchema = createInsertSchema(policyTransfers).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertAgentCommissionSchema = createInsertSchema(agentCommissions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertPolicyTransferInput = z.infer<typeof insertPolicyTransferSchema>;
+export type InsertAgentCommissionInput = z.infer<typeof insertAgentCommissionSchema>;
