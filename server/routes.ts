@@ -89,8 +89,8 @@ async function determineSellingAgent(reqBody: any, currentUser: any): Promise<st
     // Only SuperAdmin (privilege 0) and TenantAdmin (privilege 1) can override agent assignment
     if (currentUser.privilegeLevel <= 1) {
       // Verify the agent exists and is accessible
-      const agents = await storage.getAgents();
-      const targetAgent = agents.find(a => a.id === reqBody.sellingAgentId);
+      const agentsResult = await storage.getAgents(currentUser);
+      const targetAgent = agentsResult.agents.find((a: any) => a.id === reqBody.sellingAgentId);
       
       if (targetAgent) {
         // SuperAdmin can assign any agent; TenantAdmin only within their organization
@@ -142,8 +142,8 @@ async function determineServicingAgent(reqBody: any, currentUser: any, sellingAg
     // Only SuperAdmin (privilege 0) and TenantAdmin (privilege 1) can override agent assignment
     if (currentUser.privilegeLevel <= 1) {
       // Verify the agent exists and is accessible
-      const agents = await storage.getAgents();
-      const targetAgent = agents.find(a => a.id === reqBody.servicingAgentId);
+      const agentsResult = await storage.getAgents(currentUser);
+      const targetAgent = agentsResult.agents.find((a: any) => a.id === reqBody.servicingAgentId);
       
       if (targetAgent) {
         // SuperAdmin can assign any agent; TenantAdmin only within their organization
