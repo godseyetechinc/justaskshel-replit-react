@@ -147,7 +147,7 @@ export const wishlist = pgTable("wishlist", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// User policies - Match actual database schema
+// User policies - Enhanced with agent relationships and commission tracking
 export const policies = pgTable("policies", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").references(() => users.id),
@@ -158,7 +158,22 @@ export const policies = pgTable("policies", {
   endDate: timestamp("end_date"),
   nextPaymentDate: timestamp("next_payment_date"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+  
+  // Phase 1: Agent relationship fields
+  sellingAgentId: varchar("selling_agent_id").references(() => users.id),
+  servicingAgentId: varchar("servicing_agent_id").references(() => users.id),
+  organizationId: integer("organization_id").references(() => agentOrganizations.id),
+  agentCommissionRate: decimal("agent_commission_rate", { precision: 5, scale: 2 }).default("0.00"),
+  agentCommissionPaid: boolean("agent_commission_paid").default(false),
+  agentAssignedAt: timestamp("agent_assigned_at"),
+  policySource: varchar("policy_source", { length: 50 }),
+  referralSource: varchar("referral_source", { length: 255 }),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_policies_selling_agent").on(table.sellingAgentId),
+  index("idx_policies_servicing_agent").on(table.servicingAgentId),
+  index("idx_policies_organization").on(table.organizationId),
+]);
 
 // Claims
 export const claims = pgTable("claims", {
@@ -1717,6 +1732,53 @@ export const clientAssignments = pgTable("client_assignments", {
   index("idx_client_assignments_client_id").on(table.clientId),
   index("idx_client_assignments_agent_id").on(table.agentId),
   index("idx_client_assignments_organization_id").on(table.organizationId),
+]);
+
+// Policy transfers - Track policy agent reassignments
+export const policyTransfers = pgTable("policy_transfers", {
+  id: serial("id").primaryKey(),
+  policyId: integer("policy_id").references(() => policies.id).notNull(),
+  fromAgentId: varchar("from_agent_id").references(() => users.id),
+  toAgentId: varchar("to_agent_id").references(() => users.id).notNull(),
+  transferredBy: varchar("transferred_by").references(() => users.id).notNull(),
+  transferReason: text("transfer_reason").notNull(),
+  transferType: varchar("transfer_type", { 
+    enum: ["servicing", "both"] 
+  }).default("servicing"),
+  transferredAt: timestamp("transferred_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_policy_transfers_policy").on(table.policyId),
+  index("idx_policy_transfers_from_agent").on(table.fromAgentId),
+  index("idx_policy_transfers_to_agent").on(table.toAgentId),
+]);
+
+// Agent commissions - Track commission payments for policy sales
+export const agentCommissions = pgTable("agent_commissions", {
+  id: serial("id").primaryKey(),
+  agentId: varchar("agent_id").references(() => users.id).notNull(),
+  policyId: integer("policy_id").references(() => policies.id).notNull(),
+  organizationId: integer("organization_id").references(() => agentOrganizations.id).notNull(),
+  commissionType: varchar("commission_type", { 
+    enum: ["initial_sale", "renewal", "bonus"] 
+  }).notNull(),
+  commissionRate: decimal("commission_rate", { precision: 5, scale: 2 }).notNull(),
+  baseAmount: decimal("base_amount", { precision: 10, scale: 2 }).notNull(),
+  commissionAmount: decimal("commission_amount", { precision: 10, scale: 2 }).notNull(),
+  paymentStatus: varchar("payment_status", { 
+    enum: ["pending", "approved", "paid", "cancelled"] 
+  }).default("pending"),
+  paymentDate: timestamp("payment_date"),
+  paymentMethod: varchar("payment_method", { length: 50 }),
+  paymentReference: varchar("payment_reference", { length: 100 }),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_agent_commissions_agent").on(table.agentId),
+  index("idx_agent_commissions_policy").on(table.policyId),
+  index("idx_agent_commissions_status").on(table.paymentStatus),
+  index("idx_agent_commissions_date").on(table.paymentDate),
 ]);
 
 // Agent performance tracking for analytics and reporting
