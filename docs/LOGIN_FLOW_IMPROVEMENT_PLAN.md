@@ -1146,6 +1146,467 @@ const { data: pendingAccessRequests } = useQuery({
 5. **Permissions**: Role-based access control (privilege level checks)
 6. **UI Consistency**: Use existing shadcn/ui components and design patterns
 
+#### 3.6 User Profile & Organization Visibility
+
+##### 3.6.1 User Profile Page Enhancements
+
+Add organization information display to user profile/settings pages:
+
+**File**: `client/src/pages/dashboard/profile.tsx` or `client/src/pages/dashboard/settings.tsx`
+
+```typescript
+import { useAuth } from "@/hooks/useAuth";
+import { useQuery } from "@tanstack/react-query";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Building2, Shield, Users, Mail } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
+function OrganizationInfoCard() {
+  const { user } = useAuth();
+  
+  // Fetch full organization details
+  const { data: organization, isLoading } = useQuery({
+    queryKey: [`/api/organizations/${user.organizationId}`],
+    enabled: !!user.organizationId
+  });
+
+  if (!user.organizationId) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Organization</CardTitle>
+          <CardDescription>You are not currently associated with an organization</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button variant="outline" onClick={() => window.location.href = '/login'}>
+            <Building2 className="mr-2 h-4 w-4" />
+            Request Organization Access
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="py-6">
+          <div className="text-center text-muted-foreground">Loading organization details...</div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card data-testid="card-organization-info">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {organization?.logoUrl ? (
+              <img 
+                src={organization.logoUrl} 
+                alt={`${organization.displayName} logo`}
+                className="h-12 w-12 rounded object-cover"
+              />
+            ) : (
+              <div 
+                className="h-12 w-12 rounded flex items-center justify-center"
+                style={{ backgroundColor: organization?.primaryColor || '#3b82f6' }}
+              >
+                <Building2 className="h-6 w-6 text-white" />
+              </div>
+            )}
+            <div>
+              <CardTitle>{organization?.displayName}</CardTitle>
+              <CardDescription>{organization?.description}</CardDescription>
+            </div>
+          </div>
+          <Badge variant="secondary" data-testid="badge-user-role">
+            {user.role}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <div className="text-sm font-medium text-muted-foreground">Organization ID</div>
+              <div className="text-sm" data-testid="text-org-id">{organization?.id}</div>
+            </div>
+            <div className="space-y-1">
+              <div className="text-sm font-medium text-muted-foreground">Your Role</div>
+              <div className="flex items-center gap-2">
+                <Shield className="h-4 w-4" />
+                <span className="text-sm" data-testid="text-user-role">{user.role}</span>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <div className="text-sm font-medium text-muted-foreground">Privilege Level</div>
+              <div className="text-sm" data-testid="text-privilege-level">Level {user.privilegeLevel}</div>
+            </div>
+            <div className="space-y-1">
+              <div className="text-sm font-medium text-muted-foreground">Organization Type</div>
+              <div className="text-sm">{organization?.type || 'Insurance Agency'}</div>
+            </div>
+          </div>
+
+          {organization?.contactEmail && (
+            <div className="pt-4 border-t">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Mail className="h-4 w-4" />
+                <span>Organization Contact: {organization.contactEmail}</span>
+              </div>
+            </div>
+          )}
+
+          {user.privilegeLevel === 0 && (
+            <div className="pt-4 border-t">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => window.location.href = '/dashboard/organizations'}
+                data-testid="button-switch-organization"
+              >
+                <Building2 className="mr-2 h-4 w-4" />
+                Switch Organization
+              </Button>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function ProfilePage() {
+  const { user } = useAuth();
+
+  return (
+    <DashboardLayout>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Profile Settings</h1>
+          <p className="text-muted-foreground">
+            Manage your account information and organization details
+          </p>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* User Information Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Personal Information</CardTitle>
+              <CardDescription>Your account details</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {/* Existing user info fields */}
+            </CardContent>
+          </Card>
+
+          {/* Organization Information Card */}
+          <OrganizationInfoCard />
+        </div>
+      </div>
+    </DashboardLayout>
+  );
+}
+```
+
+##### 3.6.2 Dashboard Header Organization Display
+
+Add organization context to the dashboard header/navbar for quick reference:
+
+**File**: `client/src/components/dashboard-header.tsx`
+
+```typescript
+function OrganizationBadge() {
+  const { user } = useAuth();
+  const { data: organization } = useQuery({
+    queryKey: [`/api/organizations/${user.organizationId}`],
+    enabled: !!user.organizationId
+  });
+
+  if (!organization) return null;
+
+  return (
+    <div 
+      className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-muted text-sm"
+      data-testid="badge-header-organization"
+    >
+      <Building2 className="h-4 w-4" />
+      <span className="font-medium">{organization.displayName}</span>
+      {user.privilegeLevel === 0 && (
+        <Badge variant="outline" className="ml-1 text-xs">SuperAdmin</Badge>
+      )}
+    </div>
+  );
+}
+
+export default function DashboardHeader() {
+  return (
+    <header className="border-b">
+      <div className="flex h-16 items-center gap-4 px-6">
+        {/* Logo and navigation */}
+        
+        <div className="ml-auto flex items-center gap-4">
+          {/* Organization badge */}
+          <OrganizationBadge />
+          
+          {/* User menu */}
+          <UserMenu />
+        </div>
+      </div>
+    </header>
+  );
+}
+```
+
+##### 3.6.3 Organization Switcher (SuperAdmin Only)
+
+For SuperAdmin users, provide an organization switcher in the header:
+
+```typescript
+function OrganizationSwitcher() {
+  const { user } = useAuth();
+  const { data: organizations } = useQuery({
+    queryKey: ["/api/organizations"],
+    enabled: user.privilegeLevel === 0
+  });
+  const [open, setOpen] = useState(false);
+
+  const switchMutation = useMutation({
+    mutationFn: (orgId: string) =>
+      apiRequest("/api/auth/session/organization", {
+        method: "POST",
+        body: JSON.stringify({ organizationId: orgId })
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      window.location.reload(); // Refresh to update all org-scoped data
+    }
+  });
+
+  if (user.privilegeLevel !== 0) return null;
+
+  return (
+    <DropdownMenu open={open} onOpenChange={setOpen}>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="sm" data-testid="button-org-switcher">
+          <Building2 className="h-4 w-4 mr-2" />
+          Switch Organization
+          <ChevronDown className="h-4 w-4 ml-2" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-64">
+        <DropdownMenuLabel>Select Organization</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {organizations?.map((org: any) => (
+          <DropdownMenuItem
+            key={org.id}
+            onClick={() => switchMutation.mutate(org.id)}
+            disabled={switchMutation.isPending}
+            data-testid={`menu-item-org-${org.id}`}
+          >
+            <div className="flex items-center gap-2">
+              {org.logoUrl ? (
+                <img src={org.logoUrl} className="h-6 w-6 rounded" alt="" />
+              ) : (
+                <Building2 className="h-4 w-4" />
+              )}
+              <div className="flex-1">
+                <div className="font-medium">{org.displayName}</div>
+                <div className="text-xs text-muted-foreground">{org.name}</div>
+              </div>
+              {org.id === user.organizationId && (
+                <Check className="h-4 w-4 text-primary" />
+              )}
+            </div>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+```
+
+##### 3.6.4 Organization Info in Settings/Account Pages
+
+Display organization membership history and access request status:
+
+```typescript
+function OrganizationMembershipHistory() {
+  const { user } = useAuth();
+  const { data: accessRequests } = useQuery({
+    queryKey: [`/api/users/${user.id}/access-requests`]
+  });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Organization Access History</CardTitle>
+        <CardDescription>
+          Your organization membership and access requests
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          {/* Current Organization */}
+          {user.organizationId && (
+            <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+              <div className="flex items-center gap-3">
+                <Badge variant="default">Current</Badge>
+                <div>
+                  <div className="font-medium">Current Organization</div>
+                  <div className="text-sm text-muted-foreground">
+                    Member since {/* join date */}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Access Requests History */}
+          {accessRequests?.length > 0 && (
+            <>
+              <Separator />
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium">Access Requests</h4>
+                {accessRequests.map((request: any) => (
+                  <div 
+                    key={request.id}
+                    className="flex items-center justify-between p-3 border rounded-lg"
+                  >
+                    <div>
+                      <div className="font-medium">{request.organizationName}</div>
+                      <div className="text-sm text-muted-foreground">
+                        Requested as {request.desiredRole}
+                      </div>
+                    </div>
+                    <Badge
+                      variant={
+                        request.status === 'approved' ? 'default' :
+                        request.status === 'pending' ? 'secondary' : 'destructive'
+                      }
+                    >
+                      {request.status}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+```
+
+##### 3.6.5 API Endpoint for User Organization Details
+
+**Backend Enhancement** - Add endpoint to fetch user's organization details:
+
+```typescript
+// GET /api/users/:userId/organization
+app.get("/api/users/:userId/organization", requireAuth, async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const currentUserId = req.session.userId;
+
+    // Only allow users to view their own org or SuperAdmin to view any
+    if (userId !== currentUserId && req.session.user?.privilegeLevel > 0) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    const user = await storage.getUser(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (!user.organizationId) {
+      return res.json({ organization: null, hasAccess: false });
+    }
+
+    const organization = await storage.getOrganizationById(user.organizationId);
+    
+    res.json({
+      organization: {
+        id: obfuscateOrgId(organization.id),
+        name: organization.name,
+        displayName: organization.displayName,
+        description: organization.description,
+        logoUrl: organization.logoUrl,
+        primaryColor: organization.primaryColor,
+        secondaryColor: organization.secondaryColor,
+        contactEmail: organization.contactEmail,
+        type: organization.type
+      },
+      userRole: user.role,
+      privilegeLevel: user.privilegeLevel,
+      joinedAt: user.createdAt,
+      hasAccess: true
+    });
+  } catch (error) {
+    console.error("Error fetching user organization:", error);
+    res.status(500).json({ message: "Failed to fetch organization details" });
+  }
+});
+
+// GET /api/users/:userId/access-requests
+// Returns the user's access request history
+app.get("/api/users/:userId/access-requests", requireAuth, async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const currentUserId = req.session.userId;
+
+    // Only allow users to view their own requests or SuperAdmin/TenantAdmin
+    if (userId !== currentUserId && req.session.user?.privilegeLevel > 1) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    const requests = await storage.getAccessRequestsByUser(userId);
+    
+    // Enrich with organization names
+    const enrichedRequests = await Promise.all(
+      requests.map(async (request) => {
+        const org = await storage.getOrganizationById(request.organizationId);
+        return {
+          ...request,
+          organizationName: org.displayName,
+          organizationId: obfuscateOrgId(request.organizationId)
+        };
+      })
+    );
+
+    res.json(enrichedRequests);
+  } catch (error) {
+    console.error("Error fetching access requests:", error);
+    res.status(500).json({ message: "Failed to fetch access requests" });
+  }
+});
+```
+
+##### 3.6.6 Implementation Checklist
+
+- [ ] Add OrganizationInfoCard component to profile page
+- [ ] Add OrganizationBadge to dashboard header
+- [ ] Implement organization switcher for SuperAdmin users
+- [ ] Create organization membership history view
+- [ ] Add backend endpoints for user organization details
+- [ ] Add backend endpoint for user access request history
+- [ ] Test organization visibility across all user roles
+- [ ] Verify SuperAdmin organization switching functionality
+- [ ] Ensure proper authorization for organization data access
+- [ ] Add loading states and error handling for all organization queries
+
+**Benefits:**
+1. **Transparency**: Users always know which organization context they're in
+2. **Quick Reference**: Organization info readily available without navigation
+3. **SuperAdmin Efficiency**: Easy organization switching from header
+4. **Access Tracking**: Users can view their organization access history
+5. **Improved UX**: Clear organization context reduces confusion
+
 ## User Experience Flows
 
 ### Flow 1: SuperAdmin Login
