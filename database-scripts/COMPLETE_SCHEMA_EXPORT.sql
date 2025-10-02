@@ -1,1241 +1,1339 @@
-CREATE TABLE "achievement_shares" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"user_id" varchar NOT NULL,
-	"achievement_id" integer,
-	"seasonal_achievement_id" integer,
-	"share_type" varchar NOT NULL,
-	"message" text,
-	"image_url" varchar(500),
-	"hashtags" varchar[],
-	"is_public" boolean DEFAULT true,
-	"likes_count" integer DEFAULT 0,
-	"comments_count" integer DEFAULT 0,
-	"shares_count" integer DEFAULT 0,
-	"shared_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-CREATE TABLE "achievements" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"name" varchar(100) NOT NULL,
-	"description" text,
-	"category" varchar NOT NULL,
-	"icon" varchar(50),
-	"points_reward" integer DEFAULT 0,
-	"requirements" jsonb,
-	"is_active" boolean DEFAULT true,
-	"sort_order" integer DEFAULT 0,
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-CREATE TABLE "activity_comments" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"activity_id" integer NOT NULL,
-	"user_id" varchar NOT NULL,
-	"comment" text NOT NULL,
-	"is_reply" boolean DEFAULT false,
-	"parent_comment_id" integer,
-	"likes_count" integer DEFAULT 0,
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-CREATE TABLE "activity_likes" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"activity_id" integer NOT NULL,
-	"user_id" varchar NOT NULL,
-	"reaction_type" varchar DEFAULT 'Like',
-	"created_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-CREATE TABLE "agent_collaborations" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"organization_id" integer NOT NULL,
-	"initiator_id" varchar NOT NULL,
-	"collaborator_id" varchar NOT NULL,
-	"collaboration_type" varchar NOT NULL,
-	"subject" varchar(200) NOT NULL,
-	"description" text,
-	"status" varchar DEFAULT 'Pending',
-	"priority" varchar DEFAULT 'Medium',
-	"scheduled_date" timestamp,
-	"completed_date" timestamp,
-	"outcome" text,
-	"rating" integer,
-	"is_public" boolean DEFAULT false,
-	"tags" jsonb,
-	"attachments" jsonb,
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-CREATE TABLE "agent_organizations" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"name" varchar(100) NOT NULL,
-	"display_name" varchar(100) NOT NULL,
-	"description" text,
-	"website" varchar(255),
-	"phone" varchar(20),
-	"email" varchar(100),
-	"address" text,
-	"city" varchar(50),
-	"state" varchar(50),
-	"zip_code" varchar(10),
-	"logo_url" varchar(255),
-	"primary_color" varchar(7) DEFAULT '#0EA5E9',
-	"secondary_color" varchar(7) DEFAULT '#64748B',
-	"status" varchar DEFAULT 'Active',
-	"subscription_plan" varchar DEFAULT 'Basic',
-	"subscription_status" varchar DEFAULT 'Trial',
-	"max_agents" integer DEFAULT 5,
-	"max_members" integer DEFAULT 100,
-	"settings" jsonb,
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-CREATE TABLE "agent_performance" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"agent_id" varchar NOT NULL,
-	"organization_id" integer NOT NULL,
-	"period_type" varchar NOT NULL,
-	"period_start" timestamp NOT NULL,
-	"period_end" timestamp NOT NULL,
-	"quotes_generated" integer DEFAULT 0,
-	"quotes_converted" integer DEFAULT 0,
-	"policies_sold" integer DEFAULT 0,
-	"total_revenue" numeric(10, 2) DEFAULT '0.00',
-	"commissions_earned" numeric(10, 2) DEFAULT '0.00',
-	"clients_added" integer DEFAULT 0,
-	"clients_lost" integer DEFAULT 0,
-	"activities_logged" integer DEFAULT 0,
-	"response_time_avg" integer,
-	"satisfaction_score" numeric(3, 2),
-	"goals_achieved" integer DEFAULT 0,
-	"goals_total" integer DEFAULT 0,
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-CREATE TABLE "agent_profiles" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"user_id" varchar NOT NULL,
-	"organization_id" integer NOT NULL,
-	"specializations" jsonb,
-	"bio" text,
-	"license_number" varchar(50),
-	"years_experience" integer,
-	"languages_spoken" jsonb,
-	"certifications" jsonb,
-	"contact_preferences" jsonb,
-	"availability_schedule" jsonb,
-	"profile_image_url" varchar(255),
-	"is_public_profile" boolean DEFAULT true,
-	"is_accepting_clients" boolean DEFAULT true,
-	"max_client_load" integer DEFAULT 100,
-	"current_client_count" integer DEFAULT 0,
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-CREATE TABLE "campaign_participations" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"campaign_id" integer NOT NULL,
-	"user_id" varchar NOT NULL,
-	"points_earned" integer DEFAULT 0,
-	"bonus_points_earned" integer DEFAULT 0,
-	"participated_at" timestamp DEFAULT now(),
-	"is_active" boolean DEFAULT true
-);
---> statement-breakpoint
-CREATE TABLE "claim_communications" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"claim_id" integer NOT NULL,
-	"user_id" varchar,
-	"message_type" varchar(50) NOT NULL,
-	"subject" varchar(200),
-	"message" text NOT NULL,
-	"is_internal" boolean DEFAULT false,
-	"created_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-CREATE TABLE "claim_documents" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"claim_id" integer NOT NULL,
-	"file_name" varchar(255) NOT NULL,
-	"file_type" varchar(50) NOT NULL,
-	"file_size" integer,
-	"document_type" varchar(50) NOT NULL,
-	"uploaded_by" varchar,
-	"uploaded_at" timestamp DEFAULT now(),
-	"is_required" boolean DEFAULT false,
-	"status" varchar(20) DEFAULT 'pending'
-);
---> statement-breakpoint
-CREATE TABLE "claim_workflow_steps" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"claim_id" integer NOT NULL,
-	"step_name" varchar(100) NOT NULL,
-	"step_description" text,
-	"status" varchar(20) NOT NULL,
-	"assigned_to" varchar,
-	"due_date" timestamp,
-	"completed_at" timestamp,
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-CREATE TABLE "claims" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"user_id" varchar,
-	"policy_id" integer,
-	"claim_number" varchar(50) NOT NULL,
-	"title" varchar(200) NOT NULL,
-	"description" text,
-	"claim_type" varchar(50) NOT NULL,
-	"incident_date" timestamp NOT NULL,
-	"amount" numeric(10, 2),
-	"estimated_amount" numeric(10, 2),
-	"status" varchar(20) DEFAULT 'draft',
-	"priority" varchar(20) DEFAULT 'normal',
-	"assigned_agent" varchar,
-	"submitted_at" timestamp,
-	"reviewed_at" timestamp,
-	"processed_at" timestamp,
-	"paid_at" timestamp,
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-CREATE TABLE "client_activities" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"client_id" integer NOT NULL,
-	"agent_id" varchar NOT NULL,
-	"organization_id" integer NOT NULL,
-	"activity_type" varchar NOT NULL,
-	"subject" varchar(200) NOT NULL,
-	"description" text,
-	"duration" integer,
-	"outcome" varchar,
-	"next_action_required" boolean DEFAULT false,
-	"next_action_date" timestamp,
-	"next_action_description" text,
-	"priority" varchar DEFAULT 'Medium',
-	"tags" jsonb,
-	"attachments" jsonb,
-	"is_private" boolean DEFAULT false,
-	"related_quote_id" integer,
-	"related_policy_id" integer,
-	"related_claim_id" integer,
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-CREATE TABLE "client_assignments" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"client_id" integer NOT NULL,
-	"agent_id" varchar NOT NULL,
-	"organization_id" integer NOT NULL,
-	"assignment_type" varchar DEFAULT 'Primary',
-	"assigned_by" varchar NOT NULL,
-	"assigned_at" timestamp DEFAULT now(),
-	"is_active" boolean DEFAULT true,
-	"notes" text,
-	"priority" varchar DEFAULT 'Medium',
-	"status" varchar DEFAULT 'Active',
-	"transfer_reason" text,
-	"transferred_to" varchar,
-	"transferred_at" timestamp,
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-CREATE TABLE "contacts" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"person_id" integer,
-	"organization_id" integer,
-	"type" varchar NOT NULL,
-	"first_name" varchar(50) NOT NULL,
-	"last_name" varchar(50) NOT NULL,
-	"email" varchar(100),
-	"phone" varchar(20),
-	"company" varchar(100),
-	"address" text,
-	"city" varchar(50),
-	"state" varchar(50),
-	"zip_code" varchar(10),
-	"notes" text,
-	"status" varchar DEFAULT 'Active',
-	"assigned_agent" varchar,
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-CREATE TABLE "dependents" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"user_id" varchar,
-	"first_name" varchar(50) NOT NULL,
-	"last_name" varchar(50) NOT NULL,
-	"relationship" varchar(20) NOT NULL,
-	"date_of_birth" timestamp,
-	"created_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-CREATE TABLE "external_quote_requests" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"request_id" varchar(100) NOT NULL,
-	"user_id" varchar,
-	"coverage_type" varchar(100) NOT NULL,
-	"applicant_age" integer NOT NULL,
-	"zip_code" varchar(10) NOT NULL,
-	"coverage_amount" numeric(12, 2) NOT NULL,
-	"term_length" integer,
-	"payment_frequency" varchar(20),
-	"effective_date" timestamp,
-	"request_data" jsonb,
-	"providers_queried" jsonb,
-	"total_quotes_received" integer DEFAULT 0,
-	"successful_providers" integer DEFAULT 0,
-	"failed_providers" integer DEFAULT 0,
-	"errors" jsonb,
-	"status" varchar DEFAULT 'pending',
-	"processing_started_at" timestamp,
-	"completed_at" timestamp,
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now(),
-	CONSTRAINT "external_quote_requests_request_id_unique" UNIQUE("request_id")
-);
---> statement-breakpoint
-CREATE TABLE "friendships" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"requester_id" varchar NOT NULL,
-	"addressee_id" varchar NOT NULL,
-	"status" varchar DEFAULT 'Pending',
-	"request_message" text,
-	"created_at" timestamp DEFAULT now(),
-	"responded_at" timestamp
-);
---> statement-breakpoint
-CREATE TABLE "insurance_providers" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"name" varchar(100) NOT NULL,
-	"logo" varchar(255),
-	"rating" numeric(2, 1),
-	"created_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-CREATE TABLE "insurance_quotes" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"user_id" varchar,
-	"type_id" integer,
-	"provider_id" integer,
-	"monthly_premium" numeric(10, 2) NOT NULL,
-	"annual_premium" numeric(10, 2),
-	"coverage_amount" numeric(12, 2),
-	"term_length" integer,
-	"deductible" numeric(10, 2),
-	"medical_exam_required" boolean DEFAULT false,
-	"conversion_option" boolean DEFAULT false,
-	"features" jsonb,
-	"rating" numeric(2, 1),
-	"is_external" boolean DEFAULT false,
-	"external_quote_id" varchar(255),
-	"external_provider_id" varchar(100),
-	"external_provider_name" varchar(255),
-	"application_url" varchar(500),
-	"expires_at" timestamp,
-	"metadata" jsonb,
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-CREATE TABLE "insurance_types" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"name" varchar(100) NOT NULL,
-	"description" text,
-	"icon" varchar(50),
-	"color" varchar(20),
-	"created_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-CREATE TABLE "leaderboard_rankings" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"user_id" varchar NOT NULL,
-	"period" varchar NOT NULL,
-	"category" varchar NOT NULL,
-	"rank" integer NOT NULL,
-	"score" integer NOT NULL,
-	"previous_rank" integer,
-	"rank_change" integer DEFAULT 0,
-	"period_start" timestamp NOT NULL,
-	"period_end" timestamp NOT NULL,
-	"updated_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-CREATE TABLE "leaderboard_settings" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"user_id" varchar NOT NULL,
-	"is_opted_in" boolean DEFAULT false,
-	"display_name" varchar(100),
-	"show_tier_level" boolean DEFAULT true,
-	"show_total_points" boolean DEFAULT true,
-	"show_recent_activity" boolean DEFAULT false,
-	"visibility_level" varchar DEFAULT 'Public',
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now(),
-	CONSTRAINT "leaderboard_settings_user_id_unique" UNIQUE("user_id")
-);
---> statement-breakpoint
-CREATE TABLE "members" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"person_id" integer,
-	"user_id" varchar,
-	"organization_id" integer,
-	"member_number" varchar(20) NOT NULL,
-	"first_name" varchar(50),
-	"last_name" varchar(50),
-	"email" varchar(100),
-	"date_of_birth" timestamp,
-	"phone" varchar(20),
-	"address" text,
-	"city" varchar(50),
-	"state" varchar(50),
-	"zip_code" varchar(10),
-	"ssn" varchar(11),
-	"profile_image_url" varchar,
-	"avatar_type" varchar DEFAULT 'initials',
-	"avatar_color" varchar(7) DEFAULT '#0EA5E9',
-	"bio" text,
-	"emergency_contact" text,
-	"preferences" jsonb,
-	"membership_status" varchar DEFAULT 'Active',
-	"membership_date" timestamp DEFAULT now(),
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now(),
-	CONSTRAINT "members_user_id_unique" UNIQUE("user_id"),
-	CONSTRAINT "members_member_number_unique" UNIQUE("member_number")
-);
---> statement-breakpoint
-CREATE TABLE "notifications" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"user_id" varchar NOT NULL,
-	"type" varchar NOT NULL,
-	"title" varchar(200) NOT NULL,
-	"message" text NOT NULL,
-	"data" jsonb,
-	"is_read" boolean DEFAULT false,
-	"priority" varchar DEFAULT 'Normal',
-	"expires_at" timestamp,
-	"created_at" timestamp DEFAULT now(),
-	"read_at" timestamp
-);
---> statement-breakpoint
-CREATE TABLE "organization_analytics" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"organization_id" integer NOT NULL,
-	"period_type" varchar NOT NULL,
-	"period_start" timestamp NOT NULL,
-	"period_end" timestamp NOT NULL,
-	"total_agents" integer DEFAULT 0,
-	"active_agents" integer DEFAULT 0,
-	"total_members" integer DEFAULT 0,
-	"new_members" integer DEFAULT 0,
-	"lost_members" integer DEFAULT 0,
-	"total_quotes" integer DEFAULT 0,
-	"converted_quotes" integer DEFAULT 0,
-	"total_policies" integer DEFAULT 0,
-	"active_policies" integer DEFAULT 0,
-	"total_claims" integer DEFAULT 0,
-	"processed_claims" integer DEFAULT 0,
-	"total_revenue" numeric(12, 2) DEFAULT '0.00',
-	"total_commissions" numeric(12, 2) DEFAULT '0.00',
-	"average_quote_value" numeric(10, 2) DEFAULT '0.00',
-	"conversion_rate" numeric(5, 4) DEFAULT '0.0000',
-	"customer_satisfaction" numeric(3, 2),
-	"avg_response_time" integer,
-	"top_performing_agent" varchar,
-	"growth_rate" numeric(6, 4),
-	"churn_rate" numeric(6, 4),
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-CREATE TABLE "organization_invitations" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"organization_id" integer NOT NULL,
-	"email" varchar(100) NOT NULL,
-	"role" varchar NOT NULL,
-	"invited_by" varchar NOT NULL,
-	"invitation_token" varchar(255) NOT NULL,
-	"expires_at" timestamp NOT NULL,
-	"accepted_at" timestamp,
-	"accepted_by" varchar,
-	"status" varchar DEFAULT 'Pending',
-	"created_at" timestamp DEFAULT now(),
-	CONSTRAINT "organization_invitations_invitation_token_unique" UNIQUE("invitation_token")
-);
---> statement-breakpoint
-CREATE TABLE "organization_knowledge_base" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"organization_id" integer NOT NULL,
-	"author_id" varchar NOT NULL,
-	"title" varchar(200) NOT NULL,
-	"content" text NOT NULL,
-	"category" varchar NOT NULL,
-	"tags" jsonb,
-	"is_public" boolean DEFAULT true,
-	"is_pinned" boolean DEFAULT false,
-	"view_count" integer DEFAULT 0,
-	"like_count" integer DEFAULT 0,
-	"version" integer DEFAULT 1,
-	"last_reviewed_by" varchar,
-	"last_reviewed_at" timestamp,
-	"attachments" jsonb,
-	"related_articles" jsonb,
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-CREATE TABLE "partial_redemptions" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"user_id" varchar NOT NULL,
-	"reward_id" integer NOT NULL,
-	"total_points_required" integer NOT NULL,
-	"points_contributed" integer NOT NULL,
-	"remaining_points" integer NOT NULL,
-	"is_completed" boolean DEFAULT false,
-	"completed_at" timestamp,
-	"expires_at" timestamp,
-	"reservation_id" varchar(50),
-	"status" varchar DEFAULT 'Active',
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-CREATE TABLE "person_contacts" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"person_id" integer NOT NULL,
-	"contact_id" integer NOT NULL,
-	"contact_context" varchar(50),
-	"organization_id" integer,
-	"assigned_agent" varchar,
-	"contact_metadata" jsonb,
-	"created_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-CREATE TABLE "person_members" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"person_id" integer NOT NULL,
-	"member_id" integer NOT NULL,
-	"organization_id" integer,
-	"member_number" varchar(20),
-	"membership_status" varchar(20) DEFAULT 'Active',
-	"membership_date" timestamp DEFAULT now(),
-	"additional_info" jsonb,
-	"created_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-CREATE TABLE "person_users" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"person_id" integer NOT NULL,
-	"user_id" varchar NOT NULL,
-	"role_context" jsonb,
-	"created_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-CREATE TABLE "persons" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"first_name" varchar(50) NOT NULL,
-	"last_name" varchar(50) NOT NULL,
-	"full_name" varchar(101),
-	"date_of_birth" timestamp,
-	"gender" varchar,
-	"ssn_encrypted" varchar(255),
-	"external_ids" jsonb,
-	"primary_email" varchar(100),
-	"secondary_email" varchar(100),
-	"primary_phone" varchar(20),
-	"secondary_phone" varchar(20),
-	"street_address" text,
-	"address_line_2" varchar(100),
-	"city" varchar(50),
-	"state" varchar(50),
-	"zip_code" varchar(10),
-	"country" varchar(50) DEFAULT 'USA',
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now(),
-	"created_by" varchar,
-	"updated_by" varchar,
-	"is_verified" boolean DEFAULT false,
-	"verification_date" timestamp,
-	"data_source" varchar(50),
-	"identity_hash" varchar(64)
-);
---> statement-breakpoint
-CREATE TABLE "points_rules" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"name" varchar(200) NOT NULL,
-	"description" text,
-	"category" varchar NOT NULL,
-	"points" integer NOT NULL,
-	"max_per_period" integer,
-	"period_type" varchar,
-	"is_active" boolean DEFAULT true,
-	"valid_from" timestamp DEFAULT now(),
-	"valid_until" timestamp,
-	"conditions" jsonb,
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-CREATE TABLE "points_summary" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"user_id" varchar NOT NULL,
-	"total_earned" integer DEFAULT 0,
-	"total_redeemed" integer DEFAULT 0,
-	"current_balance" integer DEFAULT 0,
-	"lifetime_balance" integer DEFAULT 0,
-	"tier_level" varchar DEFAULT 'Bronze',
-	"tier_progress" integer DEFAULT 0,
-	"next_tier_threshold" integer DEFAULT 500,
-	"last_earned_at" timestamp,
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now(),
-	CONSTRAINT "points_summary_user_id_unique" UNIQUE("user_id")
-);
---> statement-breakpoint
-CREATE TABLE "points_transactions" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"user_id" varchar NOT NULL,
-	"transaction_type" varchar NOT NULL,
-	"points" integer NOT NULL,
-	"description" text NOT NULL,
-	"category" varchar NOT NULL,
-	"reference_id" varchar,
-	"reference_type" varchar,
-	"balance_after" integer NOT NULL,
-	"expires_at" timestamp,
-	"created_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-CREATE TABLE "policies" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"user_id" varchar,
-	"quote_id" integer,
-	"policy_number" varchar NOT NULL,
-	"status" varchar DEFAULT 'active',
-	"start_date" timestamp NOT NULL,
-	"end_date" timestamp,
-	"next_payment_date" timestamp,
-	"created_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-CREATE TABLE "policy_amendments" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"policy_id" integer NOT NULL,
-	"amendment_type" varchar NOT NULL,
-	"amendment_number" varchar(50) NOT NULL,
-	"effective_date" timestamp NOT NULL,
-	"description" text NOT NULL,
-	"old_value" jsonb,
-	"new_value" jsonb,
-	"premium_impact" numeric(10, 2) DEFAULT '0',
-	"status" varchar DEFAULT 'Draft',
-	"requested_by" varchar,
-	"approved_by" varchar,
-	"implemented_by" varchar,
-	"requested_at" timestamp DEFAULT now(),
-	"approved_at" timestamp,
-	"implemented_at" timestamp,
-	"rejection_reason" text,
-	"document_path" varchar(500),
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-CREATE TABLE "policy_documents" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"policy_id" integer NOT NULL,
-	"document_name" varchar(255) NOT NULL,
-	"document_type" varchar NOT NULL,
-	"file_name" varchar(255) NOT NULL,
-	"file_type" varchar(50) NOT NULL,
-	"file_size" integer,
-	"file_path" varchar(500),
-	"uploaded_by" varchar,
-	"uploaded_at" timestamp DEFAULT now(),
-	"is_active" boolean DEFAULT true,
-	"description" text,
-	"created_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-CREATE TABLE "premium_payments" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"policy_id" integer NOT NULL,
-	"payment_amount" numeric(10, 2) NOT NULL,
-	"payment_type" varchar DEFAULT 'Premium',
-	"payment_method" varchar,
-	"transaction_id" varchar(100),
-	"payment_status" varchar DEFAULT 'Pending',
-	"due_date" timestamp NOT NULL,
-	"paid_date" timestamp,
-	"grace_period_end" timestamp,
-	"late_fee_amount" numeric(10, 2) DEFAULT '0',
-	"is_auto_pay" boolean DEFAULT false,
-	"payment_reference" varchar(100),
-	"notes" text,
-	"processed_by" varchar,
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-CREATE TABLE "recommendation_models" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"model_name" varchar(100) NOT NULL,
-	"model_type" varchar NOT NULL,
-	"version" varchar(20) DEFAULT '1.0',
-	"is_active" boolean DEFAULT false,
-	"accuracy" numeric(5, 4),
-	"precision" numeric(5, 4),
-	"recall" numeric(5, 4),
-	"training_data" jsonb,
-	"hyperparameters" jsonb,
-	"training_started" timestamp,
-	"training_completed" timestamp,
-	"last_prediction" timestamp,
-	"deployed_at" timestamp,
-	"created_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-CREATE TABLE "referral_codes" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"user_id" varchar NOT NULL,
-	"code" varchar(20) NOT NULL,
-	"is_active" boolean DEFAULT true,
-	"max_uses" integer,
-	"current_uses" integer DEFAULT 0,
-	"expires_at" timestamp,
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now(),
-	CONSTRAINT "referral_codes_code_unique" UNIQUE("code")
-);
---> statement-breakpoint
-CREATE TABLE "referral_signups" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"referral_code_id" integer NOT NULL,
-	"referrer_id" varchar NOT NULL,
-	"referee_id" varchar NOT NULL,
-	"referrer_points" integer DEFAULT 200,
-	"referee_points" integer DEFAULT 100,
-	"status" varchar DEFAULT 'Completed',
-	"completed_at" timestamp DEFAULT now(),
-	"created_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-CREATE TABLE "reward_interactions" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"user_id" varchar NOT NULL,
-	"reward_id" integer NOT NULL,
-	"interaction_type" varchar NOT NULL,
-	"session_id" varchar(100),
-	"device_type" varchar(50),
-	"user_agent" varchar(500),
-	"referrer_source" varchar(200),
-	"time_spent" integer,
-	"page_depth" integer,
-	"interaction_metadata" jsonb,
-	"created_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-CREATE TABLE "reward_inventory" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"reward_id" integer NOT NULL,
-	"total_stock" integer,
-	"available_stock" integer,
-	"reserved_stock" integer DEFAULT 0,
-	"low_stock_threshold" integer DEFAULT 10,
-	"is_out_of_stock" boolean DEFAULT false,
-	"auto_restock" boolean DEFAULT false,
-	"restock_level" integer,
-	"last_restocked" timestamp,
-	"updated_at" timestamp DEFAULT now(),
-	CONSTRAINT "reward_inventory_reward_id_unique" UNIQUE("reward_id")
-);
---> statement-breakpoint
-CREATE TABLE "reward_notifications" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"user_id" varchar NOT NULL,
-	"reward_id" integer,
-	"notification_type" varchar NOT NULL,
-	"title" varchar(200) NOT NULL,
-	"message" text NOT NULL,
-	"action_url" varchar(500),
-	"priority" varchar DEFAULT 'Medium',
-	"is_read" boolean DEFAULT false,
-	"is_action_taken" boolean DEFAULT false,
-	"delivery_method" varchar DEFAULT 'In-App',
-	"sent_at" timestamp,
-	"read_at" timestamp,
-	"action_taken_at" timestamp,
-	"expires_at" timestamp,
-	"created_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-CREATE TABLE "reward_pricing_history" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"reward_id" integer NOT NULL,
-	"original_price" integer NOT NULL,
-	"adjusted_price" integer NOT NULL,
-	"demand_multiplier" numeric(3, 2) DEFAULT '1.00',
-	"redemption_count" integer DEFAULT 0,
-	"view_count" integer DEFAULT 0,
-	"demand_level" varchar DEFAULT 'Normal',
-	"price_change_reason" varchar,
-	"valid_from" timestamp DEFAULT now(),
-	"valid_until" timestamp,
-	"created_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-CREATE TABLE "reward_recommendations" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"user_id" varchar NOT NULL,
-	"reward_id" integer NOT NULL,
-	"recommendation_type" varchar NOT NULL,
-	"confidence_score" numeric(3, 2),
-	"reasoning" text,
-	"user_behavior_data" jsonb,
-	"is_viewed" boolean DEFAULT false,
-	"is_clicked" boolean DEFAULT false,
-	"is_redeemed" boolean DEFAULT false,
-	"viewed_at" timestamp,
-	"clicked_at" timestamp,
-	"redeemed_at" timestamp,
-	"rank" integer,
-	"generated_at" timestamp DEFAULT now(),
-	"expires_at" timestamp
-);
---> statement-breakpoint
-CREATE TABLE "reward_redemptions" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"user_id" varchar NOT NULL,
-	"reward_id" integer NOT NULL,
-	"points_transaction_id" integer,
-	"points_used" integer NOT NULL,
-	"status" varchar DEFAULT 'Pending',
-	"redemption_code" varchar(50),
-	"delivery_method" varchar,
-	"delivery_address" text,
-	"delivered_at" timestamp,
-	"expires_at" timestamp,
-	"notes" text,
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-CREATE TABLE "reward_wishlists" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"user_id" varchar NOT NULL,
-	"reward_id" integer NOT NULL,
-	"priority" integer DEFAULT 1,
-	"target_points_goal" integer,
-	"is_notifications_enabled" boolean DEFAULT true,
-	"price_alert_threshold" numeric(5, 2),
-	"added_at" timestamp DEFAULT now(),
-	"last_notified" timestamp
-);
---> statement-breakpoint
-CREATE TABLE "rewards" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"name" varchar(200) NOT NULL,
-	"description" text,
-	"category" varchar NOT NULL,
-	"points_cost" integer NOT NULL,
-	"value" numeric(10, 2),
-	"image_url" varchar,
-	"available_quantity" integer,
-	"is_active" boolean DEFAULT true,
-	"valid_from" timestamp DEFAULT now(),
-	"valid_until" timestamp,
-	"terms" text,
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-CREATE TABLE "roles" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"name" varchar(50) NOT NULL,
-	"privilege_level" integer NOT NULL,
-	"description" text,
-	"permissions" jsonb,
-	"is_active" boolean DEFAULT true,
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now(),
-	CONSTRAINT "roles_name_unique" UNIQUE("name"),
-	CONSTRAINT "roles_privilege_level_unique" UNIQUE("privilege_level")
-);
---> statement-breakpoint
-CREATE TABLE "seasonal_achievements" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"campaign_id" integer,
-	"name" varchar(200) NOT NULL,
-	"description" text,
-	"icon" varchar(100),
-	"category" varchar NOT NULL,
-	"points_reward" integer DEFAULT 0,
-	"requirement" jsonb,
-	"is_repeatable" boolean DEFAULT false,
-	"max_unlocks" integer DEFAULT 1,
-	"unlock_order" integer DEFAULT 1,
-	"is_active" boolean DEFAULT true,
-	"valid_from" timestamp DEFAULT now(),
-	"valid_until" timestamp,
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-CREATE TABLE "seasonal_campaigns" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"name" varchar(200) NOT NULL,
-	"description" text,
-	"campaign_type" varchar NOT NULL,
-	"points_multiplier" numeric(3, 2) DEFAULT '1.00',
-	"bonus_points" integer DEFAULT 0,
-	"is_active" boolean DEFAULT true,
-	"auto_start" boolean DEFAULT false,
-	"auto_end" boolean DEFAULT true,
-	"start_date" timestamp NOT NULL,
-	"end_date" timestamp NOT NULL,
-	"target_user_tiers" varchar[],
-	"target_categories" varchar[],
-	"max_participants" integer,
-	"current_participants" integer DEFAULT 0,
-	"conditions" jsonb,
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-CREATE TABLE "selected_quotes" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"user_id" varchar,
-	"quote_id" integer,
-	"created_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-CREATE TABLE "sessions" (
-	"sid" varchar PRIMARY KEY NOT NULL,
-	"sess" jsonb NOT NULL,
-	"expire" timestamp NOT NULL
-);
---> statement-breakpoint
-CREATE TABLE "social_activities" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"user_id" varchar NOT NULL,
-	"activity_type" varchar NOT NULL,
-	"description" text NOT NULL,
-	"points_involved" integer,
-	"achievement_id" integer,
-	"is_public" boolean DEFAULT true,
-	"likes_count" integer DEFAULT 0,
-	"comments_count" integer DEFAULT 0,
-	"created_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-CREATE TABLE "social_media_integrations" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"user_id" varchar NOT NULL,
-	"platform" varchar NOT NULL,
-	"platform_user_id" varchar(200),
-	"platform_username" varchar(100),
-	"is_connected" boolean DEFAULT true,
-	"bonus_points_earned" integer DEFAULT 0,
-	"last_activity_sync" timestamp,
-	"connection_bonus_awarded" boolean DEFAULT false,
-	"connected_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-CREATE TABLE "social_referrals" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"referrer_id" varchar NOT NULL,
-	"referred_user_id" varchar,
-	"referral_code" varchar(20) NOT NULL,
-	"invite_method" varchar NOT NULL,
-	"platform_used" varchar(50),
-	"bonus_tier" varchar DEFAULT 'Standard',
-	"referrer_reward" integer DEFAULT 0,
-	"referred_reward" integer DEFAULT 0,
-	"is_completed" boolean DEFAULT false,
-	"completed_at" timestamp,
-	"expires_at" timestamp,
-	"created_at" timestamp DEFAULT now(),
-	CONSTRAINT "social_referrals_referral_code_unique" UNIQUE("referral_code")
-);
---> statement-breakpoint
-CREATE TABLE "user_achievements" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"user_id" varchar NOT NULL,
-	"achievement_id" integer NOT NULL,
-	"unlocked_at" timestamp DEFAULT now(),
-	"progress" jsonb,
-	"points_awarded" integer DEFAULT 0,
-	"notification_sent" boolean DEFAULT false
-);
---> statement-breakpoint
-CREATE TABLE "user_seasonal_achievements" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"user_id" varchar NOT NULL,
-	"achievement_id" integer NOT NULL,
-	"campaign_id" integer NOT NULL,
-	"points_awarded" integer DEFAULT 0,
-	"unlocked_at" timestamp DEFAULT now(),
-	"tier" varchar,
-	"progress_data" jsonb
-);
---> statement-breakpoint
-CREATE TABLE "users" (
-	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"person_id" integer,
-	"email" varchar,
-	"profile_image_url" varchar,
-	"password" varchar(255),
-	"role" varchar DEFAULT 'Guest',
-	"privilege_level" integer DEFAULT 4,
-	"organization_id" integer,
-	"is_active" boolean DEFAULT true,
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now(),
-	CONSTRAINT "users_email_unique" UNIQUE("email")
-);
---> statement-breakpoint
-CREATE TABLE "wishlist" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"user_id" varchar,
-	"quote_id" integer,
-	"created_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-ALTER TABLE "achievement_shares" ADD CONSTRAINT "achievement_shares_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "achievement_shares" ADD CONSTRAINT "achievement_shares_achievement_id_achievements_id_fk" FOREIGN KEY ("achievement_id") REFERENCES "public"."achievements"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "achievement_shares" ADD CONSTRAINT "achievement_shares_seasonal_achievement_id_seasonal_achievements_id_fk" FOREIGN KEY ("seasonal_achievement_id") REFERENCES "public"."seasonal_achievements"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "activity_comments" ADD CONSTRAINT "activity_comments_activity_id_social_activities_id_fk" FOREIGN KEY ("activity_id") REFERENCES "public"."social_activities"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "activity_comments" ADD CONSTRAINT "activity_comments_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "activity_likes" ADD CONSTRAINT "activity_likes_activity_id_social_activities_id_fk" FOREIGN KEY ("activity_id") REFERENCES "public"."social_activities"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "activity_likes" ADD CONSTRAINT "activity_likes_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "agent_collaborations" ADD CONSTRAINT "agent_collaborations_organization_id_agent_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."agent_organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "agent_collaborations" ADD CONSTRAINT "agent_collaborations_initiator_id_users_id_fk" FOREIGN KEY ("initiator_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "agent_collaborations" ADD CONSTRAINT "agent_collaborations_collaborator_id_users_id_fk" FOREIGN KEY ("collaborator_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "agent_performance" ADD CONSTRAINT "agent_performance_agent_id_users_id_fk" FOREIGN KEY ("agent_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "agent_performance" ADD CONSTRAINT "agent_performance_organization_id_agent_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."agent_organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "agent_profiles" ADD CONSTRAINT "agent_profiles_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "agent_profiles" ADD CONSTRAINT "agent_profiles_organization_id_agent_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."agent_organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "campaign_participations" ADD CONSTRAINT "campaign_participations_campaign_id_seasonal_campaigns_id_fk" FOREIGN KEY ("campaign_id") REFERENCES "public"."seasonal_campaigns"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "campaign_participations" ADD CONSTRAINT "campaign_participations_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "claim_communications" ADD CONSTRAINT "claim_communications_claim_id_claims_id_fk" FOREIGN KEY ("claim_id") REFERENCES "public"."claims"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "claim_communications" ADD CONSTRAINT "claim_communications_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "claim_documents" ADD CONSTRAINT "claim_documents_claim_id_claims_id_fk" FOREIGN KEY ("claim_id") REFERENCES "public"."claims"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "claim_documents" ADD CONSTRAINT "claim_documents_uploaded_by_users_id_fk" FOREIGN KEY ("uploaded_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "claim_workflow_steps" ADD CONSTRAINT "claim_workflow_steps_claim_id_claims_id_fk" FOREIGN KEY ("claim_id") REFERENCES "public"."claims"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "claim_workflow_steps" ADD CONSTRAINT "claim_workflow_steps_assigned_to_users_id_fk" FOREIGN KEY ("assigned_to") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "claims" ADD CONSTRAINT "claims_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "claims" ADD CONSTRAINT "claims_policy_id_policies_id_fk" FOREIGN KEY ("policy_id") REFERENCES "public"."policies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "claims" ADD CONSTRAINT "claims_assigned_agent_users_id_fk" FOREIGN KEY ("assigned_agent") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "client_activities" ADD CONSTRAINT "client_activities_client_id_members_id_fk" FOREIGN KEY ("client_id") REFERENCES "public"."members"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "client_activities" ADD CONSTRAINT "client_activities_agent_id_users_id_fk" FOREIGN KEY ("agent_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "client_activities" ADD CONSTRAINT "client_activities_organization_id_agent_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."agent_organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "client_activities" ADD CONSTRAINT "client_activities_related_quote_id_insurance_quotes_id_fk" FOREIGN KEY ("related_quote_id") REFERENCES "public"."insurance_quotes"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "client_activities" ADD CONSTRAINT "client_activities_related_policy_id_policies_id_fk" FOREIGN KEY ("related_policy_id") REFERENCES "public"."policies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "client_activities" ADD CONSTRAINT "client_activities_related_claim_id_claims_id_fk" FOREIGN KEY ("related_claim_id") REFERENCES "public"."claims"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "client_assignments" ADD CONSTRAINT "client_assignments_client_id_members_id_fk" FOREIGN KEY ("client_id") REFERENCES "public"."members"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "client_assignments" ADD CONSTRAINT "client_assignments_agent_id_users_id_fk" FOREIGN KEY ("agent_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "client_assignments" ADD CONSTRAINT "client_assignments_organization_id_agent_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."agent_organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "client_assignments" ADD CONSTRAINT "client_assignments_assigned_by_users_id_fk" FOREIGN KEY ("assigned_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "client_assignments" ADD CONSTRAINT "client_assignments_transferred_to_users_id_fk" FOREIGN KEY ("transferred_to") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "contacts" ADD CONSTRAINT "contacts_person_id_persons_id_fk" FOREIGN KEY ("person_id") REFERENCES "public"."persons"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "contacts" ADD CONSTRAINT "contacts_organization_id_agent_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."agent_organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "contacts" ADD CONSTRAINT "contacts_assigned_agent_users_id_fk" FOREIGN KEY ("assigned_agent") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "dependents" ADD CONSTRAINT "dependents_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "external_quote_requests" ADD CONSTRAINT "external_quote_requests_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "friendships" ADD CONSTRAINT "friendships_requester_id_users_id_fk" FOREIGN KEY ("requester_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "friendships" ADD CONSTRAINT "friendships_addressee_id_users_id_fk" FOREIGN KEY ("addressee_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "insurance_quotes" ADD CONSTRAINT "insurance_quotes_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "insurance_quotes" ADD CONSTRAINT "insurance_quotes_type_id_insurance_types_id_fk" FOREIGN KEY ("type_id") REFERENCES "public"."insurance_types"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "insurance_quotes" ADD CONSTRAINT "insurance_quotes_provider_id_insurance_providers_id_fk" FOREIGN KEY ("provider_id") REFERENCES "public"."insurance_providers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "leaderboard_rankings" ADD CONSTRAINT "leaderboard_rankings_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "leaderboard_settings" ADD CONSTRAINT "leaderboard_settings_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "members" ADD CONSTRAINT "members_person_id_persons_id_fk" FOREIGN KEY ("person_id") REFERENCES "public"."persons"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "members" ADD CONSTRAINT "members_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "members" ADD CONSTRAINT "members_organization_id_agent_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."agent_organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "notifications" ADD CONSTRAINT "notifications_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "organization_analytics" ADD CONSTRAINT "organization_analytics_organization_id_agent_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."agent_organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "organization_analytics" ADD CONSTRAINT "organization_analytics_top_performing_agent_users_id_fk" FOREIGN KEY ("top_performing_agent") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "organization_invitations" ADD CONSTRAINT "organization_invitations_organization_id_agent_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."agent_organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "organization_invitations" ADD CONSTRAINT "organization_invitations_invited_by_users_id_fk" FOREIGN KEY ("invited_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "organization_invitations" ADD CONSTRAINT "organization_invitations_accepted_by_users_id_fk" FOREIGN KEY ("accepted_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "organization_knowledge_base" ADD CONSTRAINT "organization_knowledge_base_organization_id_agent_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."agent_organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "organization_knowledge_base" ADD CONSTRAINT "organization_knowledge_base_author_id_users_id_fk" FOREIGN KEY ("author_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "organization_knowledge_base" ADD CONSTRAINT "organization_knowledge_base_last_reviewed_by_users_id_fk" FOREIGN KEY ("last_reviewed_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "partial_redemptions" ADD CONSTRAINT "partial_redemptions_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "partial_redemptions" ADD CONSTRAINT "partial_redemptions_reward_id_rewards_id_fk" FOREIGN KEY ("reward_id") REFERENCES "public"."rewards"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "person_contacts" ADD CONSTRAINT "person_contacts_person_id_persons_id_fk" FOREIGN KEY ("person_id") REFERENCES "public"."persons"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "person_contacts" ADD CONSTRAINT "person_contacts_contact_id_contacts_id_fk" FOREIGN KEY ("contact_id") REFERENCES "public"."contacts"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "person_contacts" ADD CONSTRAINT "person_contacts_organization_id_agent_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."agent_organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "person_contacts" ADD CONSTRAINT "person_contacts_assigned_agent_users_id_fk" FOREIGN KEY ("assigned_agent") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "person_members" ADD CONSTRAINT "person_members_person_id_persons_id_fk" FOREIGN KEY ("person_id") REFERENCES "public"."persons"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "person_members" ADD CONSTRAINT "person_members_member_id_members_id_fk" FOREIGN KEY ("member_id") REFERENCES "public"."members"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "person_members" ADD CONSTRAINT "person_members_organization_id_agent_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."agent_organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "person_users" ADD CONSTRAINT "person_users_person_id_persons_id_fk" FOREIGN KEY ("person_id") REFERENCES "public"."persons"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "person_users" ADD CONSTRAINT "person_users_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "persons" ADD CONSTRAINT "persons_created_by_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "persons" ADD CONSTRAINT "persons_updated_by_users_id_fk" FOREIGN KEY ("updated_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "points_summary" ADD CONSTRAINT "points_summary_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "points_transactions" ADD CONSTRAINT "points_transactions_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "policies" ADD CONSTRAINT "policies_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "policy_amendments" ADD CONSTRAINT "policy_amendments_policy_id_policies_id_fk" FOREIGN KEY ("policy_id") REFERENCES "public"."policies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "policy_amendments" ADD CONSTRAINT "policy_amendments_requested_by_users_id_fk" FOREIGN KEY ("requested_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "policy_amendments" ADD CONSTRAINT "policy_amendments_approved_by_users_id_fk" FOREIGN KEY ("approved_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "policy_amendments" ADD CONSTRAINT "policy_amendments_implemented_by_users_id_fk" FOREIGN KEY ("implemented_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "policy_documents" ADD CONSTRAINT "policy_documents_policy_id_policies_id_fk" FOREIGN KEY ("policy_id") REFERENCES "public"."policies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "policy_documents" ADD CONSTRAINT "policy_documents_uploaded_by_users_id_fk" FOREIGN KEY ("uploaded_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "premium_payments" ADD CONSTRAINT "premium_payments_policy_id_policies_id_fk" FOREIGN KEY ("policy_id") REFERENCES "public"."policies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "premium_payments" ADD CONSTRAINT "premium_payments_processed_by_users_id_fk" FOREIGN KEY ("processed_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "referral_codes" ADD CONSTRAINT "referral_codes_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "referral_signups" ADD CONSTRAINT "referral_signups_referral_code_id_referral_codes_id_fk" FOREIGN KEY ("referral_code_id") REFERENCES "public"."referral_codes"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "referral_signups" ADD CONSTRAINT "referral_signups_referrer_id_users_id_fk" FOREIGN KEY ("referrer_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "referral_signups" ADD CONSTRAINT "referral_signups_referee_id_users_id_fk" FOREIGN KEY ("referee_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "reward_interactions" ADD CONSTRAINT "reward_interactions_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "reward_interactions" ADD CONSTRAINT "reward_interactions_reward_id_rewards_id_fk" FOREIGN KEY ("reward_id") REFERENCES "public"."rewards"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "reward_inventory" ADD CONSTRAINT "reward_inventory_reward_id_rewards_id_fk" FOREIGN KEY ("reward_id") REFERENCES "public"."rewards"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "reward_notifications" ADD CONSTRAINT "reward_notifications_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "reward_notifications" ADD CONSTRAINT "reward_notifications_reward_id_rewards_id_fk" FOREIGN KEY ("reward_id") REFERENCES "public"."rewards"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "reward_pricing_history" ADD CONSTRAINT "reward_pricing_history_reward_id_rewards_id_fk" FOREIGN KEY ("reward_id") REFERENCES "public"."rewards"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "reward_recommendations" ADD CONSTRAINT "reward_recommendations_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "reward_recommendations" ADD CONSTRAINT "reward_recommendations_reward_id_rewards_id_fk" FOREIGN KEY ("reward_id") REFERENCES "public"."rewards"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "reward_redemptions" ADD CONSTRAINT "reward_redemptions_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "reward_redemptions" ADD CONSTRAINT "reward_redemptions_reward_id_rewards_id_fk" FOREIGN KEY ("reward_id") REFERENCES "public"."rewards"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "reward_redemptions" ADD CONSTRAINT "reward_redemptions_points_transaction_id_points_transactions_id_fk" FOREIGN KEY ("points_transaction_id") REFERENCES "public"."points_transactions"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "reward_wishlists" ADD CONSTRAINT "reward_wishlists_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "reward_wishlists" ADD CONSTRAINT "reward_wishlists_reward_id_rewards_id_fk" FOREIGN KEY ("reward_id") REFERENCES "public"."rewards"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "seasonal_achievements" ADD CONSTRAINT "seasonal_achievements_campaign_id_seasonal_campaigns_id_fk" FOREIGN KEY ("campaign_id") REFERENCES "public"."seasonal_campaigns"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "selected_quotes" ADD CONSTRAINT "selected_quotes_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "selected_quotes" ADD CONSTRAINT "selected_quotes_quote_id_insurance_quotes_id_fk" FOREIGN KEY ("quote_id") REFERENCES "public"."insurance_quotes"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "social_activities" ADD CONSTRAINT "social_activities_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "social_activities" ADD CONSTRAINT "social_activities_achievement_id_achievements_id_fk" FOREIGN KEY ("achievement_id") REFERENCES "public"."achievements"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "social_media_integrations" ADD CONSTRAINT "social_media_integrations_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "social_referrals" ADD CONSTRAINT "social_referrals_referrer_id_users_id_fk" FOREIGN KEY ("referrer_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "social_referrals" ADD CONSTRAINT "social_referrals_referred_user_id_users_id_fk" FOREIGN KEY ("referred_user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "user_achievements" ADD CONSTRAINT "user_achievements_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "user_achievements" ADD CONSTRAINT "user_achievements_achievement_id_achievements_id_fk" FOREIGN KEY ("achievement_id") REFERENCES "public"."achievements"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "user_seasonal_achievements" ADD CONSTRAINT "user_seasonal_achievements_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "user_seasonal_achievements" ADD CONSTRAINT "user_seasonal_achievements_achievement_id_seasonal_achievements_id_fk" FOREIGN KEY ("achievement_id") REFERENCES "public"."seasonal_achievements"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "user_seasonal_achievements" ADD CONSTRAINT "user_seasonal_achievements_campaign_id_seasonal_campaigns_id_fk" FOREIGN KEY ("campaign_id") REFERENCES "public"."seasonal_campaigns"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "users" ADD CONSTRAINT "users_person_id_persons_id_fk" FOREIGN KEY ("person_id") REFERENCES "public"."persons"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "users" ADD CONSTRAINT "users_organization_id_agent_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."agent_organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "wishlist" ADD CONSTRAINT "wishlist_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "wishlist" ADD CONSTRAINT "wishlist_quote_id_insurance_quotes_id_fk" FOREIGN KEY ("quote_id") REFERENCES "public"."insurance_quotes"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-CREATE INDEX "idx_agent_collaborations_organization_id" ON "agent_collaborations" USING btree ("organization_id");--> statement-breakpoint
-CREATE INDEX "idx_agent_collaborations_initiator_id" ON "agent_collaborations" USING btree ("initiator_id");--> statement-breakpoint
-CREATE INDEX "idx_agent_collaborations_collaborator_id" ON "agent_collaborations" USING btree ("collaborator_id");--> statement-breakpoint
-CREATE INDEX "idx_agent_performance_agent_id" ON "agent_performance" USING btree ("agent_id");--> statement-breakpoint
-CREATE INDEX "idx_agent_performance_organization_id" ON "agent_performance" USING btree ("organization_id");--> statement-breakpoint
-CREATE INDEX "idx_agent_performance_period" ON "agent_performance" USING btree ("period_start","period_end");--> statement-breakpoint
-CREATE INDEX "idx_agent_profiles_user_id" ON "agent_profiles" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "idx_agent_profiles_organization_id" ON "agent_profiles" USING btree ("organization_id");--> statement-breakpoint
-CREATE INDEX "idx_client_activities_client_id" ON "client_activities" USING btree ("client_id");--> statement-breakpoint
-CREATE INDEX "idx_client_activities_agent_id" ON "client_activities" USING btree ("agent_id");--> statement-breakpoint
-CREATE INDEX "idx_client_activities_organization_id" ON "client_activities" USING btree ("organization_id");--> statement-breakpoint
-CREATE INDEX "idx_client_activities_created_at" ON "client_activities" USING btree ("created_at");--> statement-breakpoint
-CREATE INDEX "idx_client_assignments_client_id" ON "client_assignments" USING btree ("client_id");--> statement-breakpoint
-CREATE INDEX "idx_client_assignments_agent_id" ON "client_assignments" USING btree ("agent_id");--> statement-breakpoint
-CREATE INDEX "idx_client_assignments_organization_id" ON "client_assignments" USING btree ("organization_id");--> statement-breakpoint
-CREATE INDEX "idx_notifications_user_id" ON "notifications" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "idx_notifications_is_read" ON "notifications" USING btree ("is_read");--> statement-breakpoint
-CREATE INDEX "idx_notifications_type" ON "notifications" USING btree ("type");--> statement-breakpoint
-CREATE INDEX "idx_organization_analytics_org_id" ON "organization_analytics" USING btree ("organization_id");--> statement-breakpoint
-CREATE INDEX "idx_organization_analytics_period" ON "organization_analytics" USING btree ("period_start","period_end");--> statement-breakpoint
-CREATE INDEX "idx_organization_invitations_org_id" ON "organization_invitations" USING btree ("organization_id");--> statement-breakpoint
-CREATE INDEX "idx_organization_invitations_email" ON "organization_invitations" USING btree ("email");--> statement-breakpoint
-CREATE INDEX "idx_organization_invitations_token" ON "organization_invitations" USING btree ("invitation_token");--> statement-breakpoint
-CREATE INDEX "idx_org_knowledge_base_organization_id" ON "organization_knowledge_base" USING btree ("organization_id");--> statement-breakpoint
-CREATE INDEX "idx_org_knowledge_base_author_id" ON "organization_knowledge_base" USING btree ("author_id");--> statement-breakpoint
-CREATE INDEX "idx_org_knowledge_base_category" ON "organization_knowledge_base" USING btree ("category");--> statement-breakpoint
-CREATE INDEX "idx_person_contacts_person_id" ON "person_contacts" USING btree ("person_id");--> statement-breakpoint
-CREATE INDEX "idx_person_contacts_contact_id" ON "person_contacts" USING btree ("contact_id");--> statement-breakpoint
-CREATE INDEX "idx_person_members_person_id" ON "person_members" USING btree ("person_id");--> statement-breakpoint
-CREATE INDEX "idx_person_members_member_id" ON "person_members" USING btree ("member_id");--> statement-breakpoint
-CREATE INDEX "idx_person_users_person_id" ON "person_users" USING btree ("person_id");--> statement-breakpoint
-CREATE INDEX "idx_person_users_user_id" ON "person_users" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "idx_persons_name" ON "persons" USING btree ("last_name","first_name");--> statement-breakpoint
-CREATE INDEX "idx_persons_primary_email" ON "persons" USING btree ("primary_email");--> statement-breakpoint
-CREATE INDEX "idx_persons_primary_phone" ON "persons" USING btree ("primary_phone");--> statement-breakpoint
-CREATE INDEX "idx_persons_identity_hash" ON "persons" USING btree ("identity_hash");--> statement-breakpoint
-CREATE INDEX "idx_referral_codes_code" ON "referral_codes" USING btree ("code");--> statement-breakpoint
-CREATE INDEX "idx_referral_codes_user_id" ON "referral_codes" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "idx_referral_signups_referrer_id" ON "referral_signups" USING btree ("referrer_id");--> statement-breakpoint
-CREATE INDEX "idx_referral_signups_referee_id" ON "referral_signups" USING btree ("referee_id");--> statement-breakpoint
-CREATE INDEX "IDX_session_expire" ON "sessions" USING btree ("expire");--> statement-breakpoint
-CREATE INDEX "idx_user_achievements_user_id" ON "user_achievements" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "idx_user_achievements_achievement_id" ON "user_achievements" USING btree ("achievement_id");CREATE TABLE "agent_commissions" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"agent_id" varchar NOT NULL,
-	"policy_id" integer NOT NULL,
-	"organization_id" integer NOT NULL,
-	"commission_type" varchar NOT NULL,
-	"commission_rate" numeric(5, 2) NOT NULL,
-	"base_amount" numeric(10, 2) NOT NULL,
-	"commission_amount" numeric(10, 2) NOT NULL,
-	"payment_status" varchar DEFAULT 'pending',
-	"payment_date" timestamp,
-	"payment_method" varchar(50),
-	"payment_reference" varchar(100),
-	"notes" text,
-	"created_at" timestamp DEFAULT now(),
-	"updated_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-CREATE TABLE "policy_transfers" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"policy_id" integer NOT NULL,
-	"from_agent_id" varchar,
-	"to_agent_id" varchar NOT NULL,
-	"transferred_by" varchar NOT NULL,
-	"transfer_reason" text NOT NULL,
-	"transfer_type" varchar DEFAULT 'servicing',
-	"transferred_at" timestamp DEFAULT now(),
-	"created_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
-ALTER TABLE "agent_organizations" ADD COLUMN "is_system_organization" boolean DEFAULT false;--> statement-breakpoint
-ALTER TABLE "agent_organizations" ADD COLUMN "is_hidden" boolean DEFAULT false;--> statement-breakpoint
-ALTER TABLE "policies" ADD COLUMN "selling_agent_id" varchar;--> statement-breakpoint
-ALTER TABLE "policies" ADD COLUMN "servicing_agent_id" varchar;--> statement-breakpoint
-ALTER TABLE "policies" ADD COLUMN "organization_id" integer;--> statement-breakpoint
-ALTER TABLE "policies" ADD COLUMN "agent_commission_rate" numeric(5, 2) DEFAULT '0.00';--> statement-breakpoint
-ALTER TABLE "policies" ADD COLUMN "agent_commission_paid" boolean DEFAULT false;--> statement-breakpoint
-ALTER TABLE "policies" ADD COLUMN "agent_assigned_at" timestamp;--> statement-breakpoint
-ALTER TABLE "policies" ADD COLUMN "policy_source" varchar(50);--> statement-breakpoint
-ALTER TABLE "policies" ADD COLUMN "referral_source" varchar(255);--> statement-breakpoint
-ALTER TABLE "policies" ADD COLUMN "updated_at" timestamp DEFAULT now();--> statement-breakpoint
-ALTER TABLE "agent_commissions" ADD CONSTRAINT "agent_commissions_agent_id_users_id_fk" FOREIGN KEY ("agent_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "agent_commissions" ADD CONSTRAINT "agent_commissions_policy_id_policies_id_fk" FOREIGN KEY ("policy_id") REFERENCES "public"."policies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "agent_commissions" ADD CONSTRAINT "agent_commissions_organization_id_agent_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."agent_organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "policy_transfers" ADD CONSTRAINT "policy_transfers_policy_id_policies_id_fk" FOREIGN KEY ("policy_id") REFERENCES "public"."policies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "policy_transfers" ADD CONSTRAINT "policy_transfers_from_agent_id_users_id_fk" FOREIGN KEY ("from_agent_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "policy_transfers" ADD CONSTRAINT "policy_transfers_to_agent_id_users_id_fk" FOREIGN KEY ("to_agent_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "policy_transfers" ADD CONSTRAINT "policy_transfers_transferred_by_users_id_fk" FOREIGN KEY ("transferred_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-CREATE INDEX "idx_agent_commissions_agent" ON "agent_commissions" USING btree ("agent_id");--> statement-breakpoint
-CREATE INDEX "idx_agent_commissions_policy" ON "agent_commissions" USING btree ("policy_id");--> statement-breakpoint
-CREATE INDEX "idx_agent_commissions_status" ON "agent_commissions" USING btree ("payment_status");--> statement-breakpoint
-CREATE INDEX "idx_agent_commissions_date" ON "agent_commissions" USING btree ("payment_date");--> statement-breakpoint
-CREATE INDEX "idx_policy_transfers_policy" ON "policy_transfers" USING btree ("policy_id");--> statement-breakpoint
-CREATE INDEX "idx_policy_transfers_from_agent" ON "policy_transfers" USING btree ("from_agent_id");--> statement-breakpoint
-CREATE INDEX "idx_policy_transfers_to_agent" ON "policy_transfers" USING btree ("to_agent_id");--> statement-breakpoint
-ALTER TABLE "policies" ADD CONSTRAINT "policies_selling_agent_id_users_id_fk" FOREIGN KEY ("selling_agent_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "policies" ADD CONSTRAINT "policies_servicing_agent_id_users_id_fk" FOREIGN KEY ("servicing_agent_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "policies" ADD CONSTRAINT "policies_organization_id_agent_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."agent_organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-CREATE INDEX "idx_policies_selling_agent" ON "policies" USING btree ("selling_agent_id");--> statement-breakpoint
-CREATE INDEX "idx_policies_servicing_agent" ON "policies" USING btree ("servicing_agent_id");--> statement-breakpoint
-CREATE INDEX "idx_policies_organization" ON "policies" USING btree ("organization_id");--> statement-breakpoint
-CREATE INDEX "idx_users_organization_id" ON "users" USING btree ("organization_id");--> statement-breakpoint
-CREATE INDEX "idx_users_role" ON "users" USING btree ("role");--> statement-breakpoint
-CREATE INDEX "idx_users_privilege_level" ON "users" USING btree ("privilege_level");--> statement-breakpoint
-CREATE INDEX "idx_users_org_privilege" ON "users" USING btree ("organization_id","privilege_level");
+-- ========================================
+-- JUSTASKSHEL COMPLETE DATABASE SCHEMA
+-- Enterprise Insurance Marketplace Platform
+-- Last Updated: October 02, 2025
+-- ========================================
+
+-- DESCRIPTION:
+-- This file contains the complete database schema for JustAskShel, 
+-- an enterprise-grade insurance comparison and management platform
+-- with multi-tenancy, role-based access control, points & rewards system,
+-- and comprehensive agent-policy relationship management.
+
+-- ========================================
+-- TABLE OF CONTENTS:
+-- 1. Core Authentication & Session Management
+-- 2. Insurance Domain Tables
+-- 3. Policy & Claims Management
+-- 4. Member & Organization Management
+-- 5. Points & Rewards System
+-- 6. Social Features & Gamification
+-- 7. Agent-Policy Relationship Management
+-- 8. Advanced Analytics & Reporting
+-- ========================================
+
+-- ========================================
+-- SECTION 1: CORE AUTHENTICATION & SESSION MANAGEMENT
+-- ========================================
+
+-- Session storage table (required for Replit Auth)
+CREATE TABLE IF NOT EXISTS sessions (
+  sid VARCHAR PRIMARY KEY,
+  sess JSONB NOT NULL,
+  expire TIMESTAMP NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON sessions(expire);
+
+-- Unified persons entity model
+CREATE TABLE IF NOT EXISTS persons (
+  id SERIAL PRIMARY KEY,
+  first_name VARCHAR(50) NOT NULL,
+  last_name VARCHAR(50) NOT NULL,
+  email VARCHAR(100) UNIQUE NOT NULL,
+  phone VARCHAR(20),
+  date_of_birth TIMESTAMP,
+  address TEXT,
+  city VARCHAR(50),
+  state VARCHAR(50),
+  zip_code VARCHAR(10),
+  ssn VARCHAR(11),
+  profile_image_url VARCHAR(255),
+  emergency_contact TEXT,
+  preferences JSONB,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Users table with role-based authorization
+CREATE TABLE IF NOT EXISTS users (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  person_id INTEGER REFERENCES persons(id),
+  email VARCHAR UNIQUE,
+  profile_image_url VARCHAR,
+  password VARCHAR(255),
+  role VARCHAR CHECK (role IN ('SuperAdmin', 'TenantAdmin', 'Agent', 'Member', 'Guest', 'Visitor')) DEFAULT 'Guest',
+  privilege_level INTEGER DEFAULT 4,
+  organization_id INTEGER,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_users_organization_id ON users(organization_id);
+CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+CREATE INDEX IF NOT EXISTS idx_users_privilege_level ON users(privilege_level);
+CREATE INDEX IF NOT EXISTS idx_users_org_privilege ON users(organization_id, privilege_level);
+
+-- Roles definition table
+CREATE TABLE IF NOT EXISTS roles (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(50) UNIQUE NOT NULL,
+  privilege_level INTEGER UNIQUE NOT NULL,
+  description TEXT,
+  permissions JSONB,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Person role relationship tables
+CREATE TABLE IF NOT EXISTS person_users (
+  id SERIAL PRIMARY KEY,
+  person_id INTEGER REFERENCES persons(id) NOT NULL,
+  user_id VARCHAR REFERENCES users(id) NOT NULL,
+  is_primary BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS person_members (
+  id SERIAL PRIMARY KEY,
+  person_id INTEGER REFERENCES persons(id) NOT NULL,
+  member_id INTEGER NOT NULL,
+  is_primary BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS person_contacts (
+  id SERIAL PRIMARY KEY,
+  person_id INTEGER REFERENCES persons(id) NOT NULL,
+  contact_id INTEGER NOT NULL,
+  is_primary BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ========================================
+-- SECTION 2: INSURANCE DOMAIN TABLES
+-- ========================================
+
+-- Insurance types
+CREATE TABLE IF NOT EXISTS insurance_types (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  description TEXT,
+  icon VARCHAR(50),
+  color VARCHAR(20),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Insurance providers
+CREATE TABLE IF NOT EXISTS insurance_providers (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  logo VARCHAR(255),
+  rating DECIMAL(2, 1),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Insurance quotes (internal and external)
+CREATE TABLE IF NOT EXISTS insurance_quotes (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR REFERENCES users(id),
+  type_id INTEGER REFERENCES insurance_types(id),
+  provider_id INTEGER REFERENCES insurance_providers(id),
+  monthly_premium DECIMAL(10, 2) NOT NULL,
+  annual_premium DECIMAL(10, 2),
+  coverage_amount DECIMAL(12, 2),
+  term_length INTEGER,
+  deductible DECIMAL(10, 2),
+  medical_exam_required BOOLEAN DEFAULT false,
+  conversion_option BOOLEAN DEFAULT false,
+  features JSONB,
+  rating DECIMAL(2, 1),
+  is_external BOOLEAN DEFAULT false,
+  external_quote_id VARCHAR(255),
+  external_provider_id VARCHAR(100),
+  external_provider_name VARCHAR(255),
+  application_url VARCHAR(500),
+  expires_at TIMESTAMP,
+  metadata JSONB,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- External quote requests tracking
+CREATE TABLE IF NOT EXISTS external_quote_requests (
+  id SERIAL PRIMARY KEY,
+  request_id VARCHAR(100) UNIQUE NOT NULL,
+  user_id VARCHAR REFERENCES users(id),
+  coverage_type VARCHAR(100) NOT NULL,
+  applicant_age INTEGER NOT NULL,
+  zip_code VARCHAR(10) NOT NULL,
+  coverage_amount DECIMAL(12, 2) NOT NULL,
+  term_length INTEGER,
+  payment_frequency VARCHAR(20),
+  effective_date TIMESTAMP,
+  request_data JSONB,
+  providers_queried JSONB,
+  total_quotes_received INTEGER DEFAULT 0,
+  successful_providers INTEGER DEFAULT 0,
+  failed_providers INTEGER DEFAULT 0,
+  errors JSONB,
+  status VARCHAR CHECK (status IN ('pending', 'processing', 'completed', 'failed', 'expired')) DEFAULT 'pending',
+  processing_started_at TIMESTAMP,
+  completed_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- User selected quotes
+CREATE TABLE IF NOT EXISTS selected_quotes (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR REFERENCES users(id),
+  quote_id INTEGER REFERENCES insurance_quotes(id),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- User wishlist
+CREATE TABLE IF NOT EXISTS wishlist (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR REFERENCES users(id),
+  quote_id INTEGER REFERENCES insurance_quotes(id),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ========================================
+-- SECTION 3: POLICY & CLAIMS MANAGEMENT
+-- ========================================
+
+-- Agent organizations (multi-tenant) - Must be created before policies
+CREATE TABLE IF NOT EXISTS agent_organizations (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  display_name VARCHAR(100) NOT NULL,
+  description TEXT,
+  website VARCHAR(255),
+  phone VARCHAR(20),
+  email VARCHAR(100),
+  address TEXT,
+  city VARCHAR(50),
+  state VARCHAR(50),
+  zip_code VARCHAR(10),
+  logo_url VARCHAR(255),
+  primary_color VARCHAR(7) DEFAULT '#0EA5E9',
+  secondary_color VARCHAR(7) DEFAULT '#64748B',
+  status VARCHAR CHECK (status IN ('Active', 'Inactive', 'Suspended')) DEFAULT 'Active',
+  subscription_plan VARCHAR CHECK (subscription_plan IN ('Basic', 'Professional', 'Enterprise')) DEFAULT 'Basic',
+  subscription_status VARCHAR CHECK (subscription_status IN ('Active', 'Inactive', 'Trial', 'Expired')) DEFAULT 'Trial',
+  max_agents INTEGER DEFAULT 5,
+  max_members INTEGER DEFAULT 100,
+  settings JSONB,
+  is_system_organization BOOLEAN DEFAULT false,
+  is_hidden BOOLEAN DEFAULT false,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Add foreign key constraints after agent_organizations is created
+ALTER TABLE users ADD CONSTRAINT fk_users_organization 
+  FOREIGN KEY (organization_id) REFERENCES agent_organizations(id);
+
+-- Policies table with agent relationships
+CREATE TABLE IF NOT EXISTS policies (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR REFERENCES users(id),
+  quote_id INTEGER,
+  policy_number VARCHAR NOT NULL,
+  status VARCHAR DEFAULT 'active',
+  start_date TIMESTAMP NOT NULL,
+  end_date TIMESTAMP,
+  next_payment_date TIMESTAMP,
+  selling_agent_id VARCHAR REFERENCES users(id),
+  servicing_agent_id VARCHAR REFERENCES users(id),
+  organization_id INTEGER REFERENCES agent_organizations(id),
+  agent_commission_rate DECIMAL(5, 2) DEFAULT 0.00,
+  agent_commission_paid BOOLEAN DEFAULT false,
+  agent_assigned_at TIMESTAMP,
+  policy_source VARCHAR(50),
+  referral_source VARCHAR(255),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_policies_selling_agent ON policies(selling_agent_id);
+CREATE INDEX IF NOT EXISTS idx_policies_servicing_agent ON policies(servicing_agent_id);
+CREATE INDEX IF NOT EXISTS idx_policies_organization ON policies(organization_id);
+
+-- Claims management
+CREATE TABLE IF NOT EXISTS claims (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR REFERENCES users(id),
+  policy_id INTEGER REFERENCES policies(id),
+  claim_number VARCHAR(50) NOT NULL,
+  title VARCHAR(200) NOT NULL,
+  description TEXT,
+  claim_type VARCHAR(50) NOT NULL,
+  incident_date TIMESTAMP NOT NULL,
+  amount DECIMAL(10, 2),
+  estimated_amount DECIMAL(10, 2),
+  status VARCHAR(20) DEFAULT 'draft',
+  priority VARCHAR(20) DEFAULT 'normal',
+  assigned_agent VARCHAR REFERENCES users(id),
+  submitted_at TIMESTAMP,
+  reviewed_at TIMESTAMP,
+  processed_at TIMESTAMP,
+  paid_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Claim documents
+CREATE TABLE IF NOT EXISTS claim_documents (
+  id SERIAL PRIMARY KEY,
+  claim_id INTEGER REFERENCES claims(id) NOT NULL,
+  file_name VARCHAR(255) NOT NULL,
+  file_type VARCHAR(50) NOT NULL,
+  file_size INTEGER,
+  document_type VARCHAR(50) NOT NULL,
+  uploaded_by VARCHAR REFERENCES users(id),
+  uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  is_required BOOLEAN DEFAULT false,
+  status VARCHAR(20) DEFAULT 'pending'
+);
+
+-- Claim communications
+CREATE TABLE IF NOT EXISTS claim_communications (
+  id SERIAL PRIMARY KEY,
+  claim_id INTEGER REFERENCES claims(id) NOT NULL,
+  user_id VARCHAR REFERENCES users(id),
+  message_type VARCHAR(50) NOT NULL,
+  subject VARCHAR(200),
+  message TEXT NOT NULL,
+  is_internal BOOLEAN DEFAULT false,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Claim workflow steps
+CREATE TABLE IF NOT EXISTS claim_workflow_steps (
+  id SERIAL PRIMARY KEY,
+  claim_id INTEGER REFERENCES claims(id) NOT NULL,
+  step_name VARCHAR(100) NOT NULL,
+  step_description TEXT,
+  status VARCHAR(20) NOT NULL,
+  assigned_to VARCHAR REFERENCES users(id),
+  due_date TIMESTAMP,
+  completed_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Policy documents
+CREATE TABLE IF NOT EXISTS policy_documents (
+  id SERIAL PRIMARY KEY,
+  policy_id INTEGER REFERENCES policies(id) NOT NULL,
+  document_name VARCHAR(255) NOT NULL,
+  document_type VARCHAR CHECK (document_type IN ('Policy Certificate', 'Application', 'Medical Records', 'Beneficiary Form', 'Amendment', 'Payment Receipt', 'Cancellation Notice', 'Other')) NOT NULL,
+  file_name VARCHAR(255) NOT NULL,
+  file_type VARCHAR(50) NOT NULL,
+  file_size INTEGER,
+  file_path VARCHAR(500),
+  uploaded_by VARCHAR REFERENCES users(id),
+  uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  is_active BOOLEAN DEFAULT true,
+  description TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Premium payments tracking
+CREATE TABLE IF NOT EXISTS premium_payments (
+  id SERIAL PRIMARY KEY,
+  policy_id INTEGER REFERENCES policies(id) NOT NULL,
+  payment_amount DECIMAL(10, 2) NOT NULL,
+  payment_type VARCHAR CHECK (payment_type IN ('Premium', 'Late Fee', 'Processing Fee', 'Adjustment', 'Refund')) DEFAULT 'Premium',
+  payment_method VARCHAR CHECK (payment_method IN ('Credit Card', 'Bank Transfer', 'Check', 'Cash', 'ACH', 'Wire Transfer')),
+  transaction_id VARCHAR(100),
+  payment_status VARCHAR CHECK (payment_status IN ('Pending', 'Processed', 'Failed', 'Cancelled', 'Refunded')) DEFAULT 'Pending',
+  due_date TIMESTAMP NOT NULL,
+  paid_date TIMESTAMP,
+  grace_period_end TIMESTAMP,
+  late_fee_amount DECIMAL(10, 2) DEFAULT 0,
+  is_auto_pay BOOLEAN DEFAULT false,
+  payment_reference VARCHAR(100),
+  notes TEXT,
+  processed_by VARCHAR REFERENCES users(id),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Policy amendments
+CREATE TABLE IF NOT EXISTS policy_amendments (
+  id SERIAL PRIMARY KEY,
+  policy_id INTEGER REFERENCES policies(id) NOT NULL,
+  amendment_type VARCHAR CHECK (amendment_type IN ('Beneficiary Change', 'Coverage Change', 'Premium Adjustment', 'Address Change', 'Name Change', 'Payment Method Change', 'Other')) NOT NULL,
+  amendment_number VARCHAR(50) NOT NULL,
+  effective_date TIMESTAMP NOT NULL,
+  description TEXT NOT NULL,
+  old_value JSONB,
+  new_value JSONB,
+  premium_impact DECIMAL(10, 2) DEFAULT 0,
+  status VARCHAR CHECK (status IN ('Draft', 'Pending Review', 'Approved', 'Implemented', 'Rejected', 'Cancelled')) DEFAULT 'Draft',
+  requested_by VARCHAR REFERENCES users(id),
+  approved_by VARCHAR REFERENCES users(id),
+  implemented_by VARCHAR REFERENCES users(id),
+  requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  approved_at TIMESTAMP,
+  implemented_at TIMESTAMP,
+  rejection_reason TEXT,
+  document_path VARCHAR(500),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Dependents
+CREATE TABLE IF NOT EXISTS dependents (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR REFERENCES users(id),
+  first_name VARCHAR(50) NOT NULL,
+  last_name VARCHAR(50) NOT NULL,
+  relationship VARCHAR(20) NOT NULL,
+  date_of_birth TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ========================================
+-- SECTION 4: MEMBER & ORGANIZATION MANAGEMENT
+-- ========================================
+
+-- Members table
+CREATE TABLE IF NOT EXISTS members (
+  id SERIAL PRIMARY KEY,
+  person_id INTEGER REFERENCES persons(id),
+  user_id VARCHAR UNIQUE REFERENCES users(id),
+  organization_id INTEGER REFERENCES agent_organizations(id),
+  member_number VARCHAR(20) UNIQUE NOT NULL,
+  first_name VARCHAR(50),
+  last_name VARCHAR(50),
+  email VARCHAR(100),
+  date_of_birth TIMESTAMP,
+  phone VARCHAR(20),
+  address TEXT,
+  city VARCHAR(50),
+  state VARCHAR(50),
+  zip_code VARCHAR(10),
+  ssn VARCHAR(11),
+  profile_image_url VARCHAR,
+  avatar_type VARCHAR CHECK (avatar_type IN ('initials', 'image', 'generated')) DEFAULT 'initials',
+  avatar_color VARCHAR(7) DEFAULT '#0EA5E9',
+  bio TEXT,
+  emergency_contact TEXT,
+  preferences JSONB,
+  membership_status VARCHAR CHECK (membership_status IN ('Active', 'Inactive', 'Suspended')) DEFAULT 'Active',
+  membership_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Organization invitations
+CREATE TABLE IF NOT EXISTS organization_invitations (
+  id SERIAL PRIMARY KEY,
+  organization_id INTEGER REFERENCES agent_organizations(id) NOT NULL,
+  email VARCHAR(100) NOT NULL,
+  role VARCHAR CHECK (role IN ('Agent', 'Member')) NOT NULL,
+  invited_by VARCHAR REFERENCES users(id) NOT NULL,
+  invitation_token VARCHAR(255) UNIQUE NOT NULL,
+  expires_at TIMESTAMP NOT NULL,
+  accepted_at TIMESTAMP,
+  accepted_by VARCHAR REFERENCES users(id),
+  status VARCHAR CHECK (status IN ('Pending', 'Accepted', 'Expired', 'Revoked')) DEFAULT 'Pending',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_organization_invitations_org_id ON organization_invitations(organization_id);
+CREATE INDEX IF NOT EXISTS idx_organization_invitations_email ON organization_invitations(email);
+CREATE INDEX IF NOT EXISTS idx_organization_invitations_token ON organization_invitations(invitation_token);
+
+-- Organization access requests (Phase 1: Login Flow)
+CREATE TABLE IF NOT EXISTS organization_access_requests (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR REFERENCES users(id) NOT NULL,
+  organization_id INTEGER REFERENCES agent_organizations(id) NOT NULL,
+  request_reason TEXT NOT NULL,
+  desired_role VARCHAR CHECK (desired_role IN ('Agent', 'Member')),
+  status VARCHAR CHECK (status IN ('pending', 'approved', 'rejected')) DEFAULT 'pending',
+  reviewed_by VARCHAR REFERENCES users(id),
+  reviewed_at TIMESTAMP,
+  review_notes TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_access_requests_user ON organization_access_requests(user_id);
+CREATE INDEX IF NOT EXISTS idx_access_requests_org ON organization_access_requests(organization_id);
+CREATE INDEX IF NOT EXISTS idx_access_requests_status ON organization_access_requests(status);
+
+-- Contacts
+CREATE TABLE IF NOT EXISTS contacts (
+  id SERIAL PRIMARY KEY,
+  person_id INTEGER REFERENCES persons(id),
+  organization_id INTEGER REFERENCES agent_organizations(id),
+  type VARCHAR CHECK (type IN ('Lead', 'Customer', 'Provider', 'Agent')) NOT NULL,
+  first_name VARCHAR(50) NOT NULL,
+  last_name VARCHAR(50) NOT NULL,
+  email VARCHAR(100),
+  phone VARCHAR(20),
+  company VARCHAR(100),
+  address TEXT,
+  city VARCHAR(50),
+  state VARCHAR(50),
+  zip_code VARCHAR(10),
+  notes TEXT,
+  status VARCHAR CHECK (status IN ('Active', 'Inactive', 'Prospect')) DEFAULT 'Active',
+  assigned_agent VARCHAR REFERENCES users(id),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ========================================
+-- SECTION 5: POINTS & REWARDS SYSTEM
+-- ========================================
+
+-- Points transactions
+CREATE TABLE IF NOT EXISTS points_transactions (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR REFERENCES users(id) NOT NULL,
+  transaction_type VARCHAR CHECK (transaction_type IN ('Earned', 'Redeemed', 'Expired', 'Adjustment', 'Bonus', 'Referral')) NOT NULL,
+  points INTEGER NOT NULL,
+  description TEXT NOT NULL,
+  category VARCHAR CHECK (category IN ('Policy Purchase', 'Claim Submission', 'Referral', 'Login', 'Profile Complete', 'Newsletter', 'Review', 'Survey', 'Birthday', 'Anniversary', 'Redemption', 'Adjustment', 'Bonus')) NOT NULL,
+  reference_id VARCHAR,
+  reference_type VARCHAR,
+  balance_after INTEGER NOT NULL,
+  expires_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Points summary
+CREATE TABLE IF NOT EXISTS points_summary (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR REFERENCES users(id) UNIQUE NOT NULL,
+  total_earned INTEGER DEFAULT 0,
+  total_redeemed INTEGER DEFAULT 0,
+  current_balance INTEGER DEFAULT 0,
+  lifetime_balance INTEGER DEFAULT 0,
+  tier_level VARCHAR CHECK (tier_level IN ('Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond')) DEFAULT 'Bronze',
+  tier_progress INTEGER DEFAULT 0,
+  next_tier_threshold INTEGER,
+  last_earned_at TIMESTAMP,
+  last_redeemed_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Points tiers
+CREATE TABLE IF NOT EXISTS points_tiers (
+  id SERIAL PRIMARY KEY,
+  tier_name VARCHAR CHECK (tier_name IN ('Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond')) UNIQUE NOT NULL,
+  tier_level INTEGER UNIQUE NOT NULL,
+  points_required INTEGER NOT NULL,
+  color_code VARCHAR(7),
+  icon VARCHAR(100),
+  perks JSONB,
+  multiplier DECIMAL(3, 2) DEFAULT 1.00,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Tier progression history
+CREATE TABLE IF NOT EXISTS tier_progression_history (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR REFERENCES users(id) NOT NULL,
+  previous_tier VARCHAR,
+  new_tier VARCHAR NOT NULL,
+  points_at_progression INTEGER NOT NULL,
+  reason TEXT,
+  progressed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Tier benefits
+CREATE TABLE IF NOT EXISTS tier_benefits (
+  id SERIAL PRIMARY KEY,
+  tier_name VARCHAR NOT NULL,
+  benefit_name VARCHAR(200) NOT NULL,
+  benefit_description TEXT,
+  benefit_type VARCHAR CHECK (benefit_type IN ('Discount', 'Bonus Points', 'Priority Support', 'Exclusive Access', 'Gift', 'Other')) NOT NULL,
+  benefit_value JSONB,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Rewards catalog
+CREATE TABLE IF NOT EXISTS rewards (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(200) NOT NULL,
+  description TEXT,
+  category VARCHAR CHECK (category IN ('Gift Card', 'Discount', 'Merchandise', 'Service', 'Donation', 'Premium Waiver', 'Cash Back', 'Other')) NOT NULL,
+  points_required INTEGER NOT NULL,
+  stock_quantity INTEGER,
+  image_url VARCHAR(500),
+  terms_conditions TEXT,
+  is_active BOOLEAN DEFAULT true,
+  is_featured BOOLEAN DEFAULT false,
+  priority_order INTEGER DEFAULT 0,
+  min_tier_required VARCHAR,
+  valid_from TIMESTAMP,
+  valid_until TIMESTAMP,
+  redemption_limit INTEGER,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Reward redemptions
+CREATE TABLE IF NOT EXISTS reward_redemptions (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR REFERENCES users(id) NOT NULL,
+  reward_id INTEGER REFERENCES rewards(id) NOT NULL,
+  points_spent INTEGER NOT NULL,
+  status VARCHAR CHECK (status IN ('Pending', 'Approved', 'Shipped', 'Delivered', 'Completed', 'Cancelled')) DEFAULT 'Pending',
+  redemption_code VARCHAR(50),
+  shipping_address TEXT,
+  tracking_number VARCHAR(100),
+  notes TEXT,
+  fulfilled_by VARCHAR REFERENCES users(id),
+  fulfilled_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Reward reviews
+CREATE TABLE IF NOT EXISTS reward_reviews (
+  id SERIAL PRIMARY KEY,
+  reward_id INTEGER REFERENCES rewards(id) NOT NULL,
+  user_id VARCHAR REFERENCES users(id) NOT NULL,
+  rating INTEGER NOT NULL,
+  review TEXT,
+  is_verified BOOLEAN DEFAULT false,
+  helpful_count INTEGER DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Points rules for automated awarding
+CREATE TABLE IF NOT EXISTS points_rules (
+  id SERIAL PRIMARY KEY,
+  rule_name VARCHAR(200) NOT NULL,
+  description TEXT,
+  rule_type VARCHAR CHECK (rule_type IN ('Action Based', 'Milestone Based', 'Time Based', 'Manual', 'Conditional')) NOT NULL,
+  trigger_event VARCHAR NOT NULL,
+  points_awarded INTEGER NOT NULL,
+  frequency VARCHAR CHECK (frequency IN ('Once', 'Daily', 'Weekly', 'Monthly', 'Unlimited')) DEFAULT 'Unlimited',
+  max_occurrences INTEGER,
+  conditions JSONB,
+  is_active BOOLEAN DEFAULT true,
+  start_date TIMESTAMP,
+  end_date TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Achievements system
+CREATE TABLE IF NOT EXISTS achievements (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(200) NOT NULL,
+  description TEXT,
+  category VARCHAR CHECK (category IN ('Getting Started', 'Engagement', 'Loyalty', 'Referral', 'Special', 'Milestone', 'Expert')) NOT NULL,
+  icon VARCHAR(100),
+  points_reward INTEGER DEFAULT 0,
+  badge_color VARCHAR(7),
+  requirement JSONB,
+  is_repeatable BOOLEAN DEFAULT false,
+  max_unlocks INTEGER DEFAULT 1,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- User achievements
+CREATE TABLE IF NOT EXISTS user_achievements (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR REFERENCES users(id) NOT NULL,
+  achievement_id INTEGER REFERENCES achievements(id) NOT NULL,
+  unlocked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  points_awarded INTEGER DEFAULT 0,
+  progress_data JSONB
+);
+
+-- Referral codes
+CREATE TABLE IF NOT EXISTS referral_codes (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR REFERENCES users(id) NOT NULL,
+  referral_code VARCHAR(20) UNIQUE NOT NULL,
+  uses_count INTEGER DEFAULT 0,
+  max_uses INTEGER,
+  bonus_points INTEGER NOT NULL,
+  is_active BOOLEAN DEFAULT true,
+  expires_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Referral tracking
+CREATE TABLE IF NOT EXISTS referral_tracking (
+  id SERIAL PRIMARY KEY,
+  referrer_id VARCHAR REFERENCES users(id) NOT NULL,
+  referred_user_id VARCHAR REFERENCES users(id) NOT NULL,
+  referral_code VARCHAR(20) NOT NULL,
+  referrer_reward INTEGER NOT NULL,
+  referred_reward INTEGER NOT NULL,
+  status VARCHAR CHECK (status IN ('Pending', 'Completed', 'Expired')) DEFAULT 'Pending',
+  completed_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- User notifications
+CREATE TABLE IF NOT EXISTS user_notifications (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR REFERENCES users(id) NOT NULL,
+  notification_type VARCHAR NOT NULL,
+  title VARCHAR(200) NOT NULL,
+  message TEXT NOT NULL,
+  action_url VARCHAR(500),
+  is_read BOOLEAN DEFAULT false,
+  read_at TIMESTAMP,
+  priority VARCHAR CHECK (priority IN ('Low', 'Medium', 'High', 'Urgent')) DEFAULT 'Medium',
+  expires_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Notification preferences
+CREATE TABLE IF NOT EXISTS notification_preferences (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR REFERENCES users(id) UNIQUE NOT NULL,
+  email_notifications BOOLEAN DEFAULT true,
+  sms_notifications BOOLEAN DEFAULT false,
+  push_notifications BOOLEAN DEFAULT true,
+  points_earned BOOLEAN DEFAULT true,
+  tier_changes BOOLEAN DEFAULT true,
+  reward_updates BOOLEAN DEFAULT true,
+  achievement_unlocked BOOLEAN DEFAULT true,
+  referral_rewards BOOLEAN DEFAULT true,
+  promotional_offers BOOLEAN DEFAULT false,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Bulk points operations for admin
+CREATE TABLE IF NOT EXISTS bulk_points_operations (
+  id SERIAL PRIMARY KEY,
+  initiated_by VARCHAR REFERENCES users(id) NOT NULL,
+  operation_type VARCHAR CHECK (operation_type IN ('Award', 'Deduct', 'Reset', 'Adjust')) NOT NULL,
+  target_users JSONB NOT NULL,
+  points_per_user INTEGER NOT NULL,
+  reason TEXT NOT NULL,
+  total_users INTEGER NOT NULL,
+  processed_count INTEGER DEFAULT 0,
+  failed_count INTEGER DEFAULT 0,
+  status VARCHAR CHECK (status IN ('Pending', 'Processing', 'Completed', 'Failed')) DEFAULT 'Pending',
+  started_at TIMESTAMP,
+  completed_at TIMESTAMP,
+  error_log JSONB,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Scheduled points tasks
+CREATE TABLE IF NOT EXISTS scheduled_points_tasks (
+  id SERIAL PRIMARY KEY,
+  task_name VARCHAR(200) NOT NULL,
+  description TEXT,
+  task_type VARCHAR CHECK (task_type IN ('Award Points', 'Expire Points', 'Tier Evaluation', 'Birthday Bonus', 'Anniversary Bonus', 'Campaign Bonus')) NOT NULL,
+  schedule_type VARCHAR CHECK (schedule_type IN ('Once', 'Daily', 'Weekly', 'Monthly', 'Yearly')) NOT NULL,
+  schedule_time TIME,
+  schedule_day_of_week INTEGER,
+  schedule_day_of_month INTEGER,
+  next_run_at TIMESTAMP NOT NULL,
+  last_run_at TIMESTAMP,
+  points_to_award INTEGER,
+  target_criteria JSONB,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Admin point adjustments audit
+CREATE TABLE IF NOT EXISTS admin_point_adjustments (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR REFERENCES users(id) NOT NULL,
+  admin_id VARCHAR REFERENCES users(id) NOT NULL,
+  adjustment_type VARCHAR CHECK (adjustment_type IN ('Award', 'Deduct', 'Reset')) NOT NULL,
+  points_amount INTEGER NOT NULL,
+  reason TEXT NOT NULL,
+  previous_balance INTEGER NOT NULL,
+  new_balance INTEGER NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ========================================
+-- SECTION 6: SOCIAL FEATURES & GAMIFICATION
+-- ========================================
+
+-- Seasonal campaigns
+CREATE TABLE IF NOT EXISTS seasonal_campaigns (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(200) NOT NULL,
+  description TEXT,
+  campaign_type VARCHAR CHECK (campaign_type IN ('Holiday', 'Special Event', 'Milestone', 'Seasonal', 'Anniversary')) NOT NULL,
+  points_multiplier DECIMAL(3, 2) DEFAULT 1.00,
+  bonus_points INTEGER DEFAULT 0,
+  is_active BOOLEAN DEFAULT true,
+  auto_start BOOLEAN DEFAULT false,
+  auto_end BOOLEAN DEFAULT true,
+  start_date TIMESTAMP NOT NULL,
+  end_date TIMESTAMP NOT NULL,
+  target_user_tiers VARCHAR[],
+  target_categories VARCHAR[],
+  max_participants INTEGER,
+  current_participants INTEGER DEFAULT 0,
+  conditions JSONB,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Campaign participations
+CREATE TABLE IF NOT EXISTS campaign_participations (
+  id SERIAL PRIMARY KEY,
+  campaign_id INTEGER REFERENCES seasonal_campaigns(id) NOT NULL,
+  user_id VARCHAR REFERENCES users(id) NOT NULL,
+  points_earned INTEGER DEFAULT 0,
+  bonus_points_earned INTEGER DEFAULT 0,
+  participated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  is_active BOOLEAN DEFAULT true
+);
+
+-- Seasonal achievements
+CREATE TABLE IF NOT EXISTS seasonal_achievements (
+  id SERIAL PRIMARY KEY,
+  campaign_id INTEGER REFERENCES seasonal_campaigns(id),
+  name VARCHAR(200) NOT NULL,
+  description TEXT,
+  icon VARCHAR(100),
+  category VARCHAR CHECK (category IN ('Holiday', 'Seasonal', 'Special Event', 'Challenge', 'Milestone')) NOT NULL,
+  points_reward INTEGER DEFAULT 0,
+  requirement JSONB,
+  is_repeatable BOOLEAN DEFAULT false,
+  max_unlocks INTEGER DEFAULT 1,
+  unlock_order INTEGER DEFAULT 1,
+  is_active BOOLEAN DEFAULT true,
+  valid_from TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  valid_until TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- User seasonal achievements
+CREATE TABLE IF NOT EXISTS user_seasonal_achievements (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR REFERENCES users(id) NOT NULL,
+  achievement_id INTEGER REFERENCES seasonal_achievements(id) NOT NULL,
+  campaign_id INTEGER REFERENCES seasonal_campaigns(id) NOT NULL,
+  points_awarded INTEGER DEFAULT 0,
+  unlocked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  tier VARCHAR CHECK (tier IN ('Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond')),
+  progress_data JSONB
+);
+
+-- Leaderboard settings
+CREATE TABLE IF NOT EXISTS leaderboard_settings (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR REFERENCES users(id) UNIQUE NOT NULL,
+  is_opted_in BOOLEAN DEFAULT false,
+  display_name VARCHAR(100),
+  show_tier_level BOOLEAN DEFAULT true,
+  show_total_points BOOLEAN DEFAULT true,
+  show_recent_activity BOOLEAN DEFAULT false,
+  visibility_level VARCHAR CHECK (visibility_level IN ('Public', 'Friends', 'Private')) DEFAULT 'Public',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Achievement shares
+CREATE TABLE IF NOT EXISTS achievement_shares (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR REFERENCES users(id) NOT NULL,
+  achievement_id INTEGER REFERENCES achievements(id),
+  seasonal_achievement_id INTEGER REFERENCES seasonal_achievements(id),
+  share_type VARCHAR CHECK (share_type IN ('Internal', 'Facebook', 'Twitter', 'LinkedIn', 'Instagram', 'WhatsApp')) NOT NULL,
+  message TEXT,
+  image_url VARCHAR(500),
+  hashtags VARCHAR[],
+  is_public BOOLEAN DEFAULT true,
+  likes_count INTEGER DEFAULT 0,
+  comments_count INTEGER DEFAULT 0,
+  shares_count INTEGER DEFAULT 0,
+  shared_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Social media integrations
+CREATE TABLE IF NOT EXISTS social_media_integrations (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR REFERENCES users(id) NOT NULL,
+  platform VARCHAR CHECK (platform IN ('Facebook', 'Twitter', 'LinkedIn', 'Instagram', 'TikTok', 'YouTube')) NOT NULL,
+  platform_user_id VARCHAR(200),
+  platform_username VARCHAR(100),
+  is_connected BOOLEAN DEFAULT true,
+  bonus_points_earned INTEGER DEFAULT 0,
+  last_activity_sync TIMESTAMP,
+  connection_bonus_awarded BOOLEAN DEFAULT false,
+  connected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Friendships
+CREATE TABLE IF NOT EXISTS friendships (
+  id SERIAL PRIMARY KEY,
+  requester_id VARCHAR REFERENCES users(id) NOT NULL,
+  addressee_id VARCHAR REFERENCES users(id) NOT NULL,
+  status VARCHAR CHECK (status IN ('Pending', 'Accepted', 'Declined', 'Blocked')) DEFAULT 'Pending',
+  request_message TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  responded_at TIMESTAMP
+);
+
+-- Social referrals
+CREATE TABLE IF NOT EXISTS social_referrals (
+  id SERIAL PRIMARY KEY,
+  referrer_id VARCHAR REFERENCES users(id) NOT NULL,
+  referred_user_id VARCHAR REFERENCES users(id),
+  referral_code VARCHAR(20) UNIQUE NOT NULL,
+  invite_method VARCHAR CHECK (invite_method IN ('Email', 'SMS', 'Social Media', 'Direct Link', 'QR Code')) NOT NULL,
+  platform_used VARCHAR(50),
+  bonus_tier VARCHAR CHECK (bonus_tier IN ('Standard', 'Premium', 'Elite')) DEFAULT 'Standard',
+  referrer_reward INTEGER DEFAULT 0,
+  referred_reward INTEGER DEFAULT 0,
+  is_completed BOOLEAN DEFAULT false,
+  completed_at TIMESTAMP,
+  expires_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Leaderboard rankings
+CREATE TABLE IF NOT EXISTS leaderboard_rankings (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR REFERENCES users(id) NOT NULL,
+  period VARCHAR CHECK (period IN ('Daily', 'Weekly', 'Monthly', 'Quarterly', 'Yearly', 'All-Time')) NOT NULL,
+  category VARCHAR CHECK (category IN ('Points', 'Achievements', 'Referrals', 'Activity', 'Redemptions')) NOT NULL,
+  rank INTEGER NOT NULL,
+  score INTEGER NOT NULL,
+  previous_rank INTEGER,
+  rank_change INTEGER DEFAULT 0,
+  period_start TIMESTAMP NOT NULL,
+  period_end TIMESTAMP NOT NULL,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Social activities
+CREATE TABLE IF NOT EXISTS social_activities (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR REFERENCES users(id) NOT NULL,
+  activity_type VARCHAR CHECK (activity_type IN ('Achievement Unlocked', 'Tier Promotion', 'Points Milestone', 'Referral Success', 'Redemption', 'Campaign Join', 'Challenge Complete')) NOT NULL,
+  description TEXT NOT NULL,
+  points_involved INTEGER,
+  achievement_id INTEGER REFERENCES achievements(id),
+  is_public BOOLEAN DEFAULT true,
+  likes_count INTEGER DEFAULT 0,
+  comments_count INTEGER DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Activity likes
+CREATE TABLE IF NOT EXISTS activity_likes (
+  id SERIAL PRIMARY KEY,
+  activity_id INTEGER REFERENCES social_activities(id) NOT NULL,
+  user_id VARCHAR REFERENCES users(id) NOT NULL,
+  reaction_type VARCHAR CHECK (reaction_type IN ('Like', 'Love', 'Celebrate', 'Inspire', 'Congratulate')) DEFAULT 'Like',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Activity comments
+CREATE TABLE IF NOT EXISTS activity_comments (
+  id SERIAL PRIMARY KEY,
+  activity_id INTEGER REFERENCES social_activities(id) NOT NULL,
+  user_id VARCHAR REFERENCES users(id) NOT NULL,
+  comment TEXT NOT NULL,
+  is_reply BOOLEAN DEFAULT false,
+  parent_comment_id INTEGER,
+  likes_count INTEGER DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ========================================
+-- SECTION 7: ADVANCED REDEMPTION OPTIONS
+-- ========================================
+
+-- Reward wishlists
+CREATE TABLE IF NOT EXISTS reward_wishlists (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR REFERENCES users(id) NOT NULL,
+  reward_id INTEGER REFERENCES rewards(id) NOT NULL,
+  priority INTEGER DEFAULT 1,
+  target_points_goal INTEGER,
+  is_notifications_enabled BOOLEAN DEFAULT true,
+  price_alert_threshold DECIMAL(5, 2),
+  added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  last_notified TIMESTAMP
+);
+
+-- Reward pricing history
+CREATE TABLE IF NOT EXISTS reward_pricing_history (
+  id SERIAL PRIMARY KEY,
+  reward_id INTEGER REFERENCES rewards(id) NOT NULL,
+  original_price INTEGER NOT NULL,
+  adjusted_price INTEGER NOT NULL,
+  demand_multiplier DECIMAL(3, 2) DEFAULT 1.00,
+  redemption_count INTEGER DEFAULT 0,
+  view_count INTEGER DEFAULT 0,
+  demand_level VARCHAR CHECK (demand_level IN ('Very Low', 'Low', 'Normal', 'High', 'Very High')) DEFAULT 'Normal',
+  price_change_reason VARCHAR CHECK (price_change_reason IN ('Demand', 'Seasonal', 'Inventory', 'Promotion', 'Manual')),
+  valid_from TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  valid_until TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Partial redemptions
+CREATE TABLE IF NOT EXISTS partial_redemptions (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR REFERENCES users(id) NOT NULL,
+  reward_id INTEGER REFERENCES rewards(id) NOT NULL,
+  total_points_required INTEGER NOT NULL,
+  points_contributed INTEGER NOT NULL,
+  remaining_points INTEGER NOT NULL,
+  is_completed BOOLEAN DEFAULT false,
+  completed_at TIMESTAMP,
+  expires_at TIMESTAMP,
+  reservation_id VARCHAR(50),
+  status VARCHAR CHECK (status IN ('Active', 'Completed', 'Expired', 'Cancelled')) DEFAULT 'Active',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Reward recommendations
+CREATE TABLE IF NOT EXISTS reward_recommendations (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR REFERENCES users(id) NOT NULL,
+  reward_id INTEGER REFERENCES rewards(id) NOT NULL,
+  recommendation_type VARCHAR CHECK (recommendation_type IN ('Behavioral', 'Collaborative', 'Content-Based', 'Trending', 'Seasonal', 'Personalized')) NOT NULL,
+  confidence_score DECIMAL(3, 2),
+  reasoning TEXT,
+  user_behavior_data JSONB,
+  is_viewed BOOLEAN DEFAULT false,
+  is_clicked BOOLEAN DEFAULT false,
+  is_redeemed BOOLEAN DEFAULT false,
+  viewed_at TIMESTAMP,
+  clicked_at TIMESTAMP,
+  redeemed_at TIMESTAMP,
+  rank INTEGER,
+  generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  expires_at TIMESTAMP
+);
+
+-- Reward inventory
+CREATE TABLE IF NOT EXISTS reward_inventory (
+  id SERIAL PRIMARY KEY,
+  reward_id INTEGER REFERENCES rewards(id) UNIQUE NOT NULL,
+  total_stock INTEGER,
+  available_stock INTEGER,
+  reserved_stock INTEGER DEFAULT 0,
+  low_stock_threshold INTEGER DEFAULT 10,
+  is_out_of_stock BOOLEAN DEFAULT false,
+  auto_restock BOOLEAN DEFAULT false,
+  restock_level INTEGER,
+  last_restocked TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Recommendation models
+CREATE TABLE IF NOT EXISTS recommendation_models (
+  id SERIAL PRIMARY KEY,
+  model_name VARCHAR(100) NOT NULL,
+  model_type VARCHAR CHECK (model_type IN ('Collaborative Filtering', 'Content-Based', 'Hybrid', 'Deep Learning', 'Matrix Factorization')) NOT NULL,
+  version VARCHAR(20) DEFAULT '1.0',
+  is_active BOOLEAN DEFAULT false,
+  accuracy DECIMAL(5, 4),
+  precision DECIMAL(5, 4),
+  recall DECIMAL(5, 4),
+  training_data JSONB,
+  hyperparameters JSONB,
+  training_started TIMESTAMP,
+  training_completed TIMESTAMP,
+  last_prediction TIMESTAMP,
+  deployed_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Reward interactions
+CREATE TABLE IF NOT EXISTS reward_interactions (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR REFERENCES users(id) NOT NULL,
+  reward_id INTEGER REFERENCES rewards(id) NOT NULL,
+  interaction_type VARCHAR CHECK (interaction_type IN ('View', 'Click', 'Add to Wishlist', 'Share', 'Compare', 'Review', 'Redeem', 'Partial Redeem')) NOT NULL,
+  session_id VARCHAR(100),
+  device_type VARCHAR(50),
+  user_agent VARCHAR(500),
+  referrer_source VARCHAR(200),
+  time_spent INTEGER,
+  page_depth INTEGER,
+  interaction_metadata JSONB,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Reward notifications
+CREATE TABLE IF NOT EXISTS reward_notifications (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR REFERENCES users(id) NOT NULL,
+  reward_id INTEGER REFERENCES rewards(id),
+  notification_type VARCHAR CHECK (notification_type IN ('Price Drop', 'Back in Stock', 'Wishlist Goal Reached', 'Limited Time Offer', 'Recommendation', 'Expiring Soon')) NOT NULL,
+  title VARCHAR(200) NOT NULL,
+  message TEXT NOT NULL,
+  action_url VARCHAR(500),
+  priority VARCHAR CHECK (priority IN ('Low', 'Medium', 'High', 'Urgent')) DEFAULT 'Medium',
+  is_read BOOLEAN DEFAULT false,
+  is_action_taken BOOLEAN DEFAULT false,
+  delivery_method VARCHAR CHECK (delivery_method IN ('In-App', 'Email', 'SMS', 'Push')) DEFAULT 'In-App',
+  sent_at TIMESTAMP,
+  read_at TIMESTAMP,
+  action_taken_at TIMESTAMP,
+  expires_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ========================================
+-- SECTION 8: AGENT-POLICY RELATIONSHIP MANAGEMENT
+-- ========================================
+
+-- Agent profiles
+CREATE TABLE IF NOT EXISTS agent_profiles (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR REFERENCES users(id) NOT NULL,
+  organization_id INTEGER REFERENCES agent_organizations(id) NOT NULL,
+  specializations JSONB,
+  bio TEXT,
+  license_number VARCHAR(50),
+  years_experience INTEGER,
+  languages_spoken JSONB,
+  certifications JSONB,
+  contact_preferences JSONB,
+  availability_schedule JSONB,
+  profile_image_url VARCHAR(255),
+  is_public_profile BOOLEAN DEFAULT true,
+  is_accepting_clients BOOLEAN DEFAULT true,
+  max_client_load INTEGER DEFAULT 100,
+  current_client_count INTEGER DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_agent_profiles_user_id ON agent_profiles(user_id);
+CREATE INDEX IF NOT EXISTS idx_agent_profiles_organization_id ON agent_profiles(organization_id);
+
+-- Client assignments
+CREATE TABLE IF NOT EXISTS client_assignments (
+  id SERIAL PRIMARY KEY,
+  client_id INTEGER REFERENCES members(id) NOT NULL,
+  agent_id VARCHAR REFERENCES users(id) NOT NULL,
+  organization_id INTEGER REFERENCES agent_organizations(id) NOT NULL,
+  assignment_type VARCHAR CHECK (assignment_type IN ('Primary', 'Secondary', 'Temporary', 'Shared')) DEFAULT 'Primary',
+  assigned_by VARCHAR REFERENCES users(id) NOT NULL,
+  assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  is_active BOOLEAN DEFAULT true,
+  notes TEXT,
+  priority VARCHAR CHECK (priority IN ('Low', 'Medium', 'High', 'Urgent')) DEFAULT 'Medium',
+  status VARCHAR CHECK (status IN ('Active', 'Inactive', 'Transferred', 'Completed')) DEFAULT 'Active',
+  transfer_reason TEXT,
+  transferred_to VARCHAR REFERENCES users(id),
+  transferred_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_client_assignments_client_id ON client_assignments(client_id);
+CREATE INDEX IF NOT EXISTS idx_client_assignments_agent_id ON client_assignments(agent_id);
+CREATE INDEX IF NOT EXISTS idx_client_assignments_organization_id ON client_assignments(organization_id);
+
+-- Policy transfers
+CREATE TABLE IF NOT EXISTS policy_transfers (
+  id SERIAL PRIMARY KEY,
+  policy_id INTEGER REFERENCES policies(id) NOT NULL,
+  from_agent_id VARCHAR REFERENCES users(id),
+  to_agent_id VARCHAR REFERENCES users(id) NOT NULL,
+  transferred_by VARCHAR REFERENCES users(id) NOT NULL,
+  transfer_reason TEXT NOT NULL,
+  transfer_type VARCHAR CHECK (transfer_type IN ('servicing', 'both')) DEFAULT 'servicing',
+  transferred_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_policy_transfers_policy ON policy_transfers(policy_id);
+CREATE INDEX IF NOT EXISTS idx_policy_transfers_from_agent ON policy_transfers(from_agent_id);
+CREATE INDEX IF NOT EXISTS idx_policy_transfers_to_agent ON policy_transfers(to_agent_id);
+
+-- Agent commissions
+CREATE TABLE IF NOT EXISTS agent_commissions (
+  id SERIAL PRIMARY KEY,
+  agent_id VARCHAR REFERENCES users(id) NOT NULL,
+  policy_id INTEGER REFERENCES policies(id) NOT NULL,
+  organization_id INTEGER REFERENCES agent_organizations(id) NOT NULL,
+  commission_type VARCHAR CHECK (commission_type IN ('initial_sale', 'renewal', 'bonus')) NOT NULL,
+  commission_rate DECIMAL(5, 2) NOT NULL,
+  base_amount DECIMAL(10, 2) NOT NULL,
+  commission_amount DECIMAL(10, 2) NOT NULL,
+  payment_status VARCHAR CHECK (payment_status IN ('pending', 'approved', 'paid', 'cancelled')) DEFAULT 'pending',
+  payment_date TIMESTAMP,
+  payment_method VARCHAR(50),
+  payment_reference VARCHAR(100),
+  notes TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_agent_commissions_agent ON agent_commissions(agent_id);
+CREATE INDEX IF NOT EXISTS idx_agent_commissions_policy ON agent_commissions(policy_id);
+CREATE INDEX IF NOT EXISTS idx_agent_commissions_status ON agent_commissions(payment_status);
+CREATE INDEX IF NOT EXISTS idx_agent_commissions_date ON agent_commissions(payment_date);
+
+-- Agent performance
+CREATE TABLE IF NOT EXISTS agent_performance (
+  id SERIAL PRIMARY KEY,
+  agent_id VARCHAR REFERENCES users(id) NOT NULL,
+  organization_id INTEGER REFERENCES agent_organizations(id) NOT NULL,
+  period_type VARCHAR CHECK (period_type IN ('Daily', 'Weekly', 'Monthly', 'Quarterly', 'Yearly')) NOT NULL,
+  period_start TIMESTAMP NOT NULL,
+  period_end TIMESTAMP NOT NULL,
+  quotes_generated INTEGER DEFAULT 0,
+  quotes_converted INTEGER DEFAULT 0,
+  policies_sold INTEGER DEFAULT 0,
+  total_revenue DECIMAL(10, 2) DEFAULT 0.00,
+  commissions_earned DECIMAL(10, 2) DEFAULT 0.00,
+  clients_added INTEGER DEFAULT 0,
+  clients_lost INTEGER DEFAULT 0,
+  activities_logged INTEGER DEFAULT 0,
+  response_time_avg INTEGER,
+  satisfaction_score DECIMAL(3, 2),
+  goals_achieved INTEGER DEFAULT 0,
+  goals_total INTEGER DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_agent_performance_agent_id ON agent_performance(agent_id);
+CREATE INDEX IF NOT EXISTS idx_agent_performance_organization_id ON agent_performance(organization_id);
+CREATE INDEX IF NOT EXISTS idx_agent_performance_period ON agent_performance(period_start, period_end);
+
+-- Client activities
+CREATE TABLE IF NOT EXISTS client_activities (
+  id SERIAL PRIMARY KEY,
+  client_id INTEGER REFERENCES members(id) NOT NULL,
+  agent_id VARCHAR REFERENCES users(id) NOT NULL,
+  organization_id INTEGER REFERENCES agent_organizations(id) NOT NULL,
+  activity_type VARCHAR CHECK (activity_type IN ('Call', 'Email', 'Meeting', 'Quote', 'Policy Review', 'Claim Assistance', 'Follow-up', 'Consultation', 'Document Review', 'Other')) NOT NULL,
+  subject VARCHAR(200) NOT NULL,
+  description TEXT,
+  duration INTEGER,
+  outcome VARCHAR CHECK (outcome IN ('Successful', 'Follow-up Required', 'No Response', 'Not Interested', 'Postponed', 'Completed')),
+  next_action_required BOOLEAN DEFAULT false,
+  next_action_date TIMESTAMP,
+  next_action_description TEXT,
+  priority VARCHAR CHECK (priority IN ('Low', 'Medium', 'High', 'Urgent')) DEFAULT 'Medium',
+  tags JSONB,
+  attachments JSONB,
+  is_private BOOLEAN DEFAULT false,
+  related_quote_id INTEGER REFERENCES insurance_quotes(id),
+  related_policy_id INTEGER REFERENCES policies(id),
+  related_claim_id INTEGER REFERENCES claims(id),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_client_activities_client_id ON client_activities(client_id);
+CREATE INDEX IF NOT EXISTS idx_client_activities_agent_id ON client_activities(agent_id);
+CREATE INDEX IF NOT EXISTS idx_client_activities_organization_id ON client_activities(organization_id);
+CREATE INDEX IF NOT EXISTS idx_client_activities_created_at ON client_activities(created_at);
+
+-- Organization analytics
+CREATE TABLE IF NOT EXISTS organization_analytics (
+  id SERIAL PRIMARY KEY,
+  organization_id INTEGER REFERENCES agent_organizations(id) NOT NULL,
+  period_type VARCHAR CHECK (period_type IN ('Daily', 'Weekly', 'Monthly', 'Quarterly', 'Yearly')) NOT NULL,
+  period_start TIMESTAMP NOT NULL,
+  period_end TIMESTAMP NOT NULL,
+  total_agents INTEGER DEFAULT 0,
+  active_agents INTEGER DEFAULT 0,
+  total_members INTEGER DEFAULT 0,
+  new_members INTEGER DEFAULT 0,
+  lost_members INTEGER DEFAULT 0,
+  total_quotes INTEGER DEFAULT 0,
+  converted_quotes INTEGER DEFAULT 0,
+  total_policies INTEGER DEFAULT 0,
+  active_policies INTEGER DEFAULT 0,
+  total_claims INTEGER DEFAULT 0,
+  processed_claims INTEGER DEFAULT 0,
+  total_revenue DECIMAL(12, 2) DEFAULT 0.00,
+  total_commissions DECIMAL(12, 2) DEFAULT 0.00,
+  average_quote_value DECIMAL(10, 2) DEFAULT 0.00,
+  conversion_rate DECIMAL(5, 4) DEFAULT 0.0000,
+  customer_satisfaction DECIMAL(3, 2),
+  avg_response_time INTEGER,
+  top_performing_agent VARCHAR REFERENCES users(id),
+  growth_rate DECIMAL(6, 4),
+  churn_rate DECIMAL(6, 4),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_organization_analytics_org_id ON organization_analytics(organization_id);
+CREATE INDEX IF NOT EXISTS idx_organization_analytics_period ON organization_analytics(period_start, period_end);
+
+-- Agent collaborations
+CREATE TABLE IF NOT EXISTS agent_collaborations (
+  id SERIAL PRIMARY KEY,
+  organization_id INTEGER REFERENCES agent_organizations(id) NOT NULL,
+  initiator_id VARCHAR REFERENCES users(id) NOT NULL,
+  collaborator_id VARCHAR REFERENCES users(id) NOT NULL,
+  collaboration_type VARCHAR CHECK (collaboration_type IN ('Referral', 'Joint Meeting', 'Knowledge Share', 'Case Review', 'Training', 'Mentoring')) NOT NULL,
+  subject VARCHAR(200) NOT NULL,
+  description TEXT,
+  status VARCHAR CHECK (status IN ('Pending', 'In Progress', 'Completed', 'Cancelled')) DEFAULT 'Pending',
+  priority VARCHAR CHECK (priority IN ('Low', 'Medium', 'High', 'Urgent')) DEFAULT 'Medium',
+  scheduled_date TIMESTAMP,
+  completed_date TIMESTAMP,
+  outcome TEXT,
+  rating INTEGER,
+  is_public BOOLEAN DEFAULT false,
+  tags JSONB,
+  attachments JSONB,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_agent_collaborations_organization_id ON agent_collaborations(organization_id);
+CREATE INDEX IF NOT EXISTS idx_agent_collaborations_initiator_id ON agent_collaborations(initiator_id);
+CREATE INDEX IF NOT EXISTS idx_agent_collaborations_collaborator_id ON agent_collaborations(collaborator_id);
+
+-- Organization knowledge base
+CREATE TABLE IF NOT EXISTS organization_knowledge_base (
+  id SERIAL PRIMARY KEY,
+  organization_id INTEGER REFERENCES agent_organizations(id) NOT NULL,
+  author_id VARCHAR REFERENCES users(id) NOT NULL,
+  title VARCHAR(200) NOT NULL,
+  content TEXT NOT NULL,
+  category VARCHAR CHECK (category IN ('Best Practices', 'Procedures', 'Templates', 'Training', 'FAQ', 'Resources', 'Policies', 'Updates')) NOT NULL,
+  tags JSONB,
+  is_public BOOLEAN DEFAULT true,
+  is_pinned BOOLEAN DEFAULT false,
+  view_count INTEGER DEFAULT 0,
+  like_count INTEGER DEFAULT 0,
+  version INTEGER DEFAULT 1,
+  last_reviewed_by VARCHAR REFERENCES users(id),
+  last_reviewed_at TIMESTAMP,
+  attachments JSONB,
+  related_articles JSONB,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_org_knowledge_base_organization_id ON organization_knowledge_base(organization_id);
+CREATE INDEX IF NOT EXISTS idx_org_knowledge_base_author_id ON organization_knowledge_base(author_id);
+CREATE INDEX IF NOT EXISTS idx_org_knowledge_base_category ON organization_knowledge_base(category);
+
+-- ========================================
+-- END OF SCHEMA
+-- ========================================
+
+-- TOTAL TABLES: 75
+-- TOTAL INDEXES: 40+
+-- LAST UPDATED: October 02, 2025
