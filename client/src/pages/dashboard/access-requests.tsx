@@ -134,8 +134,15 @@ export default function AccessRequestsPage() {
   }
 
   return (
-    <DashboardLayout title="Access Requests" requiredRoles={["SuperAdmin", "TenantAdmin"]}>
+    <DashboardLayout title="Dashboard" requiredRoles={["SuperAdmin", "TenantAdmin"]}>
       <div className="space-y-6" data-testid="page-access-requests">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Access Requests</h1>
+          <p className="text-muted-foreground mt-2">
+            Review and manage organization access requests
+          </p>
+        </div>
+
         <div className="grid gap-4 md:grid-cols-3">
         <Card data-testid="card-pending-requests">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
