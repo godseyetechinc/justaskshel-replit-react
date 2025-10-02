@@ -244,11 +244,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Traditional login endpoint
+  // Traditional login endpoint - Phase 1: Two-stage authentication (credentials only)
   app.post("/api/auth/login", async (req, res) => {
     try {
-      const validatedData = loginSchema.parse(req.body);
-      const { email, password, organizationId } = validatedData;
+      // Phase 1: Validate credentials only (no organization required yet)
+      const { email, password } = req.body;
+
+      if (!email || !password) {
+        return res.status(400).json({ message: "Email and password are required" });
+      }
 
       // Find user by email
       const user = await storage.getUserByEmail(email);
@@ -278,75 +282,404 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .json({ message: "Account is inactive. Please contact support." });
       }
 
-      // Validate organization selection requirements
-      const requiresOrganization = user.privilegeLevel <= 2; // SuperAdmin, TenantAdmin, Agent
-      
-      if (requiresOrganization && !organizationId) {
-        return res
-          .status(400)
-          .json({ 
-            message: "Organization selection is required for your role", 
-            requiresOrganization: true,
-            userRole: user.role
-          });
-      }
-
-      // Validate organization selection if provided
-      if (organizationId) {
-        const realOrgId = deobfuscateOrgId(organizationId);
-        if (!realOrgId) {
-          return res
-            .status(400)
-            .json({ message: "Invalid organization selection" });
+      // Set temporary auth session (no organization yet)
+      req.session.regenerate((err) => {
+        if (err) {
+          console.error("Session regeneration error:", err);
+          return res.status(500).json({ message: "Session creation failed" });
         }
 
-        // Check if user belongs to this organization (except SuperAdmin)
-        if (user.privilegeLevel > 0 && user.organizationId !== realOrgId) {
-          return res
-            .status(403)
-            .json({
-              message: "You are not authorized to access this organization",
+        (req.session as any).userId = user.id;
+        (req.session as any).authenticated = true;
+        (req.session as any).organizationId = null; // Not set yet
+
+        // Save session before proceeding
+        req.session.save(async (saveErr) => {
+          if (saveErr) {
+            console.error("Session save error:", saveErr);
+            return res.status(500).json({ message: "Session save failed" });
+          }
+
+          try {
+            // Determine organization requirements
+            const requiresOrganization = user.privilegeLevel <= 2; // SuperAdmin, TenantAdmin, Agent
+
+            // Get available organizations and pending invitations
+            const availableOrgs = await storage.getUserAvailableOrganizations(user.id);
+            const pendingInvitations = await storage.getUserPendingInvitations(user.email);
+
+            // SuperAdmin (privilege 0) auto-assigned to org 0
+            if (user.privilegeLevel === 0) {
+              (req.session as any).organizationId = 0;
+              (req.session as any).activeOrganizationId = 0;
+
+              // Award daily login points
+              try {
+                await pointsService.awardDailyLoginPoints(user.id);
+              } catch (error) {
+                console.error("Error awarding daily login points:", error);
+              }
+
+              return res.json({
+                user: {
+                  id: user.id,
+                  email: user.email,
+                  role: user.role,
+                  privilegeLevel: user.privilegeLevel,
+                  organizationId: 0,
+                },
+                requiresOrganization: false,
+                defaultOrganizationId: obfuscateOrgId(0),
+                redirectTo: "/dashboard",
+              });
+            }
+
+            // Auto-assign if user has single organization
+            if (user.organizationId && availableOrgs.length === 1) {
+              (req.session as any).organizationId = user.organizationId;
+              (req.session as any).activeOrganizationId = user.organizationId;
+
+              // Award daily login points
+              try {
+                await pointsService.awardDailyLoginPoints(user.id);
+              } catch (error) {
+                console.error("Error awarding daily login points:", error);
+              }
+
+              return res.json({
+                user: {
+                  id: user.id,
+                  email: user.email,
+                  role: user.role,
+                  privilegeLevel: user.privilegeLevel,
+                  organizationId: user.organizationId,
+                },
+                requiresOrganization: false,
+                organization: {
+                  id: obfuscateOrgId(availableOrgs[0].id),
+                  displayName: availableOrgs[0].displayName,
+                  userRole: user.role,
+                },
+                redirectTo: "/dashboard",
+              });
+            }
+
+            // Return organization selection required
+            res.json({
+              user: {
+                id: user.id,
+                email: user.email,
+                role: user.role,
+                privilegeLevel: user.privilegeLevel,
+                organizationId: user.organizationId,
+              },
+              requiresOrganization,
+              availableOrganizations: availableOrgs.map((org) => ({
+                id: obfuscateOrgId(org.id),
+                displayName: org.displayName,
+                description: org.description,
+                logoUrl: org.logoUrl,
+                userRole: user.role,
+              })),
+              pendingInvitations: pendingInvitations.map((inv) => ({
+                id: inv.id,
+                organizationName: inv.organizationId, // Will need to fetch org name
+                role: inv.role,
+                invitedBy: inv.invitedBy,
+                expiresAt: inv.expiresAt,
+              })),
+              hasNoAccess: availableOrgs.length === 0 && requiresOrganization,
             });
-        }
+          } catch (error) {
+            console.error("Error processing login:", error);
+            res.status(500).json({ message: "Failed to process login" });
+          }
+        });
+      });
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
 
-        // Store selected organization in session for SuperAdmin
-        if (user.privilegeLevel === 0) {
-          (req.session as any).selectedOrganizationId = realOrgId;
+  // Phase 1: Organization Selection Endpoint (Task 5)
+  app.post("/api/auth/session/organization", requireAuth, async (req, res) => {
+    try {
+      const { organizationId } = req.body;
+      const userId = (req.session as any).userId;
+
+      if (!userId || !(req.session as any).authenticated) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      const realOrgId = deobfuscateOrgId(organizationId);
+      if (!realOrgId && realOrgId !== 0) {
+        return res.status(400).json({ message: "Invalid organization" });
+      }
+
+      // Validate organization access (except SuperAdmin)
+      if (user.privilegeLevel > 0) {
+        const availableOrgs = await storage.getUserAvailableOrganizations(userId);
+        const hasAccess = availableOrgs.some((org) => org.id === realOrgId);
+
+        if (!hasAccess) {
+          return res.status(403).json({
+            message: "No access to this organization",
+          });
         }
       }
 
-      // Set session
-      (req.session as any).userId = user.id;
+      // Set organization in session
+      (req.session as any).organizationId = realOrgId;
+      (req.session as any).activeOrganizationId = realOrgId;
 
-      // Award daily login points for successful login
-      try {
-        await pointsService.awardDailyLoginPoints(user.id);
-      } catch (error) {
-        console.error("Error awarding daily login points:", error);
-        // Don't fail the login request if points fail
+      // Get organization details
+      const org = await storage.getOrganizationById(realOrgId);
+
+      if (!org) {
+        return res.status(404).json({ message: "Organization not found" });
       }
 
       res.json({
-        message: "Login successful",
-        user: {
-          id: user.id,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
+        success: true,
+        organization: {
+          id: obfuscateOrgId(org.id),
+          displayName: org.displayName,
           role: user.role,
-          privilegeLevel: user.privilegeLevel,
-          organizationId: user.organizationId,
         },
+        redirectTo: "/dashboard",
       });
     } catch (error) {
-      if (error instanceof z.ZodError) {
+      console.error("Organization selection error:", error);
+      res.status(500).json({ message: "Failed to set organization" });
+    }
+  });
+
+  // Phase 1: Create Access Request Endpoint (Task 6)
+  app.post("/api/organizations/access-requests", requireAuth, async (req, res) => {
+    try {
+      const { organizationId, requestReason, desiredRole } = req.body;
+      const userId = (req.session as any).userId;
+
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const realOrgId = deobfuscateOrgId(organizationId);
+      if (!realOrgId) {
+        return res.status(400).json({ message: "Invalid organization" });
+      }
+
+      if (!requestReason || requestReason.trim().length < 10) {
         return res.status(400).json({
-          message: "Validation error",
-          errors: error.errors,
+          message: "Request reason must be at least 10 characters",
         });
       }
-      console.error("Login error:", error);
-      res.status(500).json({ message: "Internal server error" });
+
+      // Check if user already has pending request for this organization
+      const existingRequests = await storage.getAccessRequestsByUser(userId);
+      const pendingRequest = existingRequests.find(
+        (req) => req.organizationId === realOrgId && req.status === "pending"
+      );
+
+      if (pendingRequest) {
+        return res.status(409).json({
+          message: "You already have a pending request for this organization",
+        });
+      }
+
+      // Create access request
+      const accessRequest = await storage.createAccessRequest({
+        userId,
+        organizationId: realOrgId,
+        requestReason,
+        desiredRole: desiredRole || null,
+      });
+
+      res.status(201).json({
+        success: true,
+        requestId: accessRequest.id,
+        status: "pending",
+        message: "Access request submitted successfully",
+      });
+    } catch (error) {
+      console.error("Access request creation error:", error);
+      res.status(500).json({ message: "Failed to create access request" });
+    }
+  });
+
+  // Phase 1: Get Organization Access Requests Endpoint (Task 7)
+  app.get("/api/organizations/:orgId/access-requests", requireAuth, async (req, res) => {
+    try {
+      const { orgId } = req.params;
+      const userId = (req.session as any).userId;
+
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      const realOrgId = deobfuscateOrgId(orgId);
+      if (!realOrgId) {
+        return res.status(400).json({ message: "Invalid organization" });
+      }
+
+      // Only SuperAdmin (0) and TenantAdmin (1) can view access requests
+      if (user.privilegeLevel > 1) {
+        return res.status(403).json({
+          message: "Insufficient permissions",
+        });
+      }
+
+      // TenantAdmin can only view requests for their own organization
+      if (user.privilegeLevel === 1 && user.organizationId !== realOrgId) {
+        return res.status(403).json({
+          message: "You can only view requests for your own organization",
+        });
+      }
+
+      const requests = await storage.getAccessRequestsByOrganization(realOrgId);
+
+      // Enrich with user information
+      const enrichedRequests = await Promise.all(
+        requests.map(async (request) => {
+          const requestUser = await storage.getUser(request.userId);
+          return {
+            id: request.id,
+            userId: request.userId,
+            userEmail: requestUser?.email || "Unknown",
+            requestReason: request.requestReason,
+            desiredRole: request.desiredRole,
+            status: request.status,
+            reviewedBy: request.reviewedBy,
+            reviewedAt: request.reviewedAt,
+            reviewNotes: request.reviewNotes,
+            createdAt: request.createdAt,
+          };
+        })
+      );
+
+      res.json(enrichedRequests);
+    } catch (error) {
+      console.error("Fetch access requests error:", error);
+      res.status(500).json({ message: "Failed to fetch access requests" });
+    }
+  });
+
+  // Phase 1: Approve Access Request Endpoint (Task 8)
+  app.put("/api/organizations/access-requests/:id/approve", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { reviewNotes } = req.body;
+      const userId = (req.session as any).userId;
+
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      // Only SuperAdmin (0) and TenantAdmin (1) can approve
+      if (user.privilegeLevel > 1) {
+        return res.status(403).json({
+          message: "Insufficient permissions to approve requests",
+        });
+      }
+
+      const request = await storage.getAccessRequestById(Number(id));
+      if (!request) {
+        return res.status(404).json({ message: "Access request not found" });
+      }
+
+      // TenantAdmin can only approve requests for their own organization
+      if (user.privilegeLevel === 1 && user.organizationId !== request.organizationId) {
+        return res.status(403).json({
+          message: "You can only approve requests for your own organization",
+        });
+      }
+
+      // Approve the request
+      const approved = await storage.approveAccessRequest(Number(id), userId, reviewNotes);
+
+      // Update the requesting user's organization
+      const requestingUser = await storage.getUser(request.userId);
+      if (requestingUser) {
+        await storage.updateUserProfile(request.userId, {
+          organizationId: request.organizationId,
+          role: request.desiredRole || "Member",
+          privilegeLevel: request.desiredRole === "Agent" ? 2 : 3,
+        });
+      }
+
+      res.json({
+        success: true,
+        message: "Access request approved successfully",
+        request: approved,
+      });
+    } catch (error) {
+      console.error("Approve access request error:", error);
+      res.status(500).json({ message: "Failed to approve access request" });
+    }
+  });
+
+  // Phase 1: Reject Access Request Endpoint (Task 9)
+  app.put("/api/organizations/access-requests/:id/reject", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { reviewNotes } = req.body;
+      const userId = (req.session as any).userId;
+
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      // Only SuperAdmin (0) and TenantAdmin (1) can reject
+      if (user.privilegeLevel > 1) {
+        return res.status(403).json({
+          message: "Insufficient permissions to reject requests",
+        });
+      }
+
+      const request = await storage.getAccessRequestById(Number(id));
+      if (!request) {
+        return res.status(404).json({ message: "Access request not found" });
+      }
+
+      // TenantAdmin can only reject requests for their own organization
+      if (user.privilegeLevel === 1 && user.organizationId !== request.organizationId) {
+        return res.status(403).json({
+          message: "You can only reject requests for your own organization",
+        });
+      }
+
+      // Reject the request
+      const rejected = await storage.rejectAccessRequest(Number(id), userId, reviewNotes);
+
+      res.json({
+        success: true,
+        message: "Access request rejected",
+        request: rejected,
+      });
+    } catch (error) {
+      console.error("Reject access request error:", error);
+      res.status(500).json({ message: "Failed to reject access request" });
     }
   });
 
