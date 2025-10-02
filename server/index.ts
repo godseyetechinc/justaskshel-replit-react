@@ -7,6 +7,9 @@ import { AchievementService } from "./services/achievementService";
 
 const app = express();
 
+// Trust proxy for accurate rate limiting behind reverse proxy
+app.set('trust proxy', true);
+
 // Phase 8 Security Enhancements
 app.use(helmet({
   contentSecurityPolicy: {
