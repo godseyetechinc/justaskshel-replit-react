@@ -85,6 +85,8 @@ import {
   type InsertPersonContact,
   type OrganizationInvitation,
   type InsertOrganizationInvitation,
+  type OrganizationAccessRequest,
+  type InsertOrganizationAccessRequest,
   type AgentOrganization,
   type InsertAgentOrganization,
   type ClientAssignment,
@@ -94,6 +96,7 @@ import {
   type AgentCommission,
   type InsertAgentCommission,
   organizationInvitations,
+  organizationAccessRequests,
   agentOrganizations,
 } from "@shared/schema";
 import { db } from "./db";
@@ -326,6 +329,16 @@ export interface IStorage {
   deleteOrganizationInvitation(id: number): Promise<void>;
   expireInvitation(id: number): Promise<OrganizationInvitation>;
   acceptInvitation(token: string, userId: string): Promise<OrganizationInvitation>;
+
+  // Organization Access Requests (Phase 1: Login Flow Enhancement)
+  createAccessRequest(data: InsertOrganizationAccessRequest): Promise<OrganizationAccessRequest>;
+  getAccessRequestById(id: number): Promise<OrganizationAccessRequest | undefined>;
+  getAccessRequestsByOrganization(orgId: number): Promise<OrganizationAccessRequest[]>;
+  getAccessRequestsByUser(userId: string): Promise<OrganizationAccessRequest[]>;
+  approveAccessRequest(id: number, reviewerId: string, reviewNotes?: string): Promise<OrganizationAccessRequest>;
+  rejectAccessRequest(id: number, reviewerId: string, reviewNotes?: string): Promise<OrganizationAccessRequest>;
+  getUserAvailableOrganizations(userId: string): Promise<AgentOrganization[]>;
+  getUserPendingInvitations(email: string): Promise<OrganizationInvitation[]>;
 
   // Phase 2: Advanced Organization Management
   // Organization Analytics and Dashboard
