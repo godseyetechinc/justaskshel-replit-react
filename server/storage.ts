@@ -546,8 +546,24 @@ function resolveDataScope(userContext: UserContext): DataScope {
 export class DatabaseStorage implements IStorage {
   // User operations - mandatory for Replit Auth
   async getUser(id: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user;
+    const result = await db
+      .select({
+        user: users,
+        organization: agentOrganizations,
+      })
+      .from(users)
+      .leftJoin(agentOrganizations, eq(users.organizationId, agentOrganizations.id))
+      .where(eq(users.id, id));
+    
+    if (result.length === 0) {
+      return undefined;
+    }
+    
+    const { user, organization } = result[0];
+    return {
+      ...user,
+      organization: organization || undefined,
+    };
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
