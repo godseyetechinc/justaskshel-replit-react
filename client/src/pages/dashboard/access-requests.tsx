@@ -1,5 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
+import DashboardLayout from "@/components/dashboard-layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -121,27 +122,21 @@ export default function AccessRequestsPage() {
 
   if (!currentUser || currentUser.privilegeLevel > 1) {
     return (
-      <div className="p-6">
+      <DashboardLayout title="Access Requests" requiredRoles={["SuperAdmin", "TenantAdmin"]}>
         <Card>
           <CardContent className="py-12 text-center">
             <XCircle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <p className="text-muted-foreground">You don't have permission to view access requests.</p>
           </CardContent>
         </Card>
-      </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="space-y-6 p-6" data-testid="page-access-requests">
-      <div>
-        <h1 className="text-3xl font-bold">Access Requests</h1>
-        <p className="text-muted-foreground">
-          Review and manage organization access requests
-        </p>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-3">
+    <DashboardLayout title="Access Requests" requiredRoles={["SuperAdmin", "TenantAdmin"]}>
+      <div className="space-y-6" data-testid="page-access-requests">
+        <div className="grid gap-4 md:grid-cols-3">
         <Card data-testid="card-pending-requests">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Pending</CardTitle>
@@ -383,6 +378,7 @@ export default function AccessRequestsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }
