@@ -18,6 +18,14 @@ The application employs a dual authentication system supporting traditional user
 ## Database
 The data layer utilizes Drizzle ORM with PostgreSQL. It features a unified `persons` entity model linked to role-specific tables. Multi-tenancy is supported by agent organization, ensuring data isolation and role-based access control. Key tables include `client_assignments`, `policy_transfers`, and `agent_commissions`, with an enriched `policies` table for agent-policy relationships and commission tracking.
 
+### Database Scripts (Updated: October 02, 2025)
+Comprehensive SQL scripts maintained in `database-scripts/` folder:
+- **COMPLETE_SCHEMA_EXPORT.sql**: Full schema with all 75 tables, organized by section with detailed documentation
+- **DROP_ALL_TABLES.sql**: Safe drop script with proper reverse dependency order
+- **Seed Scripts**: Three comprehensive seed files (01_seed_core_data.sql, 02_seed_insurance_data.sql, 03_seed_points_data.sql) for organizations, roles, insurance types/providers, achievements, and rewards catalog
+- **Indexes Script**: Performance indexes for all major tables (10_create_indexes.sql)
+All scripts are idempotent and include proper dependency management.
+
 ## State Management
 Client-side server state is managed by TanStack Query. Local component state uses React hooks, and form state uses React Hook Form with Zod for shared client/server validation.
 
