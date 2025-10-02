@@ -407,6 +407,25 @@ export const organizationInvitations = pgTable("organization_invitations", {
   index("idx_organization_invitations_token").on(table.invitationToken),
 ]);
 
+// Organization access requests - manage user requests to join organizations (Phase 1: Login Flow)
+export const organizationAccessRequests = pgTable("organization_access_requests", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  organizationId: integer("organization_id").references(() => agentOrganizations.id).notNull(),
+  requestReason: text("request_reason").notNull(),
+  desiredRole: varchar("desired_role", { enum: ["Agent", "Member"] }),
+  status: varchar("status", { enum: ["pending", "approved", "rejected"] }).default("pending"),
+  reviewedBy: varchar("reviewed_by").references(() => users.id),
+  reviewedAt: timestamp("reviewed_at"),
+  reviewNotes: text("review_notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_access_requests_user").on(table.userId),
+  index("idx_access_requests_org").on(table.organizationId),
+  index("idx_access_requests_status").on(table.status),
+]);
+
 
 // Contacts - general contact information
 export const contacts = pgTable("contacts", {
@@ -1581,6 +1600,16 @@ export const insertOrganizationInvitationSchema = createInsertSchema(organizatio
   createdAt: true,
 });
 
+export const insertOrganizationAccessRequestSchema = createInsertSchema(organizationAccessRequests).omit({
+  id: true,
+  status: true,
+  reviewedBy: true,
+  reviewedAt: true,
+  reviewNotes: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertExternalQuoteRequestSchema = createInsertSchema(externalQuoteRequests).omit({
   id: true,
   createdAt: true,
@@ -1599,12 +1628,14 @@ export type User = typeof users.$inferSelect;
 export type Role = typeof roles.$inferSelect;
 export type ExternalQuoteRequest = typeof externalQuoteRequests.$inferSelect;
 export type OrganizationInvitation = typeof organizationInvitations.$inferSelect;
+export type OrganizationAccessRequest = typeof organizationAccessRequests.$inferSelect;
 export type AgentOrganization = typeof agentOrganizations.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertRole = z.infer<typeof insertRoleSchema>;
 export type InsertQuote = z.infer<typeof insertQuoteSchema>;
 export type InsertExternalQuoteRequest = z.infer<typeof insertExternalQuoteRequestSchema>;
 export type InsertOrganizationInvitation = z.infer<typeof insertOrganizationInvitationSchema>;
+export type InsertOrganizationAccessRequest = z.infer<typeof insertOrganizationAccessRequestSchema>;
 export type InsertAgentOrganization = typeof agentOrganizations.$inferInsert;
 
 // Role-based authorization types
