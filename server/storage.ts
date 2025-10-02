@@ -1726,6 +1726,107 @@ export class DatabaseStorage implements IStorage {
     return accepted;
   }
 
+  // Organization Access Request methods (Phase 1: Login Flow Enhancement)
+  async createAccessRequest(data: InsertOrganizationAccessRequest): Promise<OrganizationAccessRequest> {
+    const [newRequest] = await db
+      .insert(organizationAccessRequests)
+      .values({
+        ...data,
+        status: "pending",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
+    return newRequest;
+  }
+
+  async getAccessRequestById(id: number): Promise<OrganizationAccessRequest | undefined> {
+    const [request] = await db
+      .select()
+      .from(organizationAccessRequests)
+      .where(eq(organizationAccessRequests.id, id));
+    return request;
+  }
+
+  async getAccessRequestsByOrganization(orgId: number): Promise<OrganizationAccessRequest[]> {
+    return await db
+      .select()
+      .from(organizationAccessRequests)
+      .where(eq(organizationAccessRequests.organizationId, orgId))
+      .orderBy(desc(organizationAccessRequests.createdAt));
+  }
+
+  async getAccessRequestsByUser(userId: string): Promise<OrganizationAccessRequest[]> {
+    return await db
+      .select()
+      .from(organizationAccessRequests)
+      .where(eq(organizationAccessRequests.userId, userId))
+      .orderBy(desc(organizationAccessRequests.createdAt));
+  }
+
+  async approveAccessRequest(id: number, reviewerId: string, reviewNotes?: string): Promise<OrganizationAccessRequest> {
+    const [approved] = await db
+      .update(organizationAccessRequests)
+      .set({ 
+        status: "approved",
+        reviewedBy: reviewerId,
+        reviewedAt: new Date(),
+        reviewNotes: reviewNotes || null,
+        updatedAt: new Date(),
+      })
+      .where(eq(organizationAccessRequests.id, id))
+      .returning();
+    return approved;
+  }
+
+  async rejectAccessRequest(id: number, reviewerId: string, reviewNotes?: string): Promise<OrganizationAccessRequest> {
+    const [rejected] = await db
+      .update(organizationAccessRequests)
+      .set({ 
+        status: "rejected",
+        reviewedBy: reviewerId,
+        reviewedAt: new Date(),
+        reviewNotes: reviewNotes || null,
+        updatedAt: new Date(),
+      })
+      .where(eq(organizationAccessRequests.id, id))
+      .returning();
+    return rejected;
+  }
+
+  async getUserAvailableOrganizations(userId: string): Promise<AgentOrganization[]> {
+    const user = await this.getUser(userId);
+    if (!user) {
+      return [];
+    }
+
+    // SuperAdmin (privilege 0) has access to all organizations
+    if (user.privilegeLevel === 0) {
+      return await this.getOrganizations();
+    }
+
+    // Regular users only see their assigned organization
+    if (user.organizationId) {
+      const org = await this.getOrganizationById(user.organizationId);
+      return org ? [org] : [];
+    }
+
+    return [];
+  }
+
+  async getUserPendingInvitations(email: string): Promise<OrganizationInvitation[]> {
+    return await db
+      .select()
+      .from(organizationInvitations)
+      .where(
+        and(
+          eq(organizationInvitations.email, email),
+          eq(organizationInvitations.status, "Pending")
+        )
+      )
+      .orderBy(desc(organizationInvitations.createdAt));
+  }
+
   async upsertMemberProfile(userId: string, memberData: Partial<InsertMember>): Promise<Member> {
     // First try to update existing member
     const existing = await this.getMemberByUserId(userId);
