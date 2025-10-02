@@ -2,12 +2,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { useRoleAuth } from "@/hooks/useRoleAuth";
 import { useLogout } from "@/hooks/useLogout";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import DashboardSidebar from "./dashboard-sidebar";
 import NotificationBell from "@/components/notifications/NotificationBell";
 import { OrganizationSelector } from "@/components/organization-selector";
 import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { Home } from "lucide-react";
+import { Home, Building2 } from "lucide-react";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -124,7 +125,19 @@ export default function DashboardLayout({
         <header className="bg-white shadow-sm border-b border-gray-200 px-4 lg:px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="ml-12 lg:ml-0">
-              <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
+              <div className="flex items-center gap-3">
+                <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
+                {user?.organization && (
+                  <Badge 
+                    variant="outline" 
+                    className="flex items-center gap-1 px-2 py-1"
+                    data-testid="badge-organization"
+                  >
+                    <Building2 className="h-3 w-3" />
+                    <span className="text-xs">{user.organization.name}</span>
+                  </Badge>
+                )}
+              </div>
             </div>
             <div className="flex items-center space-x-4">
               <OrganizationSelector 
