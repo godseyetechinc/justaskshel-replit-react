@@ -512,6 +512,51 @@ export default function MyProfilePage() {
             </Form>
           </CardContent>
         </Card>
+
+        {/* Organization Information */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5" />
+              Organization Information
+            </CardTitle>
+            <CardDescription>
+              Your organization membership and access details
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Organization
+                </label>
+                <p className="text-sm text-gray-900 dark:text-gray-100" data-testid="text-organization-name">
+                  {user?.organization?.name || "No organization"}
+                </p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Role
+                </label>
+                <p className="text-sm text-gray-900 dark:text-gray-100" data-testid="text-user-role">
+                  <Badge variant="secondary" className="capitalize">
+                    {user?.role?.replace(/([A-Z])/g, ' $1').trim() || "No role assigned"}
+                  </Badge>
+                </p>
+              </div>
+              {user?.organization?.description && (
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    About Organization
+                  </label>
+                  <p className="text-sm text-gray-600 dark:text-gray-400" data-testid="text-organization-description">
+                    {user.organization.description}
+                  </p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </DashboardLayout>
   );
