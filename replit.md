@@ -1,150 +1,58 @@
 # Overview
-JustAskShel is an enterprise-grade insurance comparison and management platform designed to simplify finding, comparing, and managing various insurance policies (life, health, dental, vision, hospital indemnity). It offers quote comparison tools, policy management dashboards, claims assistance, and wishlist functionality. The platform supports comprehensive multi-tenancy for agent organizations with a SuperAdmin default organization architecture, enabling advanced user and member management, agent directory systems, client relationship management, and robust role-based access control. It also features a comprehensive points and rewards loyalty program with advanced administrative controls and analytics, alongside detailed agent performance tracking and organizational analytics.
+JustAskShel is an enterprise-grade insurance comparison and management platform simplifying finding, comparing, and managing various insurance policies (life, health, dental, vision, hospital indemnity). It offers quote comparison tools, policy management dashboards, claims assistance, and wishlist functionality. The platform supports comprehensive multi-tenancy for agent organizations with a SuperAdmin default organization architecture, enabling advanced user and member management, agent directory systems, client relationship management, and robust role-based access control. It also features a comprehensive points and rewards loyalty program with advanced administrative controls and analytics, alongside detailed agent performance tracking and organizational analytics.
 
 # User Preferences
 Preferred communication style: Simple, everyday language.
 
 # System Architecture
 
-## Frontend Architecture
-The client-side uses React and TypeScript, built with Vite, Wouter for routing, and TanStack Query for server state management. UI components are built with shadcn/ui (based on Radix UI primitives) and styled using Tailwind CSS for consistent and responsive designs.
+## Frontend
+The client-side uses React and TypeScript, built with Vite, Wouter for routing, and TanStack Query for server state management. UI components are built with shadcn/ui (based on Radix UI primitives) and styled using Tailwind CSS.
 
-## Backend Architecture
-The server-side uses Express.js with TypeScript, following a RESTful API design. It features modular separation for routing, authentication, database operations, and storage. Middleware handles request logging, error handling, and session management, utilizing a PostgreSQL-backed session store.
+## Backend
+The server-side uses Express.js with TypeScript, following a RESTful API design. It features modular separation for routing, authentication, database operations, and storage. Middleware handles request logging, error handling, and session management.
 
-## Authentication System
-The application employs a dual authentication system supporting traditional username/password login and Replit OAuth/OpenID Connect. It includes secure session management, user profile storage, and role-based route protection with a 6-tier role system: SuperAdmin (0), TenantAdmin (1), Agent (2), Member (3), Guest (4), Visitor (5).
+## Authentication
+The application employs a dual authentication system supporting traditional username/password login and Replit OAuth/OpenID Connect. It includes secure session management, user profile storage, and role-based route protection with a 6-tier role system (SuperAdmin, TenantAdmin, Agent, Member, Guest, Visitor). A two-stage authentication process separates credential validation from organization selection, including an `organization_access_requests` system for managing user requests to join organizations.
 
-## Database Design
-The data layer utilizes Drizzle ORM with PostgreSQL. It features a unified `persons` entity model as a single source of truth for identity data, linked to role-specific tables (`person_users`, `person_members`, `person_contacts`). It supports multi-tenancy by agent organization, ensuring data isolation and role-based access control. Critical enhancements include `client_assignments`, `policy_transfers`, and `agent_commissions` tables, and enriched `policies` table for agent-policy relationships and commission tracking.
+## Database
+The data layer utilizes Drizzle ORM with PostgreSQL. It features a unified `persons` entity model linked to role-specific tables. Multi-tenancy is supported by agent organization, ensuring data isolation and role-based access control. Key tables include `client_assignments`, `policy_transfers`, and `agent_commissions`, with an enriched `policies` table for agent-policy relationships and commission tracking.
 
 ## State Management
-Client-side server state is managed by TanStack Query for caching, background refetching, and optimistic updates. Local component state uses React hooks, and form state uses React Hook Form with Zod for shared client/server validation.
+Client-side server state is managed by TanStack Query. Local component state uses React hooks, and form state uses React Hook Form with Zod for shared client/server validation.
 
 ## UI Component System
-The frontend uses a design system based on shadcn/ui components, themed with CSS custom properties, providing reusable, accessible, and responsive elements.
+The frontend uses a design system based on shadcn/ui components, themed with CSS custom properties.
 
 ## Points & Rewards System
-The loyalty program includes core automation for point awarding and tier progression (Bronze to Diamond), user engagement features like achievements, WebSocket notifications, and a referral system. Administrative tools provide CRUD operations for rules, redemption management, and bulk operations. Analytics dashboards offer insights into points metrics, reward popularity, and tier distribution.
+A loyalty program includes automated point awarding, tier progression, user engagement features (achievements, WebSocket notifications, referral system), and administrative tools for rules, redemption, and bulk operations. Analytics dashboards provide insights into points metrics and reward popularity.
 
 ## Multi-Tenant Architecture
-The system supports comprehensive multi-tenancy with a SuperAdmin default organization architecture (ID: 0, Privilege Level 0). It ensures complete data separation between organizations and implements role-based access control. A `resolveDataScope()` helper function determines access level (global for SuperAdmin, organization-specific for others) for data types like Agents, Members, Analytics, and Client Assignments. This pattern is applied across various API endpoints with performance optimizations like database indexing, pagination, and caching.
+The system supports comprehensive multi-tenancy with a SuperAdmin default organization (ID: 0). It ensures data separation and implements role-based access control with a `resolveDataScope()` helper function for data access.
 
-## Agent-Policy Relationship Enhancement
-
-### Phase 1: Database Schema Updates ✅ COMPLETED (October 1, 2025)
-Established complete database infrastructure for agent-policy relationships, commission tracking, and policy lifecycle management:
-- **New Tables**: client_assignments (16 columns), policy_transfers (9 columns), agent_commissions (15 columns)
-- **Enhanced policies table**: Added 9 agent relationship fields (selling_agent_id, servicing_agent_id, organization_id, commission tracking fields)
-- **Performance indexes**: 13 indexes on agent and organization foreign keys for optimal query performance
-- **Full referential integrity**: 12 foreign key constraints ensuring data consistency
-
-### Phase 2: Policy-Agent Association Logic ✅ COMPLETED (October 1, 2025)
-Implemented automatic agent assignment system and comprehensive query capabilities:
-- **Auto-Assignment**: POST /api/policies enhanced with 4-tier agent determination logic (explicit override → current agent → assigned agent → org default)
-- **Smart Routing**: Policy creation automatically assigns selling agent, servicing agent, organization, and tracks policy source
-- **Query Methods**: 5 new storage methods for agent-policy queries (getAgentPolicies, getOrganizationPolicies, getPolicyWithAgentDetails, getActiveClientAssignment, getOrganizationDefaultAgent)
-- **API Endpoints**: 3 new REST endpoints with role-based authorization
-  - GET /api/agents/:agentId/policies?type=selling|servicing
-  - GET /api/organizations/:orgId/policies
-  - GET /api/policies/:id/agent-details
-
-### Phase 3: Policy Transfer & Reassignment ✅ COMPLETED & VALIDATED (October 1, 2025)
-Implemented policy transfer functionality and complete audit trail system with comprehensive validation:
-- **Storage Methods**: transferPolicyServicing() for agent reassignment, getPolicyTransferHistory() for audit retrieval
-- **API Endpoints**: 2 new REST endpoints with strict authorization
-  - PUT /api/policies/:id/transfer-servicing (Admin-only with org scope validation)
-  - GET /api/policies/:id/transfer-history (Policy owner and Admin access)
-- **Authorization**: SuperAdmin (privilege 0) and TenantAdmin (privilege 1) only, with TenantAdmin restricted to own organization
-- **Audit Trail**: Complete transfer history with from/to agents, reason, timestamp, and transferred_by user tracking
-- **Validation (100% Pass Rate)**: Database infrastructure (9 columns, 4 indexes, 4 FK constraints), storage methods operational, API endpoints authenticated/authorized, privilege restrictions enforced, 100% organization integrity, performance <100ms, security controls verified
-- **Test Case**: Policy 351 transfer from agent1@justaskshel.com to agent2@justaskshel.com successfully validated with complete audit trail
-
-### Phase 4: Commission & Performance Tracking ✅ COMPLETED & VALIDATED (October 1, 2025)
-Implemented comprehensive commission tracking system with automatic calculation and payment workflow with 100% validation pass rate:
-- **Storage Methods**: 5 new methods (createPolicyCommission, getAgentCommissions, getCommissionById, updateCommissionStatus, getOrganizationCommissions)
-- **API Endpoints**: 4 new REST endpoints with role-based authorization
-  - GET /api/agents/:agentId/commissions (with filters: status, startDate, endDate)
-  - GET /api/commissions/:id
-  - PUT /api/commissions/:id/approve (Admin-only)
-  - PUT /api/commissions/:id/mark-paid (Admin-only with payment details)
-- **Commission Workflow**: Pending → Approved → Paid status progression with complete payment tracking
-- **Authorization**: Agents view own commissions, admins view/manage all (org-scoped for TenantAdmin), SuperAdmin (0) and TenantAdmin (1) approve/pay
-- **Database Infrastructure**: 15 columns, 5 performance indexes (primary key + 4 on agent_id, policy_id, payment_status, payment_date), foreign keys to users/policies/organizations
-- **Validation (100% Pass Rate)**: All 5 storage methods operational, all 4 API endpoints authenticated and functional, authorization controls enforced (privilege level restrictions), complete commission lifecycle validated (creation → approval → payment), filter operations working (status, date range), 100% organization integrity maintained for TenantAdmin, zero errors in production
-- **Test Cases**: Commission ID 2 ($500 on policy 351 at 10% rate), Commission ID 3 ($375 on policy 352 at 12.5% rate with full workflow: creation → pending → approved → paid with payment details Wire Transfer/REF-2025-TEST-003), system metrics (2 commissions, $875 total, $437.50 avg)
-
-### Phase 5: API Endpoint Enhancements ✅ COMPLETED & VALIDATED (October 1, 2025)
-Implemented analytics and summary endpoints for dashboard-ready aggregated metrics with 100% operational validation:
-- **Storage Methods**: 2 new aggregation methods (getAgentPoliciesSummary, getOrganizationPoliciesSummary)
-- **API Endpoints**: 2 new summary REST endpoints with role-based authorization
-  - GET /api/agents/:agentId/policies/summary (agent policy & commission analytics)
-  - GET /api/organizations/:id/policies/summary (organization-wide policy & commission metrics)
-- **Enhanced Response**: POST /api/policies now returns enriched data with full selling/servicing agent objects (id, email, profile) and organization object (id, name, displayName)
-- **Data Aggregation**: Policy counts (total, active, inactive, selling, servicing), commission metrics (total, pending, approved, paid), recent transfer activity, active agent counts
-- **Authorization**: Agents view own summaries, admins view any (org-scoped for TenantAdmin), organization summaries restricted to privilegeLevel ≤ 1
-- **Validation (100% Pass Rate)**: Agent summary validated (2 policies all active, $875 commissions all paid), Organization summary validated (2 policies, $875 commissions 100% paid), enhanced policy response verified with agent/org object enrichment, zero Phase 5 errors
-
-### Phase 6: Frontend UI Updates ✅ COMPLETED (October 1, 2025)
-Implemented comprehensive frontend interface for agent and admin policy/commission management:
-- **Agent Dashboard**: /dashboard/my-policies-commissions with "My Policies" and "My Commissions" tabs (333 lines)
-- **Admin Dashboard**: /dashboard/admin-commissions for commission approval and payment management (255 lines)
-- **Reusable Components**: PolicyTransferDialog (159 lines) and CommissionApprovalDialog (167 lines) for administrative actions
-- **Features**: Real-time data with TanStack Query, role-based access control, responsive design with shadcn/ui, filter controls, summary cards, toast notifications
-- **Integration**: Full integration with Phase 5 backend APIs (7 endpoints)
-
-### Phase 7: Data Migration & Backfill ✅ COMPLETED (October 1, 2025)
-Executed comprehensive data migration backfilling agent assignments for all existing policies (verified via SQL queries):
-- **Policy Agent Assignment Backfill**: Migrated 127 policies (98.4% of total) achieving 100% coverage (129/129 policies now have agents)
-- **Commission Record Creation**: Created 127 pending commission records ($12,700 total value using default $1,000 base estimates, 10% rate)
-- **Migration Execution**: Round-robin assignment across 10 agents in organization 1, batch processing (50 policies per batch)
-- **Data Validation**: Pre-migration 2 policies with agents (1.6%), post-migration 100% coverage (verified SQL), zero data integrity issues
-- **Migration Script**: scripts/phase7-migration.ts with policy source tracking and complete audit trail
-- **Execution Metrics**: <2 minutes execution time, 100% success rate (SQL validated), even agent distribution
-- **Note**: Commission amounts use estimated defaults; actual policy premiums to be updated during policy review
-
-### All 7 Phases Complete ✅
-Complete agent-policy relationship enhancement successfully delivered as of October 1, 2025. Details: `docs/AGENT_POLICY_RELATIONSHIP_ENHANCEMENT_PLAN.md`
-
-## Login Flow & Organization Selection Improvement
-
-### Phase 1: Backend Two-Stage Authentication ✅ COMPLETED (October 2, 2025)
-Implemented comprehensive two-stage authentication system decoupling credential validation from organization selection:
-- **Database Schema**: New `organization_access_requests` table (11 columns, 3 indexes) for managing user requests to join organizations
-- **Storage Methods**: 6 new IStorage methods (createAccessRequest, getAccessRequestById, getAccessRequestsByOrganization, getAccessRequestsByUser, approveAccessRequest, rejectAccessRequest) with organization helper methods
-- **Login Route Refactor**: POST /api/auth/login now validates credentials only (stage 1) and returns available organizations, pending invitations, and auto-assignment logic for SuperAdmin and single-org users
-- **API Endpoints**: 5 new REST endpoints with role-based authorization
-  - POST /api/auth/session/organization (stage 2: organization selection)
-  - POST /api/organizations/access-requests (create access request)
-  - GET /api/organizations/:orgId/access-requests (list requests - Admin only)
-  - PUT /api/organizations/access-requests/:id/approve (approve request - Admin only)
-  - PUT /api/organizations/access-requests/:id/reject (reject request - Admin only)
-- **Auto-Assignment Logic**: SuperAdmin auto-assigned to org 0, single-org users auto-assigned to their organization, multi-org users shown organization selector
-- **Authorization**: Full privilege level validation (SuperAdmin privilege 0, TenantAdmin privilege 1) with organization scope restrictions for TenantAdmin
-- **Session Management**: Proper session regeneration, temporary auth session, and organization assignment flow
-- **Testing**: Successfully validated SuperAdmin (auto-org 0) and Agent (auto-single-org) login flows with zero errors
-- **Implementation Details**: Complete Phase 1 backend implementation as specified in `docs/LOGIN_FLOW_IMPROVEMENT_PLAN.md`
+## Agent-Policy Relationship Management
+The platform includes a comprehensive system for managing agent-policy relationships, commission tracking, and policy lifecycle. This involves dedicated database tables for assignments, transfers, and commissions, along with enhanced policy data. Automated agent assignment logic, policy transfer functionality with audit trails, and a commission tracking system (from pending to paid) are integrated. API endpoints provide querying capabilities for agent and organization policies, summaries, and commission management, all with role-based authorization. Frontend UI supports agent and admin dashboards for managing policies and commissions.
 
 # External Dependencies
 
 ## Database Services
-- **Neon Serverless PostgreSQL**: Cloud-hosted PostgreSQL database.
-- **Drizzle ORM**: Type-safe database toolkit.
+- Neon Serverless PostgreSQL
+- Drizzle ORM
 
 ## Authentication & Session Management
-- **Replit OAuth/OpenID Connect**: Integrated authentication system.
-- **connect-pg-simple**: PostgreSQL session store for Express.
+- Replit OAuth/OpenID Connect
+- connect-pg-simple
 
 ## UI Framework & Styling
-- **Radix UI**: Unstyled, accessible UI primitives.
-- **Tailwind CSS**: Utility-first CSS framework.
-- **Lucide React**: Icon library.
+- Radix UI
+- Tailwind CSS
+- Lucide React
 
 ## Development & Build Tools
-- **Vite**: Fast build tool and development server.
-- **TypeScript**: Static type checking.
+- Vite
+- TypeScript
 
 ## Form Handling & Validation
-- **React Hook Form**: Performant form library.
-- **Zod**: Schema validation library.
-- **@hookform/resolvers**: Integration for React Hook Form and Zod.
+- React Hook Form
+- Zod
+- @hookform/resolvers
