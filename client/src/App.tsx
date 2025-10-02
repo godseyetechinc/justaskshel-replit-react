@@ -43,6 +43,7 @@ const ClientAssignmentsPage = lazy(() => import("@/pages/dashboard/client-assign
 const AgentPerformancePage = lazy(() => import("@/pages/dashboard/agent-performance"));
 const AgentPoliciesCommissionsPage = lazy(() => import("@/pages/dashboard/agent-policies-commissions"));
 const AdminCommissionsPage = lazy(() => import("@/pages/dashboard/admin-commissions"));
+const AccessRequestsPage = lazy(() => import("@/pages/dashboard/access-requests"));
 
 // Phase 7 components - lazy-loaded for optimal performance
 const SocialFeaturesPage = lazy(() => import("@/pages/dashboard/social-features"));
@@ -143,6 +144,7 @@ function Router() {
           <Route path="/dashboard/agent-performance" component={AgentPerformancePage} />
           <Route path="/dashboard/my-policies-commissions" component={AgentPoliciesCommissionsPage} />
           <Route path="/dashboard/admin-commissions" component={AdminCommissionsPage} />
+          <Route path="/dashboard/access-requests" component={AccessRequestsPage} />
           <Route path="/dashboard/claims-workflow" component={ClaimsWorkflow} />
           <Route path="/dashboard/profile" component={ProfilePage} />
           <Route path="/dashboard/my-profile" component={MyProfilePage} />

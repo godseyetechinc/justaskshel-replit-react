@@ -157,6 +157,13 @@ const menuGroups: MenuGroup[] = [
         href: "/dashboard/user-management",
         roles: ["SuperAdmin"],
       },
+      {
+        id: "access-requests",
+        label: "Access Requests",
+        icon: UserPlus,
+        href: "/dashboard/access-requests",
+        roles: ["SuperAdmin", "TenantAdmin"],
+      },
     ],
   },
   {
