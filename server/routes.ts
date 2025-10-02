@@ -306,7 +306,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
             // Get available organizations and pending invitations
             const availableOrgs = await storage.getUserAvailableOrganizations(user.id);
-            const pendingInvitations = await storage.getUserPendingInvitations(user.email);
+            let pendingInvitations = [];
+            try {
+              pendingInvitations = await storage.getUserPendingInvitations(user.email);
+            } catch (error) {
+              console.log("Could not fetch pending invitations (table may not exist):", error);
+            }
 
             // SuperAdmin (privilege 0) auto-assigned to org 0
             if (user.privilegeLevel === 0) {
@@ -403,7 +408,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Phase 1: Organization Selection Endpoint (Task 5)
-  app.post("/api/auth/session/organization", requireAuth, async (req, res) => {
+  app.post("/api/auth/session/organization", auth, async (req, res) => {
     try {
       const { organizationId } = req.body;
       const userId = (req.session as any).userId;
@@ -461,7 +466,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Phase 1: Create Access Request Endpoint (Task 6)
-  app.post("/api/organizations/access-requests", requireAuth, async (req, res) => {
+  app.post("/api/organizations/access-requests", auth, async (req, res) => {
     try {
       const { organizationId, requestReason, desiredRole } = req.body;
       const userId = (req.session as any).userId;
@@ -514,7 +519,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Phase 1: Get Organization Access Requests Endpoint (Task 7)
-  app.get("/api/organizations/:orgId/access-requests", requireAuth, async (req, res) => {
+  app.get("/api/organizations/:orgId/access-requests", auth, async (req, res) => {
     try {
       const { orgId } = req.params;
       const userId = (req.session as any).userId;
@@ -576,7 +581,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Phase 1: Approve Access Request Endpoint (Task 8)
-  app.put("/api/organizations/access-requests/:id/approve", requireAuth, async (req, res) => {
+  app.put("/api/organizations/access-requests/:id/approve", auth, async (req, res) => {
     try {
       const { id } = req.params;
       const { reviewNotes } = req.body;
@@ -635,7 +640,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Phase 1: Reject Access Request Endpoint (Task 9)
-  app.put("/api/organizations/access-requests/:id/reject", requireAuth, async (req, res) => {
+  app.put("/api/organizations/access-requests/:id/reject", auth, async (req, res) => {
     try {
       const { id } = req.params;
       const { reviewNotes } = req.body;
