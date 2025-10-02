@@ -106,6 +106,25 @@ Executed comprehensive data migration backfilling agent assignments for all exis
 ### All 7 Phases Complete ✅
 Complete agent-policy relationship enhancement successfully delivered as of October 1, 2025. Details: `docs/AGENT_POLICY_RELATIONSHIP_ENHANCEMENT_PLAN.md`
 
+## Login Flow & Organization Selection Improvement
+
+### Phase 1: Backend Two-Stage Authentication ✅ COMPLETED (October 2, 2025)
+Implemented comprehensive two-stage authentication system decoupling credential validation from organization selection:
+- **Database Schema**: New `organization_access_requests` table (11 columns, 3 indexes) for managing user requests to join organizations
+- **Storage Methods**: 6 new IStorage methods (createAccessRequest, getAccessRequestById, getAccessRequestsByOrganization, getAccessRequestsByUser, approveAccessRequest, rejectAccessRequest) with organization helper methods
+- **Login Route Refactor**: POST /api/auth/login now validates credentials only (stage 1) and returns available organizations, pending invitations, and auto-assignment logic for SuperAdmin and single-org users
+- **API Endpoints**: 5 new REST endpoints with role-based authorization
+  - POST /api/auth/session/organization (stage 2: organization selection)
+  - POST /api/organizations/access-requests (create access request)
+  - GET /api/organizations/:orgId/access-requests (list requests - Admin only)
+  - PUT /api/organizations/access-requests/:id/approve (approve request - Admin only)
+  - PUT /api/organizations/access-requests/:id/reject (reject request - Admin only)
+- **Auto-Assignment Logic**: SuperAdmin auto-assigned to org 0, single-org users auto-assigned to their organization, multi-org users shown organization selector
+- **Authorization**: Full privilege level validation (SuperAdmin privilege 0, TenantAdmin privilege 1) with organization scope restrictions for TenantAdmin
+- **Session Management**: Proper session regeneration, temporary auth session, and organization assignment flow
+- **Testing**: Successfully validated SuperAdmin (auto-org 0) and Agent (auto-single-org) login flows with zero errors
+- **Implementation Details**: Complete Phase 1 backend implementation as specified in `docs/LOGIN_FLOW_IMPROVEMENT_PLAN.md`
+
 # External Dependencies
 
 ## Database Services
