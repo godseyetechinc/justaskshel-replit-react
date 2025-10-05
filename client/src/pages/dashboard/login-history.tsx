@@ -20,7 +20,7 @@ type LoginHistoryEntry = {
   ipAddress: string | null;
   userAgent: string | null;
   failureReason: string | null;
-  timestamp: string;
+  loggedInAt: string | null;
 };
 
 export default function LoginHistory() {
@@ -149,10 +149,10 @@ export default function LoginHistory() {
                           <Clock className="h-4 w-4 text-muted-foreground" />
                           <div>
                             <div className="font-medium">
-                              {format(new Date(entry.timestamp), "MMM dd, yyyy")}
+                              {entry.loggedInAt ? format(new Date(entry.loggedInAt), "MMM dd, yyyy") : "Unknown"}
                             </div>
                             <div className="text-sm text-muted-foreground">
-                              {format(new Date(entry.timestamp), "h:mm a")}
+                              {entry.loggedInAt ? format(new Date(entry.loggedInAt), "h:mm a") : "-"}
                             </div>
                           </div>
                         </div>

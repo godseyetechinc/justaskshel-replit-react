@@ -1,0 +1,31 @@
+The above error occurred in the <LoginHistory> component:
+
+    at LoginHistory (https://6a0b85b1-065e-4a65-93ae-78ed6393b718-00-20lkdk5d8ytxv.worf.replit.dev/src/pages/dashboard/login-history.tsx:33:38)
+    at Route (https://6a0b85b1-065e-4a65-93ae-78ed6393b718-00-20lkdk5d8ytxv.worf.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=2d206566:206:16)
+    at Suspense
+    at Switch (https://6a0b85b1-065e-4a65-93ae-78ed6393b718-00-20lkdk5d8ytxv.worf.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=2d206566:262:17)
+    at Router (https://6a0b85b1-065e-4a65-93ae-78ed6393b718-00-20lkdk5d8ytxv.worf.replit.dev/src/App.tsx?v=Bq2biGB52D4BJtRimfAva:143:48)
+    at Provider (https://6a0b85b1-065e-4a65-93ae-78ed6393b718-00-20lkdk5d8ytxv.worf.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-OXZDJRWN.js?v=2d206566:38:15)
+    at TooltipProvider (https://6a0b85b1-065e-4a65-93ae-78ed6393b718-00-20lkdk5d8ytxv.worf.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=2d206566:63:5)
+    at QueryClientProvider (https://6a0b85b1-065e-4a65-93ae-78ed6393b718-00-20lkdk5d8ytxv.worf.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=2d206566:2934:3)
+    at ErrorBoundary (https://6a0b85b1-065e-4a65-93ae-78ed6393b718-00-20lkdk5d8ytxv.worf.replit.dev/src/components/error-boundary.tsx:9:5)
+    at App
+
+React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary.
+
+at LoginHistory (https://6a0b85b1-065e-4a65-93ae-78ed6393b718-00-20lkdk5d8ytxv.worf.replit.dev/src/pages/dashboard/login-history.tsx:33:38)
+at Route (https://6a0b85b1-065e-4a65-93ae-78ed6393b718-00-20lkdk5d8ytxv.worf.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=2d206566:206:16)
+at Suspense
+at Switch (https://6a0b85b1-065e-4a65-93ae-78ed6393b718-00-20lkdk5d8ytxv.worf.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=2d206566:262:17)
+at Router (https://6a0b85b1-065e-4a65-93ae-78ed6393b718-00-20lkdk5d8ytxv.worf.replit.dev/src/App.tsx?v=Bq2biGB52D4BJtRimfAva:143:48)
+at Provider (https://6a0b85b1-065e-4a65-93ae-78ed6393b718-00-20lkdk5d8ytxv.worf.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-OXZDJRWN.js?v=2d206566:38:15)
+at TooltipProvider (https://6a0b85b1-065e-4a65-93ae-78ed6393b718-00-20lkdk5d8ytxv.worf.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=2d206566:63:5)
+at QueryClientProvider (https://6a0b85b1-065e-4a65-93ae-78ed6393b718-00-20lkdk5d8ytxv.worf.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=2d206566:2934:3)
+at ErrorBoundary (https://6a0b85b1-065e-4a65-93ae-78ed6393b718-00-20lkdk5d8ytxv.worf.replit.dev/src/components/error-boundary.tsx:9:5)
+at App
+
+React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary.
+at t.value (https://6a0b85b1-065e-4a65-93ae-78ed6393b718-00-20lkdk5d8ytxv.worf.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:17465)
+at new t (https://6a0b85b1-065e-4a65-93ae-78ed6393b718-00-20lkdk5d8ytxv.worf.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:12630)
+at t.value (https://6a0b85b1-065e-4a65-93ae-78ed6393b718-00-20lkdk5d8ytxv.worf.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:32766)
+at https://6a0b85b1-065e-4a65-93ae-78ed6393b718-00-20lkdk5d8ytxv.worf.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:34400
