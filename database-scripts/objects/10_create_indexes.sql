@@ -5,7 +5,7 @@
 -- Dependencies: All table creation scripts
 -- Execution Order: 10
 -- Idempotent: Yes
--- Last Updated: October 02, 2025
+-- Last Updated: October 5, 2025
 -- =============================================
 
 BEGIN;
@@ -22,6 +22,33 @@ CREATE INDEX IF NOT EXISTS idx_users_organization_id ON users(organization_id);
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 CREATE INDEX IF NOT EXISTS idx_users_privilege_level ON users(privilege_level);
 CREATE INDEX IF NOT EXISTS idx_users_org_privilege ON users(organization_id, privilege_level);
+
+-- =============================================
+-- SECTION 1B: PHASE 2 AUTHENTICATION & SECURITY (OCTOBER 2025)
+-- =============================================
+
+-- Account Lockouts
+CREATE INDEX IF NOT EXISTS idx_account_lockouts_user_id ON account_lockouts(user_id);
+CREATE INDEX IF NOT EXISTS idx_account_lockouts_locked_until ON account_lockouts(locked_until);
+
+-- Password Reset Tokens
+CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_token ON password_reset_tokens(token);
+CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user_id ON password_reset_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_expires_at ON password_reset_tokens(expires_at);
+
+-- MFA Settings
+CREATE INDEX IF NOT EXISTS idx_mfa_settings_user_id ON mfa_settings(user_id);
+CREATE INDEX IF NOT EXISTS idx_mfa_settings_enabled ON mfa_settings(mfa_enabled);
+
+-- MFA Verification Attempts
+CREATE INDEX IF NOT EXISTS idx_mfa_verification_user_id ON mfa_verification_attempts(user_id);
+CREATE INDEX IF NOT EXISTS idx_mfa_verification_attempted_at ON mfa_verification_attempts(attempted_at);
+
+-- Login History
+CREATE INDEX IF NOT EXISTS idx_login_history_user_id ON login_history(user_id);
+CREATE INDEX IF NOT EXISTS idx_login_history_logged_in_at ON login_history(logged_in_at);
+CREATE INDEX IF NOT EXISTS idx_login_history_success ON login_history(success);
+CREATE INDEX IF NOT EXISTS idx_login_history_ip_address ON login_history(ip_address);
 
 -- =============================================
 -- SECTION 2: INSURANCE DOMAIN
