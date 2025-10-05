@@ -2056,3 +2056,164 @@ export const insertAgentCommissionSchema = createInsertSchema(agentCommissions).
 
 export type InsertPolicyTransferInput = z.infer<typeof insertPolicyTransferSchema>;
 export type InsertAgentCommissionInput = z.infer<typeof insertAgentCommissionSchema>;
+
+// ============================================================================
+// Phase 2: Authentication & Authorization Enhancement Tables
+// ============================================================================
+
+// Account lockout tracking
+export const accountLockouts = pgTable("account_lockouts", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  failedAttempts: integer("failed_attempts").default(0).notNull(),
+  lastFailedAt: timestamp("last_failed_at"),
+  lockedUntil: timestamp("locked_until"),
+  lockedAt: timestamp("locked_at"),
+  unlocked_at: timestamp("unlocked_at"),
+  lockReason: varchar("lock_reason", { length: 255 }),
+  ipAddress: varchar("ip_address", { length: 45 }),
+  userAgent: text("user_agent"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_account_lockouts_user_id").on(table.userId),
+  index("idx_account_lockouts_locked_until").on(table.lockedUntil),
+]);
+
+// Password reset tokens
+export const passwordResetTokens = pgTable("password_reset_tokens", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  token: varchar("token", { length: 255 }).notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  usedAt: timestamp("used_at"),
+  ipAddress: varchar("ip_address", { length: 45 }),
+  userAgent: text("user_agent"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_password_reset_tokens_token").on(table.token),
+  index("idx_password_reset_tokens_user_id").on(table.userId),
+  index("idx_password_reset_tokens_expires_at").on(table.expiresAt),
+]);
+
+// MFA settings
+export const mfaSettings = pgTable("mfa_settings", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).notNull().unique(),
+  mfaEnabled: boolean("mfa_enabled").default(false).notNull(),
+  totpSecret: varchar("totp_secret", { length: 255 }), // Encrypted
+  backupCodes: jsonb("backup_codes"), // Array of hashed codes
+  recoveryEmail: varchar("recovery_email", { length: 255 }),
+  enabledAt: timestamp("enabled_at"),
+  lastVerifiedAt: timestamp("last_verified_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_mfa_settings_user_id").on(table.userId),
+  index("idx_mfa_settings_enabled").on(table.mfaEnabled),
+]);
+
+// MFA verification attempts
+export const mfaVerificationAttempts = pgTable("mfa_verification_attempts", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  attemptType: varchar("attempt_type", { length: 20, enum: ["totp", "sms", "recovery"] }).notNull(),
+  success: boolean("success").notNull(),
+  ipAddress: varchar("ip_address", { length: 45 }),
+  userAgent: text("user_agent"),
+  attemptedAt: timestamp("attempted_at").defaultNow(),
+}, (table) => [
+  index("idx_mfa_verification_user_id").on(table.userId),
+  index("idx_mfa_verification_attempted_at").on(table.attemptedAt),
+]);
+
+// Login activity tracking
+export const loginHistory = pgTable("login_history", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id),
+  email: varchar("email", { length: 255 }).notNull(),
+  success: boolean("success").notNull(),
+  failureReason: varchar("failure_reason", { length: 255 }),
+  ipAddress: varchar("ip_address", { length: 45 }),
+  userAgent: text("user_agent"),
+  location: varchar("location", { length: 255 }), // City, Country
+  deviceType: varchar("device_type", { length: 50 }),
+  organizationId: integer("organization_id").references(() => agentOrganizations.id),
+  mfaUsed: boolean("mfa_used").default(false),
+  sessionId: varchar("session_id", { length: 255 }),
+  loggedInAt: timestamp("logged_in_at").defaultNow(),
+}, (table) => [
+  index("idx_login_history_user_id").on(table.userId),
+  index("idx_login_history_logged_in_at").on(table.loggedInAt),
+  index("idx_login_history_success").on(table.success),
+  index("idx_login_history_ip_address").on(table.ipAddress),
+]);
+
+// MFA configuration (runtime settings)
+export const mfaConfig = pgTable("mfa_config", {
+  id: serial("id").primaryKey(),
+  enableMfa: boolean("enable_mfa").default(false).notNull(),
+  enforcementMode: varchar("enforcement_mode", { 
+    length: 50, 
+    enum: ["disabled", "optional", "required_admins", "required_all"] 
+  }).default("optional").notNull(),
+  bypassEmails: jsonb("bypass_emails"), // Array of emails exempt from MFA
+  updatedBy: varchar("updated_by").references(() => users.id),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Type exports for Phase 2 tables
+export type AccountLockout = typeof accountLockouts.$inferSelect;
+export type InsertAccountLockout = typeof accountLockouts.$inferInsert;
+export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
+export type InsertPasswordResetToken = typeof passwordResetTokens.$inferInsert;
+export type MfaSetting = typeof mfaSettings.$inferSelect;
+export type InsertMfaSetting = typeof mfaSettings.$inferInsert;
+export type MfaVerificationAttempt = typeof mfaVerificationAttempts.$inferSelect;
+export type InsertMfaVerificationAttempt = typeof mfaVerificationAttempts.$inferInsert;
+export type LoginHistory = typeof loginHistory.$inferSelect;
+export type InsertLoginHistory = typeof loginHistory.$inferInsert;
+export type MfaConfig = typeof mfaConfig.$inferSelect;
+export type InsertMfaConfig = typeof mfaConfig.$inferInsert;
+
+// Insert schemas for Phase 2
+export const insertAccountLockoutSchema = createInsertSchema(accountLockouts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPasswordResetTokenSchema = createInsertSchema(passwordResetTokens).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertMfaSettingSchema = createInsertSchema(mfaSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertMfaVerificationAttemptSchema = createInsertSchema(mfaVerificationAttempts).omit({
+  id: true,
+  attemptedAt: true,
+});
+
+export const insertLoginHistorySchema = createInsertSchema(loginHistory).omit({
+  id: true,
+  loggedInAt: true,
+});
+
+export const insertMfaConfigSchema = createInsertSchema(mfaConfig).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertAccountLockoutInput = z.infer<typeof insertAccountLockoutSchema>;
+export type InsertPasswordResetTokenInput = z.infer<typeof insertPasswordResetTokenSchema>;
+export type InsertMfaSettingInput = z.infer<typeof insertMfaSettingSchema>;
+export type InsertMfaVerificationAttemptInput = z.infer<typeof insertMfaVerificationAttemptSchema>;
+export type InsertLoginHistoryInput = z.infer<typeof insertLoginHistorySchema>;
+export type InsertMfaConfigInput = z.infer<typeof insertMfaConfigSchema>;

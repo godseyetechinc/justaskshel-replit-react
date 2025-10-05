@@ -1,4 +1,5 @@
 import { ROLE_PRIVILEGE_LEVELS } from "../shared/schema";
+import crypto from "crypto";
 import {
   users,
   members,
@@ -98,7 +99,25 @@ import {
   type InsertAgentCommission,
   organizationInvitations,
   organizationAccessRequests,
-  agentOrganizations,
+  // Phase 2: Authentication & Authorization Enhancement
+  accountLockouts,
+  passwordResetTokens,
+  mfaSettings,
+  mfaVerificationAttempts,
+  loginHistory,
+  mfaConfig,
+  type AccountLockout,
+  type InsertAccountLockout,
+  type PasswordResetToken,
+  type InsertPasswordResetToken,
+  type MfaSetting,
+  type InsertMfaSetting,
+  type MfaVerificationAttempt,
+  type InsertMfaVerificationAttempt,
+  type LoginHistory,
+  type InsertLoginHistory,
+  type MfaConfig,
+  type InsertMfaConfig,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, sql, gte, lte, ne, gt, asc, isNull, isNotNull, ilike, inArray } from "drizzle-orm";
@@ -340,6 +359,38 @@ export interface IStorage {
   rejectAccessRequest(id: number, reviewerId: string, reviewNotes?: string): Promise<OrganizationAccessRequest>;
   getUserAvailableOrganizations(userId: string): Promise<AgentOrganization[]>;
   getUserPendingInvitations(email: string): Promise<OrganizationInvitation[]>;
+
+  // Phase 2: Authentication & Authorization Enhancement
+  // Account Lockout
+  getAccountLockout(userId: string): Promise<AccountLockout | undefined>;
+  recordFailedLoginAttempt(userId: string, ipAddress: string, userAgent: string): Promise<AccountLockout>;
+  isAccountLocked(userId: string): Promise<boolean>;
+  unlockAccount(userId: string): Promise<void>;
+  resetFailedAttempts(userId: string): Promise<void>;
+  
+  // Password Reset
+  createPasswordResetToken(userId: string, ipAddress: string, userAgent: string): Promise<PasswordResetToken>;
+  getPasswordResetToken(token: string): Promise<PasswordResetToken | undefined>;
+  markPasswordResetTokenUsed(token: string): Promise<void>;
+  deleteExpiredPasswordResetTokens(): Promise<void>;
+  
+  // MFA Settings
+  getMfaSettings(userId: string): Promise<MfaSetting | undefined>;
+  createMfaSettings(userId: string, totpSecret: string): Promise<MfaSetting>;
+  updateMfaSettings(userId: string, updates: Partial<InsertMfaSetting>): Promise<MfaSetting>;
+  deleteMfaSettings(userId: string): Promise<void>;
+  recordMfaVerificationAttempt(userId: string, attemptType: 'totp' | 'sms' | 'recovery', success: boolean, ipAddress: string, userAgent: string): Promise<void>;
+  getMfaVerificationAttempts(userId: string, limit?: number): Promise<MfaVerificationAttempt[]>;
+  
+  // MFA Configuration (Runtime)
+  getMfaConfig(): Promise<MfaConfig | undefined>;
+  updateMfaConfig(updates: Partial<InsertMfaConfig>, updatedBy: string): Promise<MfaConfig>;
+  
+  // Login History
+  recordLoginAttempt(data: InsertLoginHistory): Promise<LoginHistory>;
+  getUserLoginHistory(userId: string, limit?: number): Promise<LoginHistory[]>;
+  getLoginHistoryByEmail(email: string, limit?: number): Promise<LoginHistory[]>;
+  getRecentFailedLogins(email: string, since: Date): Promise<LoginHistory[]>;
 
   // Phase 2: Advanced Organization Management
   // Organization Analytics and Dashboard
@@ -4847,6 +4898,282 @@ export class DatabaseStorage implements IStorage {
     }));
 
     return { assignments: enrichedAssignments, total: totalCount };
+  }
+
+  // ============================================================================
+  // Phase 2: Authentication & Authorization Enhancement Methods
+  // ============================================================================
+
+  async getAccountLockout(userId: string): Promise<AccountLockout | undefined> {
+    const [lockout] = await db
+      .select()
+      .from(accountLockouts)
+      .where(eq(accountLockouts.userId, userId))
+      .limit(1);
+    return lockout;
+  }
+
+  async recordFailedLoginAttempt(userId: string, ipAddress: string, userAgent: string): Promise<AccountLockout> {
+    const existingLockout = await this.getAccountLockout(userId);
+    const now = new Date();
+    
+    if (existingLockout) {
+      const newFailedAttempts = existingLockout.failedAttempts + 1;
+      const shouldLock = newFailedAttempts >= 5;
+      
+      const [updatedLockout] = await db
+        .update(accountLockouts)
+        .set({
+          failedAttempts: newFailedAttempts,
+          lastFailedAt: now,
+          lockedUntil: shouldLock ? new Date(now.getTime() + 15 * 60 * 1000) : existingLockout.lockedUntil,
+          lockedAt: shouldLock ? now : existingLockout.lockedAt,
+          lockReason: shouldLock ? 'Too many failed login attempts' : existingLockout.lockReason,
+          ipAddress,
+          userAgent,
+          updatedAt: now,
+        })
+        .where(eq(accountLockouts.userId, userId))
+        .returning();
+      
+      return updatedLockout;
+    } else {
+      const [newLockout] = await db
+        .insert(accountLockouts)
+        .values({
+          userId,
+          failedAttempts: 1,
+          lastFailedAt: now,
+          ipAddress,
+          userAgent,
+        })
+        .returning();
+      
+      return newLockout;
+    }
+  }
+
+  async isAccountLocked(userId: string): Promise<boolean> {
+    const lockout = await this.getAccountLockout(userId);
+    
+    if (!lockout || !lockout.lockedUntil) {
+      return false;
+    }
+    
+    const now = new Date();
+    if (lockout.lockedUntil > now) {
+      return true;
+    }
+    
+    return false;
+  }
+
+  async unlockAccount(userId: string): Promise<void> {
+    const now = new Date();
+    await db
+      .update(accountLockouts)
+      .set({
+        failedAttempts: 0,
+        lockedUntil: null,
+        unlocked_at: now,
+        updatedAt: now,
+      })
+      .where(eq(accountLockouts.userId, userId));
+  }
+
+  async resetFailedAttempts(userId: string): Promise<void> {
+    await db
+      .update(accountLockouts)
+      .set({
+        failedAttempts: 0,
+        lastFailedAt: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(accountLockouts.userId, userId));
+  }
+
+  async createPasswordResetToken(userId: string, ipAddress: string, userAgent: string): Promise<PasswordResetToken> {
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+    
+    const [resetToken] = await db
+      .insert(passwordResetTokens)
+      .values({
+        userId,
+        token,
+        expiresAt,
+        ipAddress,
+        userAgent,
+      })
+      .returning();
+    
+    return resetToken;
+  }
+
+  async getPasswordResetToken(token: string): Promise<PasswordResetToken | undefined> {
+    const [resetToken] = await db
+      .select()
+      .from(passwordResetTokens)
+      .where(eq(passwordResetTokens.token, token))
+      .limit(1);
+    return resetToken;
+  }
+
+  async markPasswordResetTokenUsed(token: string): Promise<void> {
+    await db
+      .update(passwordResetTokens)
+      .set({
+        usedAt: new Date(),
+      })
+      .where(eq(passwordResetTokens.token, token));
+  }
+
+  async deleteExpiredPasswordResetTokens(): Promise<void> {
+    const now = new Date();
+    await db
+      .delete(passwordResetTokens)
+      .where(lte(passwordResetTokens.expiresAt, now));
+  }
+
+  async getMfaSettings(userId: string): Promise<MfaSetting | undefined> {
+    const [settings] = await db
+      .select()
+      .from(mfaSettings)
+      .where(eq(mfaSettings.userId, userId))
+      .limit(1);
+    return settings;
+  }
+
+  async createMfaSettings(userId: string, totpSecret: string): Promise<MfaSetting> {
+    const [settings] = await db
+      .insert(mfaSettings)
+      .values({
+        userId,
+        totpSecret,
+        mfaEnabled: true,
+        enabledAt: new Date(),
+      })
+      .returning();
+    return settings;
+  }
+
+  async updateMfaSettings(userId: string, updates: Partial<InsertMfaSetting>): Promise<MfaSetting> {
+    const [settings] = await db
+      .update(mfaSettings)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(eq(mfaSettings.userId, userId))
+      .returning();
+    return settings;
+  }
+
+  async deleteMfaSettings(userId: string): Promise<void> {
+    await db
+      .delete(mfaSettings)
+      .where(eq(mfaSettings.userId, userId));
+  }
+
+  async recordMfaVerificationAttempt(
+    userId: string, 
+    attemptType: 'totp' | 'sms' | 'recovery', 
+    success: boolean, 
+    ipAddress: string, 
+    userAgent: string
+  ): Promise<void> {
+    await db
+      .insert(mfaVerificationAttempts)
+      .values({
+        userId,
+        attemptType,
+        success,
+        ipAddress,
+        userAgent,
+      });
+  }
+
+  async getMfaVerificationAttempts(userId: string, limit: number = 10): Promise<MfaVerificationAttempt[]> {
+    return await db
+      .select()
+      .from(mfaVerificationAttempts)
+      .where(eq(mfaVerificationAttempts.userId, userId))
+      .orderBy(desc(mfaVerificationAttempts.attemptedAt))
+      .limit(limit);
+  }
+
+  async getMfaConfig(): Promise<MfaConfig | undefined> {
+    const [config] = await db
+      .select()
+      .from(mfaConfig)
+      .limit(1);
+    return config;
+  }
+
+  async updateMfaConfig(updates: Partial<InsertMfaConfig>, updatedBy: string): Promise<MfaConfig> {
+    const existingConfig = await this.getMfaConfig();
+    
+    if (existingConfig) {
+      const [config] = await db
+        .update(mfaConfig)
+        .set({
+          ...updates,
+          updatedBy,
+          updatedAt: new Date(),
+        })
+        .where(eq(mfaConfig.id, existingConfig.id))
+        .returning();
+      return config;
+    } else {
+      const [config] = await db
+        .insert(mfaConfig)
+        .values({
+          ...updates,
+          updatedBy,
+        })
+        .returning();
+      return config;
+    }
+  }
+
+  async recordLoginAttempt(data: InsertLoginHistory): Promise<LoginHistory> {
+    const [loginRecord] = await db
+      .insert(loginHistory)
+      .values(data)
+      .returning();
+    return loginRecord;
+  }
+
+  async getUserLoginHistory(userId: string, limit: number = 20): Promise<LoginHistory[]> {
+    return await db
+      .select()
+      .from(loginHistory)
+      .where(eq(loginHistory.userId, userId))
+      .orderBy(desc(loginHistory.loggedInAt))
+      .limit(limit);
+  }
+
+  async getLoginHistoryByEmail(email: string, limit: number = 20): Promise<LoginHistory[]> {
+    return await db
+      .select()
+      .from(loginHistory)
+      .where(eq(loginHistory.email, email))
+      .orderBy(desc(loginHistory.loggedInAt))
+      .limit(limit);
+  }
+
+  async getRecentFailedLogins(email: string, since: Date): Promise<LoginHistory[]> {
+    return await db
+      .select()
+      .from(loginHistory)
+      .where(
+        and(
+          eq(loginHistory.email, email),
+          eq(loginHistory.success, false),
+          gte(loginHistory.loggedInAt, since)
+        )
+      )
+      .orderBy(desc(loginHistory.loggedInAt));
   }
 }
 
