@@ -1,146 +1,145 @@
--- =============================================
--- JustAskShel Database - DROP ALL TABLES Script
--- =============================================
--- Description: Safely drops all tables in correct dependency order
--- WARNING: This script will DELETE ALL DATA
--- Use with extreme caution - preferably only in development
--- Last Updated: October 02, 2025
--- Total Tables: 75
--- =============================================
+-- ============================================================================
+-- DROP ALL TABLES SCRIPT FOR JUSTASKSHEL
+-- ============================================================================
+-- Description: Drops all tables in correct dependency order (child -> parent)
+-- Warning: This will delete ALL data in the database!
+-- Use with caution - only for development/testing
+-- ============================================================================
 
-BEGIN;
+-- Drop tables in reverse dependency order to avoid foreign key constraint violations
 
--- Drop tables in reverse dependency order to avoid foreign key conflicts
+-- Phase 1: Drop child tables with no dependents
 
--- ========================================
--- SECTION 1: SOCIAL FEATURES & GAMIFICATION
--- ========================================
+DROP TABLE IF EXISTS public.campaign_participations CASCADE;
+DROP TABLE IF EXISTS public.seasonal_campaigns CASCADE;
+DROP TABLE IF EXISTS public.referral_signups CASCADE;
+DROP TABLE IF EXISTS public.referral_codes CASCADE;
+DROP TABLE IF EXISTS public.reward_wishlists CASCADE;
+DROP TABLE IF EXISTS public.reward_redemptions CASCADE;
+DROP TABLE IF EXISTS public.rewards CASCADE;
+DROP TABLE IF EXISTS public.points CASCADE;
+DROP TABLE IF EXISTS public.points_summary CASCADE;
+DROP TABLE IF EXISTS public.points_transactions CASCADE;
+DROP TABLE IF EXISTS public.points_rules CASCADE;
+DROP TABLE IF EXISTS public.user_achievements CASCADE;
+DROP TABLE IF EXISTS public.achievements CASCADE;
+DROP TABLE IF EXISTS public.leaderboard_settings CASCADE;
+DROP TABLE IF EXISTS public.notifications CASCADE;
+DROP TABLE IF EXISTS public.claim_workflow_steps CASCADE;
+DROP TABLE IF EXISTS public.claim_communications CASCADE;
+DROP TABLE IF EXISTS public.claim_documents CASCADE;
+DROP TABLE IF EXISTS public.claims CASCADE;
+DROP TABLE IF EXISTS public.applications CASCADE;
+DROP TABLE IF EXISTS public.policy_amendments CASCADE;
+DROP TABLE IF EXISTS public.policy_documents CASCADE;
+DROP TABLE IF EXISTS public.agent_commissions CASCADE;
+DROP TABLE IF EXISTS public.policy_transfers CASCADE;
+DROP TABLE IF EXISTS public.policies CASCADE;
+DROP TABLE IF EXISTS public.wishlist CASCADE;
+DROP TABLE IF EXISTS public.selected_quotes CASCADE;
+DROP TABLE IF EXISTS public.external_quote_requests CASCADE;
+DROP TABLE IF EXISTS public.insurance_quotes CASCADE;
+DROP TABLE IF EXISTS public.insurance_providers CASCADE;
+DROP TABLE IF EXISTS public.insurance_types CASCADE;
+DROP TABLE IF EXISTS public.dependents CASCADE;
+DROP TABLE IF EXISTS public.members CASCADE;
+DROP TABLE IF EXISTS public.contacts CASCADE;
+DROP TABLE IF EXISTS public.client_assignments CASCADE;
+DROP TABLE IF EXISTS public.agent_profiles CASCADE;
 
-DROP TABLE IF EXISTS achievement_shares CASCADE;
-DROP TABLE IF EXISTS activity_comments CASCADE;
-DROP TABLE IF EXISTS activity_likes CASCADE;
-DROP TABLE IF EXISTS social_activities CASCADE;
-DROP TABLE IF EXISTS social_referrals CASCADE;
-DROP TABLE IF EXISTS friendships CASCADE;
-DROP TABLE IF EXISTS social_media_integrations CASCADE;
-DROP TABLE IF EXISTS leaderboard_rankings CASCADE;
-DROP TABLE IF EXISTS leaderboard_settings CASCADE;
+-- Phase 2: Drop association/junction tables
+DROP TABLE IF EXISTS public.person_contacts CASCADE;
+DROP TABLE IF EXISTS public.person_members CASCADE;
+DROP TABLE IF EXISTS public.person_users CASCADE;
 
--- ========================================
--- SECTION 2: SEASONAL CAMPAIGNS & ACHIEVEMENTS
--- ========================================
+-- Phase 3: Drop authentication tables (Phase 2 enhancements)
+DROP TABLE IF EXISTS public.login_history CASCADE;
+DROP TABLE IF EXISTS public.mfa_verification_attempts CASCADE;
+DROP TABLE IF EXISTS public.mfa_settings CASCADE;
+DROP TABLE IF EXISTS public.mfa_config CASCADE;
+DROP TABLE IF EXISTS public.password_reset_tokens CASCADE;
+DROP TABLE IF EXISTS public.account_lockouts CASCADE;
+DROP TABLE IF EXISTS public.organization_access_requests CASCADE;
 
-DROP TABLE IF EXISTS user_seasonal_achievements CASCADE;
-DROP TABLE IF EXISTS seasonal_achievements CASCADE;
-DROP TABLE IF EXISTS campaign_participations CASCADE;
-DROP TABLE IF EXISTS seasonal_campaigns CASCADE;
-DROP TABLE IF EXISTS user_achievements CASCADE;
-DROP TABLE IF EXISTS achievements CASCADE;
+-- Phase 4: Drop user-related tables
+DROP TABLE IF EXISTS public.users CASCADE;
+DROP TABLE IF EXISTS public.persons CASCADE;
+DROP TABLE IF EXISTS public.roles CASCADE;
 
--- ========================================
--- SECTION 3: ADVANCED REDEMPTION & RECOMMENDATIONS
--- ========================================
+-- Phase 5: Drop organization tables
+DROP TABLE IF EXISTS public.agent_organizations CASCADE;
 
-DROP TABLE IF EXISTS reward_notifications CASCADE;
-DROP TABLE IF EXISTS reward_interactions CASCADE;
-DROP TABLE IF EXISTS reward_recommendations CASCADE;
-DROP TABLE IF EXISTS recommendation_models CASCADE;
-DROP TABLE IF EXISTS reward_inventory CASCADE;
-DROP TABLE IF EXISTS reward_pricing_history CASCADE;
-DROP TABLE IF EXISTS reward_wishlists CASCADE;
-DROP TABLE IF EXISTS partial_redemptions CASCADE;
+-- Phase 6: Drop session tables
+DROP TABLE IF EXISTS public.sessions CASCADE;
 
--- ========================================
--- SECTION 4: REWARDS & POINTS SYSTEM
--- ========================================
+-- Phase 7: Drop Drizzle migration tracking
+DROP TABLE IF EXISTS drizzle.__drizzle_migrations CASCADE;
+DROP SCHEMA IF EXISTS drizzle CASCADE;
 
-DROP TABLE IF EXISTS reward_reviews CASCADE;
-DROP TABLE IF EXISTS reward_redemptions CASCADE;
-DROP TABLE IF EXISTS rewards CASCADE;
-DROP TABLE IF EXISTS admin_point_adjustments CASCADE;
-DROP TABLE IF EXISTS scheduled_points_tasks CASCADE;
-DROP TABLE IF EXISTS bulk_points_operations CASCADE;
-DROP TABLE IF EXISTS tier_benefits CASCADE;
-DROP TABLE IF EXISTS tier_progression_history CASCADE;
-DROP TABLE IF EXISTS points_tiers CASCADE;
-DROP TABLE IF EXISTS referral_tracking CASCADE;
-DROP TABLE IF EXISTS referral_codes CASCADE;
-DROP TABLE IF EXISTS notification_preferences CASCADE;
-DROP TABLE IF EXISTS user_notifications CASCADE;
-DROP TABLE IF EXISTS points_rules CASCADE;
-DROP TABLE IF EXISTS points_transactions CASCADE;
-DROP TABLE IF EXISTS points_summary CASCADE;
+-- ============================================================================
+-- DROP ALL SEQUENCES
+-- ============================================================================
 
--- ========================================
--- SECTION 5: AGENT-POLICY RELATIONSHIP MANAGEMENT
--- ========================================
+DROP SEQUENCE IF EXISTS public.campaign_participations_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS public.seasonal_campaigns_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS public.referral_signups_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS public.referral_codes_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS public.reward_wishlists_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS public.reward_redemptions_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS public.rewards_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS public.points_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS public.points_summary_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS public.points_transactions_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS public.points_rules_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS public.user_achievements_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS public.achievements_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS public.leaderboard_settings_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS public.notifications_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS public.claim_workflow_steps_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS public.claim_communications_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS public.claim_documents_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS public.claims_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS public.applications_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS public.policy_amendments_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS public.policy_documents_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS public.agent_commissions_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS public.policy_transfers_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS public.policies_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS public.wishlist_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS public.selected_quotes_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS public.external_quote_requests_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS public.insurance_quotes_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS public.insurance_providers_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS public.insurance_types_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS public.dependents_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS public.members_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS public.contacts_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS public.client_assignments_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS public.agent_profiles_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS public.login_history_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS public.mfa_verification_attempts_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS public.mfa_settings_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS public.mfa_config_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS public.password_reset_tokens_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS public.account_lockouts_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS public.organization_access_requests_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS public.roles_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS public.persons_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS public.agent_organizations_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS drizzle.__drizzle_migrations_id_seq CASCADE;
 
-DROP TABLE IF EXISTS organization_knowledge_base CASCADE;
-DROP TABLE IF EXISTS agent_collaborations CASCADE;
-DROP TABLE IF EXISTS organization_analytics CASCADE;
-DROP TABLE IF EXISTS client_activities CASCADE;
-DROP TABLE IF EXISTS agent_performance CASCADE;
-DROP TABLE IF EXISTS agent_commissions CASCADE;
-DROP TABLE IF EXISTS policy_transfers CASCADE;
-DROP TABLE IF EXISTS client_assignments CASCADE;
-DROP TABLE IF EXISTS agent_profiles CASCADE;
+-- ============================================================================
+-- VERIFICATION
+-- ============================================================================
 
--- ========================================
--- SECTION 6: POLICY & CLAIMS MANAGEMENT
--- ========================================
+-- Display remaining tables (should be empty)
+SELECT 'Remaining tables in public schema:' as status;
+SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';
 
-DROP TABLE IF EXISTS policy_amendments CASCADE;
-DROP TABLE IF EXISTS premium_payments CASCADE;
-DROP TABLE IF EXISTS policy_documents CASCADE;
-DROP TABLE IF EXISTS claim_workflow_steps CASCADE;
-DROP TABLE IF EXISTS claim_communications CASCADE;
-DROP TABLE IF EXISTS claim_documents CASCADE;
-DROP TABLE IF EXISTS claims CASCADE;
-DROP TABLE IF EXISTS dependents CASCADE;
-DROP TABLE IF EXISTS policies CASCADE;
+SELECT 'Remaining sequences in public schema:' as status;
+SELECT sequence_name FROM information_schema.sequences WHERE sequence_schema = 'public';
 
--- ========================================
--- SECTION 7: INSURANCE DOMAIN
--- ========================================
-
-DROP TABLE IF EXISTS wishlist CASCADE;
-DROP TABLE IF EXISTS selected_quotes CASCADE;
-DROP TABLE IF EXISTS external_quote_requests CASCADE;
-DROP TABLE IF EXISTS insurance_quotes CASCADE;
-DROP TABLE IF EXISTS insurance_providers CASCADE;
-DROP TABLE IF EXISTS insurance_types CASCADE;
-
--- ========================================
--- SECTION 8: MEMBER & ORGANIZATION MANAGEMENT
--- ========================================
-
-DROP TABLE IF EXISTS contacts CASCADE;
-DROP TABLE IF EXISTS organization_access_requests CASCADE;
-DROP TABLE IF EXISTS organization_invitations CASCADE;
-DROP TABLE IF EXISTS members CASCADE;
-
--- ========================================
--- SECTION 9: PERSON RELATIONSHIP TABLES
--- ========================================
-
-DROP TABLE IF EXISTS person_contacts CASCADE;
-DROP TABLE IF EXISTS person_members CASCADE;
-DROP TABLE IF EXISTS person_users CASCADE;
-
--- ========================================
--- SECTION 10: CORE AUTHENTICATION & USERS
--- ========================================
-
-DROP TABLE IF EXISTS users CASCADE;
-DROP TABLE IF EXISTS roles CASCADE;
-DROP TABLE IF EXISTS persons CASCADE;
-DROP TABLE IF EXISTS agent_organizations CASCADE;
-DROP TABLE IF EXISTS sessions CASCADE;
-
-COMMIT;
-
--- =============================================
+-- ============================================================================
 -- END OF DROP SCRIPT
--- =============================================
--- All 75 tables have been dropped
--- Database is now in a clean state
+-- ============================================================================
+
