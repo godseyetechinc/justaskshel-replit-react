@@ -77,11 +77,11 @@ export async function seedUsers() {
       isActive: true,
     }).returning();
     
-    // LandlordAdmin account  
+    // TenantAdmin account  
     const [landlordAdmin] = await db.insert(users).values({
       email: 'admin1@justaskshel.com',
       password: passwordHash,
-      role: 'LandlordAdmin' as const,
+      role: 'TenantAdmin' as const,
       privilegeLevel: 1,
       isActive: true,
     }).returning();
@@ -95,7 +95,7 @@ export async function seedUsers() {
       isActive: true,
     }).returning();
     
-    console.log('Created essential test accounts: SuperAdmin, LandlordAdmin, Agent');
+    console.log('Created essential test accounts: SuperAdmin, TenantAdmin, Agent');
 
     // Create additional admins (4 more)
     const adminUsers = [landlordAdmin]; // Include the test admin
@@ -109,7 +109,7 @@ export async function seedUsers() {
         firstName,
         lastName,
         password: passwordHash,
-        role: 'LandlordAdmin' as const,
+        role: 'TenantAdmin' as const,
         privilegeLevel: 1,
         isActive: true,
         phone: generatePhoneNumber(),

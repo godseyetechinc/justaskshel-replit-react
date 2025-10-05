@@ -23,9 +23,9 @@ ON CONFLICT (email) DO UPDATE SET
     privilege_level = EXCLUDED.privilege_level,
     is_active = EXCLUDED.is_active;
 
--- LandlordAdmin account
+-- TenantAdmin account
 INSERT INTO users (id, email, password, role, privilege_level, is_active) VALUES
-('00000000-0000-0000-0000-000000000002', 'admin1@justaskshel.com', '$2b$10$jtFibJJoAbZdvY8FXcLXx.V7Kiltl4Ub9sw4oqMv47TEzBYQNBckG', 'LandlordAdmin', 1, true)
+('00000000-0000-0000-0000-000000000002', 'admin1@justaskshel.com', '$2b$10$jtFibJJoAbZdvY8FXcLXx.V7Kiltl4Ub9sw4oqMv47TEzBYQNBckG', 'TenantAdmin', 1, true)
 ON CONFLICT (email) DO UPDATE SET
     password = EXCLUDED.password,
     role = EXCLUDED.role,

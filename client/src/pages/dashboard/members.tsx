@@ -148,7 +148,7 @@ export default function MembersPage() {
   };
 
   return (
-    <DashboardLayout title="Member Profile Management" requiredRoles={["Member", "Agent", "LandlordAdmin", "SuperAdmin"]}>
+    <DashboardLayout title="Member Profile Management" requiredRoles={["Member", "Agent", "TenantAdmin", "SuperAdmin"]}>
       <div className="space-y-6">
         {/* Header Actions */}
         <div className="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center">

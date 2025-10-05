@@ -296,7 +296,7 @@ The platform includes 3 demo organizations for testing:
 
 ### Access Control Features
 - **SuperAdmin**: Can view and manage all organizations, cross-tenant data access
-- **LandlordAdmin**: Restricted to their assigned organization only
+- **TenantAdmin**: Restricted to their assigned organization only
 - **Agents**: Handle applications, policies, and members within their organization
 - **Members**: Access personal data and organization-specific services
 

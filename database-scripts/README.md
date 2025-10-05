@@ -60,7 +60,7 @@ The scripts create these test accounts for development:
 | Email | Password | Role | Privilege Level |
 |-------|----------|------|----------------|
 | superadmin@justaskshel.com | password123 | SuperAdmin | 0 |
-| admin1@justaskshel.com | password123 | LandlordAdmin | 1 |
+| admin1@justaskshel.com | password123 | TenantAdmin | 1 |
 | agent1@justaskshel.com | password123 | Agent | 2 |
 | member1@justaskshel.com | password123 | Member | 3 |
 

@@ -282,7 +282,7 @@ export default function UserManagementPage() {
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
       case "SuperAdmin": return "bg-purple-100 text-purple-800";
-      case "LandlordAdmin": return "bg-blue-100 text-blue-800";
+      case "TenantAdmin": return "bg-blue-100 text-blue-800";
       case "Agent": return "bg-green-100 text-green-800";
       case "Member": return "bg-gray-100 text-gray-800";
       case "Guest": return "bg-yellow-100 text-yellow-800";
@@ -294,14 +294,14 @@ export default function UserManagementPage() {
   const getRoleIcon = (role: string) => {
     switch (role) {
       case "SuperAdmin": return <Crown className="h-4 w-4" />;
-      case "LandlordAdmin": return <Shield className="h-4 w-4" />;
+      case "TenantAdmin": return <Shield className="h-4 w-4" />;
       case "Agent": return <Users className="h-4 w-4" />;
       default: return <Users className="h-4 w-4" />;
     }
   };
 
   return (
-    <DashboardLayout title="User Management" requiredRoles={["LandlordAdmin", "SuperAdmin"]}>
+    <DashboardLayout title="User Management" requiredRoles={["TenantAdmin", "SuperAdmin"]}>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex justify-between items-center">
@@ -399,7 +399,7 @@ export default function UserManagementPage() {
                               {isSuperAdmin && (
                                 <>
                                   <SelectItem value="SuperAdmin">SuperAdmin</SelectItem>
-                                  <SelectItem value="LandlordAdmin">LandlordAdmin</SelectItem>
+                                  <SelectItem value="TenantAdmin">TenantAdmin</SelectItem>
                                 </>
                               )}
                               <SelectItem value="Agent">Agent</SelectItem>
@@ -550,7 +550,7 @@ export default function UserManagementPage() {
                 <div>
                   <p className="text-sm font-medium text-gray-600">Admin Users</p>
                   <p className="text-3xl font-bold text-orange-600">
-                    {userStats?.admins || users?.filter((u: User) => ["SuperAdmin", "LandlordAdmin"].includes(u.role)).length || 0}
+                    {userStats?.admins || users?.filter((u: User) => ["SuperAdmin", "TenantAdmin"].includes(u.role)).length || 0}
                   </p>
                 </div>
                 <Crown className="h-8 w-8 text-orange-600" />
@@ -599,7 +599,7 @@ export default function UserManagementPage() {
                 <SelectContent>
                   <SelectItem value="all">All Roles</SelectItem>
                   <SelectItem value="SuperAdmin">SuperAdmin</SelectItem>
-                  <SelectItem value="LandlordAdmin">LandlordAdmin</SelectItem>
+                  <SelectItem value="TenantAdmin">TenantAdmin</SelectItem>
                   <SelectItem value="Agent">Agent</SelectItem>
                   <SelectItem value="Member">Member</SelectItem>
                   <SelectItem value="Guest">Guest</SelectItem>
@@ -881,7 +881,7 @@ export default function UserManagementPage() {
                             {isSuperAdmin && (
                               <>
                                 <SelectItem value="SuperAdmin">SuperAdmin</SelectItem>
-                                <SelectItem value="LandlordAdmin">LandlordAdmin</SelectItem>
+                                <SelectItem value="TenantAdmin">TenantAdmin</SelectItem>
                               </>
                             )}
                             <SelectItem value="Agent">Agent</SelectItem>

@@ -55,7 +55,7 @@ import { z } from "zod";
 function getPrivilegeLevelForRole(role: string): number {
   const privilegeLevels: Record<string, number> = {
     SuperAdmin: 0,
-    LandlordAdmin: 1,
+    TenantAdmin: 1,
     Agent: 2,
     Member: 3,
     Guest: 4,
@@ -2749,7 +2749,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const users = await storage.getAllUsers();
 
-      // If LandlordAdmin, filter to only their organization users
+      // If TenantAdmin, filter to only their organization users
       if (currentUser.privilegeLevel === 1 && currentUser.organizationId) {
         const filteredUsers = users.filter(
           (user) => user.organizationId === currentUser.organizationId,
@@ -2776,7 +2776,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const users = await storage.getAllUsers();
 
-      // Filter users if LandlordAdmin
+      // Filter users if TenantAdmin
       let filteredUsers = users;
       if (currentUser.privilegeLevel === 1 && currentUser.organizationId) {
         filteredUsers = users.filter(
@@ -2788,7 +2788,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         total: filteredUsers.length,
         active: filteredUsers.filter((u) => u.isActive).length,
         admins: filteredUsers.filter((u) =>
-          ["SuperAdmin", "LandlordAdmin"].includes(u.role),
+          ["SuperAdmin", "TenantAdmin"].includes(u.role),
         ).length,
         recentLogins: filteredUsers.filter((u) => {
           if (!u.lastLoginAt) return false;
@@ -2821,12 +2821,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         privilegeLevel: getPrivilegeLevelForRole(req.body.role),
       };
 
-      // LandlordAdmin can only create users in their organization
+      // TenantAdmin can only create users in their organization
       if (currentUser.privilegeLevel === 1) {
         userData.organizationId = currentUser.organizationId;
 
-        // LandlordAdmin cannot create SuperAdmin or other LandlordAdmin users
-        if (["SuperAdmin", "LandlordAdmin"].includes(req.body.role)) {
+        // TenantAdmin cannot create SuperAdmin or other TenantAdmin users
+        if (["SuperAdmin", "TenantAdmin"].includes(req.body.role)) {
           return res
             .status(403)
             .json({ message: "Insufficient privileges to create this role" });
@@ -2856,15 +2856,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
 
-      // LandlordAdmin can only edit users in their organization
+      // TenantAdmin can only edit users in their organization
       if (currentUser.privilegeLevel === 1) {
         if (targetUser.organizationId !== currentUser.organizationId) {
           return res.status(403).json({ message: "Access denied" });
         }
 
-        // LandlordAdmin cannot edit SuperAdmin or other LandlordAdmin users
+        // TenantAdmin cannot edit SuperAdmin or other TenantAdmin users
         if (
-          ["SuperAdmin", "LandlordAdmin"].includes(targetUser.role) &&
+          ["SuperAdmin", "TenantAdmin"].includes(targetUser.role) &&
           targetUser.id !== currentUser.id
         ) {
           return res
@@ -2901,7 +2901,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
 
-      // LandlordAdmin can only edit users in their organization
+      // TenantAdmin can only edit users in their organization
       if (currentUser.privilegeLevel === 1) {
         if (targetUser.organizationId !== currentUser.organizationId) {
           return res.status(403).json({ message: "Access denied" });
@@ -2940,14 +2940,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .json({ message: "Cannot delete your own account" });
       }
 
-      // LandlordAdmin can only delete users in their organization
+      // TenantAdmin can only delete users in their organization
       if (currentUser.privilegeLevel === 1) {
         if (targetUser.organizationId !== currentUser.organizationId) {
           return res.status(403).json({ message: "Access denied" });
         }
 
-        // LandlordAdmin cannot delete SuperAdmin or other LandlordAdmin users
-        if (["SuperAdmin", "LandlordAdmin"].includes(targetUser.role)) {
+        // TenantAdmin cannot delete SuperAdmin or other TenantAdmin users
+        if (["SuperAdmin", "TenantAdmin"].includes(targetUser.role)) {
           return res
             .status(403)
             .json({ message: "Insufficient privileges to delete this user" });
@@ -3019,7 +3019,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get organization profile for LandlordAdmin
+  // Get organization profile for TenantAdmin
   app.get("/api/organization-profile", auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -3073,7 +3073,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update organization profile for LandlordAdmin
+  // Update organization profile for TenantAdmin
   app.put("/api/organization-profile", auth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;

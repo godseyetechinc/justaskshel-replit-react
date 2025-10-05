@@ -81,8 +81,8 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR UNIQUE,
     profile_image_url VARCHAR,
     password VARCHAR(255),
-    role VARCHAR CHECK (role IN ('SuperAdmin', 'LandlordAdmin', 'Agent', 'Member', 'Guest', 'Visitor')) DEFAULT 'Guest',
-    privilege_level INTEGER DEFAULT 4, -- 0=SuperAdmin, 1=LandlordAdmin, 2=Agent, 3=Member, 4=Guest, 5=Visitor
+    role VARCHAR CHECK (role IN ('SuperAdmin', 'TenantAdmin', 'Agent', 'Member', 'Guest', 'Visitor')) DEFAULT 'Guest',
+    privilege_level INTEGER DEFAULT 4, -- 0=SuperAdmin, 1=TenantAdmin, 2=Agent, 3=Member, 4=Guest, 5=Visitor
     organization_id INTEGER REFERENCES agent_organizations(id),
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP DEFAULT NOW(),

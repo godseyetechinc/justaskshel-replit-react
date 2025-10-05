@@ -27,7 +27,7 @@ SELECT setval('insurance_types_id_seq', (SELECT MAX(id) FROM insurance_types));
 -- =============================================
 INSERT INTO roles (id, name, privilege_level, description, permissions, is_active) VALUES
 (1, 'SuperAdmin', 0, 'System administrator with full access', '{"all": true}', true),
-(2, 'LandlordAdmin', 1, 'Organization administrator', '{"org_admin": true, "user_management": true}', true),
+(2, 'TenantAdmin', 1, 'Organization administrator', '{"org_admin": true, "user_management": true}', true),
 (3, 'Agent', 2, 'Insurance agent with client management', '{"client_management": true, "quotes": true}', true),
 (4, 'Member', 3, 'Standard member with policy access', '{"own_policies": true, "quotes": true}', true),
 (5, 'Guest', 4, 'Limited access guest user', '{"view_public": true}', true),
