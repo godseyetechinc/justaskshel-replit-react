@@ -698,6 +698,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Phase 2: Get Login History
+  app.get("/api/auth/login-history", auth, async (req, res) => {
+    try {
+      const userId = (req.session as any).userId;
+
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      // Get login history for the current user (last 100 entries)
+      const history = await storage.getLoginHistory(userId, 100);
+
+      res.json({ 
+        success: true,
+        history 
+      });
+    } catch (error) {
+      console.error("Get login history error:", error);
+      res.status(500).json({ message: "Failed to fetch login history" });
+    }
+  });
+
   // Phase 1: Create Access Request Endpoint (Task 6)
   app.post("/api/organizations/access-requests", auth, async (req, res) => {
     try {
