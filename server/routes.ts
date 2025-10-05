@@ -739,7 +739,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get login history for the current user (last 100 entries)
-      const history = await storage.getLoginHistory(userId, 100);
+      const history = await storage.getUserLoginHistory(userId, 100);
 
       res.json({ 
         success: true,
