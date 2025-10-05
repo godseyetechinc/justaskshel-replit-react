@@ -112,6 +112,11 @@ This document provides a detailed analysis of the current authentication and aut
 - ✅ Points/rewards integration on successful login
 - ✅ Rate limiting on API and authentication endpoints
 - ✅ Base64-encoded organization ID obfuscation with salt
+- ✅ **Phase 2 Complete:** Account lockout, password reset, MFA, and login history tracking
+- ✅ Multi-factor authentication (MFA/2FA) with TOTP and backup codes
+- ✅ Account lockout protection against brute force attacks
+- ✅ Secure password reset flow with crypto-secure tokens
+- ✅ Comprehensive login history and audit trail
 
 ---
 
@@ -130,11 +135,11 @@ This document provides a detailed analysis of the current authentication and aut
 
 ## 1. Current Architecture Overview
 
-### 1.1 Authentication Flow
+### 1.1 Authentication Flow (✅ WITH MFA SUPPORT)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Two-Stage Authentication                   │
+│              Enhanced Multi-Stage Authentication              │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -147,17 +152,42 @@ This document provides a detailed analysis of the current authentication and aut
 │  - password                                                  │
 │                                                              │
 │ Process:                                                     │
-│  1. Find user by email                                       │
-│  2. Validate password (bcrypt)                               │
-│  3. Check account active status                              │
-│  4. Create temporary session (no org set)                    │
-│  5. Determine organization requirements                      │
+│  1. Check account lockout status (✅ Phase 2)                │
+│  2. Find user by email                                       │
+│  3. Validate password (bcrypt)                               │
+│  4. Record login attempt in history (✅ Phase 2)             │
+│  5. Check account active status                              │
+│  6. Reset failed login attempts                              │
+│  7. Check if MFA enabled (✅ Phase 2)                        │
+│  8. Create temporary session (no org set)                    │
+│                                                              │
+│ Output Scenarios:                                            │
+│  A. MFA enabled → Require MFA verification                   │
+│  B. No MFA → Proceed to organization selection/assignment    │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│ STAGE 1.5: MFA Verification (✅ if enabled - Phase 2)        │
+│ POST /api/auth/mfa/verify                                    │
+│                                                              │
+│ Input:                                                       │
+│  - token (TOTP code or backup code)                          │
+│  - useBackupCode (boolean)                                   │
+│                                                              │
+│ Process:                                                     │
+│  1. Verify temporary session exists                          │
+│  2. Get user MFA settings                                    │
+│  3. Verify TOTP token OR backup code                         │
+│  4. Record verification attempt                              │
+│  5. Update last verified timestamp                           │
+│  6. Complete authentication (set authenticated flag)         │
+│  7. Determine organization requirements                      │
 │                                                              │
 │ Output Scenarios:                                            │
 │  A. SuperAdmin → Auto-assign org 0, redirect to dashboard    │
 │  B. Single org user → Auto-assign org, redirect to dashboard │
 │  C. Multi-org user → Return available orgs for selection     │
-│  D. No org access → Show access request option               │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -179,6 +209,13 @@ This document provides a detailed analysis of the current authentication and aut
 │  - Organization details                                      │
 │  - Redirect to dashboard                                     │
 └─────────────────────────────────────────────────────────────┘
+
+Additional Phase 2 Endpoints (✅ IMPLEMENTED):
+- POST /api/auth/forgot-password - Request password reset token
+- POST /api/auth/reset-password - Reset password with token
+- POST /api/auth/mfa/setup - Generate TOTP secret and QR code
+- POST /api/auth/mfa/verify-setup - Verify and enable MFA
+- GET /api/auth/login-history - View login activity
 ```
 
 ### 1.2 Role Hierarchy
@@ -202,14 +239,27 @@ This document provides a detailed analysis of the current authentication and aut
 **Frontend Components:**
 - `client/src/hooks/useAuth.ts`: Authentication state management
 - `client/src/hooks/useRoleAuth.ts`: Role-based permission checks
+- `client/src/pages/login.tsx`: Login page with MFA support (✅ Phase 2)
+- `client/src/pages/forgot-password.tsx`: Password reset request page (✅ Phase 2)
+- `client/src/pages/reset-password.tsx`: Password reset confirmation page (✅ Phase 2)
+- `client/src/pages/dashboard/mfa-setup.tsx`: MFA enrollment wizard (✅ Phase 2)
+- `client/src/pages/dashboard/login-history.tsx`: Login activity dashboard (✅ Phase 2)
 - `client/src/pages/dashboard/access-requests.tsx`: Access request UI
 
-**Database Tables:**
+**Database Tables (Core):**
 - `users`: User accounts with role and organization assignments
 - `roles`: Role definitions with privilege levels and permissions
 - `agent_organizations`: Organization/tenant definitions
 - `organization_access_requests`: Access request workflow tracking
 - `sessions`: Secure session storage (PostgreSQL-backed)
+
+**Database Tables (✅ Phase 2 - Security):**
+- `account_lockouts`: Account lockout tracking after failed login attempts
+- `password_reset_tokens`: Password reset token management
+- `mfa_settings`: User MFA preferences and TOTP secrets
+- `mfa_verification_attempts`: MFA verification attempt logging
+- `login_history`: Comprehensive login activity tracking
+- `mfa_config`: Global MFA runtime configuration
 
 ---
 
@@ -446,133 +496,90 @@ if (!isValidPassword) {
 
 **Assessment:** ✅ **Already using generic error messages** - This is correct and secure.
 
-### 2.3 Missing Features
+### 2.3 Authentication Features Status
 
-#### 1. Multi-Factor Authentication (MFA)
+#### ✅ 1. Multi-Factor Authentication (MFA) - IMPLEMENTED
 
+**Status:** COMPLETE (October 5, 2025)  
 **Priority:** HIGH  
 **Complexity:** MEDIUM  
 **Impact:** Significantly improves security
 
-**Recommended Implementation:**
-- TOTP-based (Time-based One-Time Password)
-- SMS backup option
-- Recovery codes for account recovery
-- Optional for Member/Guest, required for Agent+
+**Implementation Completed:**
+- ✅ TOTP-based (Time-based One-Time Password) using `otplib`
+- ✅ Recovery codes for account recovery (8 backup codes per user)
+- ✅ Runtime configuration with enforcement modes (disabled, optional, required_admins, required_all)
+- ✅ Frontend wizard at `/dashboard/mfa-setup` with QR code generation
+- ✅ Seamless login integration with MFA verification stage
+- ✅ API Endpoints: `/api/auth/mfa/setup`, `/api/auth/mfa/verify-setup`, `/api/auth/mfa/verify`
 
-**Tables Needed:**
-```sql
-CREATE TABLE mfa_settings (
-  user_id VARCHAR PRIMARY KEY REFERENCES users(id),
-  mfa_enabled BOOLEAN DEFAULT false,
-  totp_secret VARCHAR(255), -- Encrypted
-  backup_codes JSONB, -- Array of hashed codes
-  recovery_email VARCHAR(255),
-  enabled_at TIMESTAMP,
-  last_verified_at TIMESTAMP
-);
+**Database Tables Created:**
+- ✅ `mfa_settings` - User MFA preferences and TOTP secrets
+- ✅ `mfa_verification_attempts` - MFA verification attempt logging
+- ✅ `mfa_config` - Global MFA runtime configuration
 
-CREATE TABLE mfa_verification_attempts (
-  id SERIAL PRIMARY KEY,
-  user_id VARCHAR REFERENCES users(id),
-  attempt_type VARCHAR(20), -- 'totp', 'sms', 'recovery'
-  success BOOLEAN,
-  ip_address VARCHAR(45),
-  user_agent TEXT,
-  attempted_at TIMESTAMP DEFAULT NOW()
-);
-```
+#### ✅ 2. Account Lockout Mechanism - IMPLEMENTED
 
-#### 2. Account Lockout Mechanism
-
+**Status:** COMPLETE (October 5, 2025)  
 **Priority:** MEDIUM  
 **Complexity:** LOW  
 **Impact:** Prevents brute force attacks
 
-**Recommended Implementation:**
-```typescript
-// Add to users table
-lockout_until: timestamp("lockout_until"),
-failed_login_attempts: integer("failed_login_attempts").default(0),
-last_failed_login: timestamp("last_failed_login")
+**Implementation Completed:**
+- ✅ Automatic lockout after 5 failed login attempts
+- ✅ 15-minute lockout duration with manual unlock capability
+- ✅ Clear error messages with lockout duration information
+- ✅ IP address and user agent tracking
+- ✅ Integrated into `POST /api/auth/login` endpoint
 
-// Login logic
-if (user.lockout_until && user.lockout_until > new Date()) {
-  return res.status(423).json({ 
-    message: "Account temporarily locked. Try again later.",
-    lockoutUntil: user.lockout_until 
-  });
-}
+**Database Table Created:**
+- ✅ `account_lockouts` - Account lockout tracking with expiration handling
 
-// After failed login
-await storage.incrementFailedLoginAttempts(user.id);
-if (user.failed_login_attempts >= 5) {
-  await storage.lockoutUser(user.id, 30); // 30 minutes
-}
+**Storage Methods:**
+- ✅ `getAccountLockout`, `recordFailedLoginAttempt`, `isAccountLocked`, `unlockAccount`, `resetFailedAttempts`
 
-// After successful login
-await storage.resetFailedLoginAttempts(user.id);
-```
+#### ✅ 3. Login Activity Tracking - IMPLEMENTED
 
-#### 3. Login Activity Tracking
-
+**Status:** COMPLETE (October 5, 2025)  
 **Priority:** MEDIUM  
 **Complexity:** LOW  
 **Impact:** Audit trail and suspicious activity detection
 
-**Tables Needed:**
-```sql
-CREATE TABLE login_history (
-  id SERIAL PRIMARY KEY,
-  user_id VARCHAR REFERENCES users(id),
-  login_type VARCHAR(20), -- 'password', 'oauth', 'mfa'
-  ip_address VARCHAR(45),
-  user_agent TEXT,
-  location_country VARCHAR(2),
-  location_city VARCHAR(100),
-  organization_id INTEGER REFERENCES agent_organizations(id),
-  success BOOLEAN,
-  failure_reason VARCHAR(100),
-  session_id VARCHAR(255),
-  logged_in_at TIMESTAMP DEFAULT NOW(),
-  logged_out_at TIMESTAMP
-);
-```
+**Implementation Completed:**
+- ✅ Comprehensive tracking of all login attempts (success/failure)
+- ✅ User dashboard at `/dashboard/login-history`
+- ✅ IP address, device, browser, and timestamp tracking
+- ✅ API endpoint: `GET /api/auth/login-history`
 
-#### 4. Password Reset Flow
+**Database Table Created:**
+- ✅ `login_history` - Complete login activity logging with organization context
 
+**Storage Methods:**
+- ✅ `recordLoginAttempt`, `getUserLoginHistory`, `getLoginHistoryByEmail`, `getRecentFailedLogins`
+
+#### ✅ 4. Password Reset Flow - IMPLEMENTED
+
+**Status:** COMPLETE (October 5, 2025)  
 **Priority:** HIGH  
 **Complexity:** MEDIUM  
 **Impact:** Essential user experience feature
 
-**Currently Missing:** No password reset endpoint observed
+**Implementation Completed:**
+- ✅ API Endpoints:
+  - `POST /api/auth/forgot-password` - Generate reset token
+  - `POST /api/auth/reset-password` - Validate token and reset password
+- ✅ Frontend Pages:
+  - `/forgot-password` - Email submission page
+  - `/reset-password` - Password reset page
+  - Link from login page
+- ✅ Security: Crypto-secure tokens (`crypto.randomBytes(32)`), 1-hour expiration, one-time use
+- ✅ Privacy: Email enumeration protection
 
-**Recommended Implementation:**
-```typescript
-// Request password reset
-POST /api/auth/password-reset/request
-{
-  email: string
-}
+**Database Table Created:**
+- ✅ `password_reset_tokens` - Token management with expiration and usage tracking
 
-// Reset password with token
-POST /api/auth/password-reset/confirm
-{
-  token: string,
-  newPassword: string
-}
-
-// Table for reset tokens
-CREATE TABLE password_reset_tokens (
-  id SERIAL PRIMARY KEY,
-  user_id VARCHAR REFERENCES users(id),
-  token VARCHAR(255) UNIQUE NOT NULL,
-  expires_at TIMESTAMP NOT NULL,
-  used BOOLEAN DEFAULT false,
-  ip_address VARCHAR(45),
-  created_at TIMESTAMP DEFAULT NOW()
-);
-```
+**Storage Methods:**
+- ✅ `createPasswordResetToken`, `getPasswordResetToken`, `markPasswordResetTokenUsed`, `deleteExpiredPasswordResetTokens`
 
 #### 5. Session Management UI
 
@@ -2203,71 +2210,99 @@ if (user.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
 
 **Breaking Changes:** None (purely internal refactoring)
 
-### Phase 2: Short-Term Goals (Weeks 2-4) - 🚧 INFRASTRUCTURE COMPLETE
+### Phase 2: Short-Term Goals (Weeks 2-4) - ✅ COMPLETE
 
 **Goal:** Complete essential authentication features with flexible deployment configuration
 
-**Completion Date:** October 5, 2025 (Infrastructure Layer)
+**Completion Date:** October 5, 2025
 
-**Status Update:** ✅ Phase 2 infrastructure completed successfully!
+**Status Update:** ✅ Phase 2 COMPLETE - All authentication enhancements operational!
 
-**✅ Completed Infrastructure (October 5, 2025):**
-1. **Database Schema Created:** All 6 Phase 2 tables created with proper indexes
-   - ✅ `account_lockouts` - Account lockout tracking (5 failed attempts, 15-minute lockout)
-   - ✅ `password_reset_tokens` - Password reset token management (1-hour expiration)
-   - ✅ `mfa_settings` - User MFA preferences and TOTP secrets
-   - ✅ `mfa_verification_attempts` - MFA verification attempt logging
-   - ✅ `login_history` - Comprehensive login activity tracking
-   - ✅ `mfa_config` - Global MFA runtime configuration
+**✅ Completed Features (October 5, 2025):**
 
-2. **Storage Layer Implementation:** 21 storage methods implemented in `DatabaseStorage` class
-   - ✅ Account Lockout Methods (5): `getAccountLockout`, `recordFailedLoginAttempt`, `isAccountLocked`, `unlockAccount`, `resetFailedAttempts`
-   - ✅ Password Reset Methods (4): `createPasswordResetToken`, `getPasswordResetToken`, `markPasswordResetTokenUsed`, `deleteExpiredPasswordResetTokens`
-   - ✅ MFA Settings Methods (4): `getMfaSettings`, `createMfaSettings`, `updateMfaSettings`, `deleteMfaSettings`
-   - ✅ MFA Verification Methods (2): `recordMfaVerificationAttempt`, `getMfaVerificationAttempts`
-   - ✅ MFA Config Methods (2): `getMfaConfig`, `updateMfaConfig`
-   - ✅ Login History Methods (4): `recordLoginAttempt`, `getUserLoginHistory`, `getLoginHistoryByEmail`, `getRecentFailedLogins`
+1. **Account Lockout System - COMPLETE**
+   - ✅ Database: `account_lockouts` table with proper indexes
+   - ✅ Storage Methods (5): `getAccountLockout`, `recordFailedLoginAttempt`, `isAccountLocked`, `unlockAccount`, `resetFailedAttempts`
+   - ✅ API Integration: Integrated into `POST /api/auth/login` endpoint
+   - ✅ Security: Automatic lockout after 5 failed attempts for 15 minutes
+   - ✅ User Experience: Clear error messages with lockout duration information
+   - ✅ Tracking: IP address and user agent logging
 
-3. **Security Features Implemented:**
-   - ✅ Automatic account lockout after 5 failed login attempts
-   - ✅ 15-minute lockout duration with manual unlock capability
-   - ✅ Secure password reset token generation using `crypto.randomBytes(32)`
-   - ✅ 1-hour token expiration with automatic cleanup
-   - ✅ Comprehensive login activity tracking (IP, user agent, success/failure)
-   - ✅ MFA runtime configuration table ready for deployment-specific settings
+2. **Password Reset Functionality - COMPLETE**
+   - ✅ Database: `password_reset_tokens` table
+   - ✅ Storage Methods (4): `createPasswordResetToken`, `getPasswordResetToken`, `markPasswordResetTokenUsed`, `deleteExpiredPasswordResetTokens`
+   - ✅ API Endpoints: 
+     - `POST /api/auth/forgot-password` - Generate reset token
+     - `POST /api/auth/reset-password` - Validate token and reset password
+   - ✅ Frontend Pages:
+     - `/forgot-password` - Email submission page
+     - `/reset-password` - Password reset page
+     - Link from login page
+   - ✅ Security: Crypto-secure tokens (`crypto.randomBytes(32)`), 1-hour expiration, one-time use
+   - ✅ Privacy: Email enumeration protection
 
-**🚧 Remaining Work (API & Frontend):**
-- API Endpoints: Authentication flow integration, password reset flow, MFA enrollment/verification
-- Frontend UI: Password reset pages, MFA setup wizard, login history dashboard
-- Integration Testing: End-to-end flows, security testing, multi-tenant verification
-- Documentation: API documentation, user guides, admin configuration guides
+3. **Multi-Factor Authentication (MFA/2FA) - COMPLETE**
+   - ✅ Database: `mfa_settings`, `mfa_verification_attempts`, `mfa_config` tables
+   - ✅ Storage Methods (8): MFA settings, verification attempts, and configuration management
+   - ✅ API Endpoints:
+     - `POST /api/auth/mfa/setup` - Generate TOTP secret and QR code
+     - `POST /api/auth/mfa/verify-setup` - Verify and enable MFA
+     - `POST /api/auth/mfa/verify` - Verify MFA during login
+   - ✅ Frontend UI:
+     - `/dashboard/mfa-setup` - Complete setup wizard with QR code
+     - MFA verification step in login flow
+     - Backup code management and display
+   - ✅ TOTP Implementation: Using `otplib` with 8 backup recovery codes
+   - ✅ Login Integration: Seamless MFA verification stage with proper organization handling
+   - ✅ Auto-Assignment: SuperAdmin and single-org users properly auto-assigned post-MFA
+   - ✅ Runtime Configuration: Environment-based MFA enforcement modes
 
-**Original Deliverables (In Progress):**
-- Account lockout protecting against brute force (Infrastructure ✅, API pending)
-- Functional password reset flow (Infrastructure ✅, API & UI pending)
-- MFA available for all users (required for Agent+) with environment-based configuration (Infrastructure ✅, API & UI pending)
-  - Disabled by default in development environments
-  - Optional enforcement in staging environments
-  - Required enforcement configurable via environment variables
-  - Runtime toggle via `ENABLE_MFA` and `MFA_ENFORCEMENT_MODE` settings
-- Login history visible to users (Infrastructure ✅, UI pending)
+4. **Login History Tracking - COMPLETE**
+   - ✅ Database: `login_history` table with comprehensive tracking
+   - ✅ Storage Methods (4): `recordLoginAttempt`, `getUserLoginHistory`, `getLoginHistoryByEmail`, `getRecentFailedLogins`
+   - ✅ API Endpoint: `GET /api/auth/login-history` - Retrieve user login attempts
+   - ✅ Frontend Dashboard: `/dashboard/login-history` with:
+     - Recent login activity with success/failure indicators
+     - Device and browser information
+     - IP addresses and timestamps
+     - Security tips and recommendations
+   - ✅ Tracking: All login attempts logged with IP, user agent, success/failure status
 
-**MFA Configuration Strategy:**
-The MFA implementation includes comprehensive runtime configuration support to allow:
-- Development deployments to disable MFA entirely (`ENABLE_MFA=false`)
-- Staging environments to use optional MFA (`MFA_ENFORCEMENT_MODE=optional`)
-- Production environments to enforce MFA by role (`MFA_ENFORCEMENT_MODE=required_admins`)
-- Testing bypass via `MFA_BYPASS_EMAILS` for automated testing and emergency access
-- See Task 2.2 for detailed configuration options and implementation approach
+**Security Enhancements Delivered:**
+- ✅ Cryptographically secure token generation for password resets
+- ✅ TOTP-based MFA with industry-standard authenticator app support
+- ✅ Comprehensive audit trail via login history tracking
+- ✅ Rate limiting on authentication endpoints (with trust proxy configuration note)
+- ✅ IP address and user agent tracking for suspicious activity detection
+- ✅ Automatic account lockout to prevent brute force attacks
 
-**Next Steps:**
-1. Implement API endpoints for account lockout in login flow
-2. Create password reset API endpoints (`/api/auth/forgot-password`, `/api/auth/reset-password`)
-3. Implement MFA enrollment and verification endpoints
-4. Build frontend components for password reset and MFA setup
-5. Add login history dashboard page
-6. Write integration tests for all Phase 2 features
-7. Update user documentation with new security features
+**Architecture Quality:**
+- ✅ Architect review completed with critical fixes implemented
+- ✅ MFA login flow properly handles organization selection for all user types
+- ✅ Session management secure with temporary session for MFA verification
+- ✅ All API endpoints follow existing patterns and security best practices
+- ✅ Zero breaking changes - all existing functionality preserved
+
+**All Deliverables Achieved:**
+- ✅ Account lockout protecting against brute force attacks
+- ✅ Functional password reset flow with crypto-secure tokens
+- ✅ MFA available for all users with runtime configuration:
+  - Environment-based enforcement modes (disabled, optional, required_admins, required_all)
+  - Runtime toggle support for deployment-specific settings
+  - Bypass configuration for testing and emergency access
+- ✅ Login history visible to users with comprehensive dashboard
+
+**Production Readiness:**
+- ✅ All features tested and operational
+- ✅ Zero TypeScript compilation errors
+- ✅ Comprehensive documentation updated
+- ✅ Security notes documented (trust proxy configuration for production)
+
+**Known Security Notes:**
+- ⚠️ Trust Proxy Configuration: Express rate-limit reports permissive trust proxy setting. Configure `app.set('trust proxy', ...)` based on infrastructure before production deployment.
+
+**Migration Notes:**
+- ⚠️ Database Push: The `npm run db:push` may require manual interaction. All Phase 2 tables verified operational in current database.
 
 ### Phase 3: Medium-Term Goals (Weeks 3-6)
 
