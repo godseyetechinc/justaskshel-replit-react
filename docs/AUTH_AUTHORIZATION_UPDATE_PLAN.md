@@ -1398,21 +1398,198 @@ const authLimiter = rateLimit({
 
 ### 8.1 Immediate Actions (Week 1)
 
-**Goal:** Create standardized authorization middleware
+**Goal:** Standardize terminology and create authorization middleware
 
 **Status Update:** ✅ Critical security features already implemented!
 - ✅ Rate limiting: Already active (5 attempts/15min for auth, 100 requests/15min for API)
 - ✅ Session security: Already configured correctly (PostgreSQL storage, HTTPOnly, secure cookies)
 - ⚠️ Authorization middleware: Needs standardization across endpoints
+- ⚠️ Terminology: "LandlordAdmin" needs replacement with "TenantAdmin"
 
 **Remaining Work:**
-1. **Day 1-3:** Create and deploy authorization middleware (`requireRole`, `requireOwnOrgOrSuperAdmin`)
-2. **Day 3-5:** Refactor existing endpoints to use new middleware
+1. **Day 1:** Replace "LandlordAdmin" with "TenantAdmin" throughout codebase (see Section 8.1.1)
+2. **Day 2-4:** Create and deploy authorization middleware (`requireRole`, `requireOwnOrgOrSuperAdmin`)
+3. **Day 4-5:** Refactor existing endpoints to use new middleware
 
 **Deliverables:**
+- Consistent terminology across entire codebase
 - Standardized authorization middleware deployed
 - All endpoints use consistent permission checking
 - Reduced code duplication in authorization logic
+
+#### 8.1.1 Terminology Update: LandlordAdmin → TenantAdmin
+
+**Priority:** HIGH  
+**Effort:** 0.5 day  
+**Impact:** Code consistency and clarity
+
+**Background:**
+The codebase currently uses inconsistent terminology for organization administrators. The role is referred to as both "LandlordAdmin" and "TenantAdmin". We need to standardize on "TenantAdmin" as it:
+- Better reflects the insurance industry context
+- Aligns with tenant/organization ownership model
+- Is more professional and industry-appropriate
+
+**Files Requiring Updates:**
+
+The following files contain "LandlordAdmin" references that need to be replaced:
+
+1. **Backend Files:**
+   - `server/routes.ts` - API route handlers and role checks
+   - `server/seed-users.ts` - User seeding scripts
+   - `shared/schema.ts` - Role definitions and types
+
+2. **Frontend Files:**
+   - `client/src/pages/dashboard.tsx` - Main dashboard
+   - `client/src/pages/dashboard/members.tsx` - Member management
+   - `client/src/pages/dashboard/organizations.tsx` - Organization management
+   - `client/src/pages/dashboard/user-management.tsx` - User management
+   - `client/src/hooks/useRoleAuth.ts` - Role authorization hook
+
+3. **Database Scripts:**
+   - `database-scripts/schema/01_create_schema.sql` - Schema definitions
+   - `database-scripts/tables/10_create_core_tables.sql` - Table creation
+   - `database-scripts/seed/10_base_seed.sql` - Base data seeding
+   - `database-scripts/seed/20_test_accounts_seed.sql` - Test account creation
+
+4. **Documentation:**
+   - `README.md` - Project documentation
+   - `database-scripts/README.md` - Database documentation
+
+**Step-by-Step Implementation:**
+
+**Step 1: Verify Current References**
+```bash
+# Search for all LandlordAdmin references
+grep -r "LandlordAdmin" --exclude-dir=node_modules --exclude-dir=.git .
+
+# Expected count: ~50-60 occurrences across 13 files
+```
+
+**Step 2: Update TypeScript/JavaScript Files**
+```bash
+# Update shared schema
+sed -i "s/LandlordAdmin/TenantAdmin/g" shared/schema.ts
+
+# Update server files
+sed -i "s/LandlordAdmin/TenantAdmin/g" server/routes.ts
+sed -i "s/LandlordAdmin/TenantAdmin/g" server/seed-users.ts
+
+# Update client files
+sed -i "s/LandlordAdmin/TenantAdmin/g" client/src/pages/dashboard.tsx
+sed -i "s/LandlordAdmin/TenantAdmin/g" client/src/pages/dashboard/members.tsx
+sed -i "s/LandlordAdmin/TenantAdmin/g" client/src/pages/dashboard/organizations.tsx
+sed -i "s/LandlordAdmin/TenantAdmin/g" client/src/pages/dashboard/user-management.tsx
+sed -i "s/LandlordAdmin/TenantAdmin/g" client/src/hooks/useRoleAuth.ts
+```
+
+**Step 3: Update Database Scripts**
+```bash
+# Update schema and table scripts
+sed -i "s/LandlordAdmin/TenantAdmin/g" database-scripts/schema/01_create_schema.sql
+sed -i "s/LandlordAdmin/TenantAdmin/g" database-scripts/tables/10_create_core_tables.sql
+
+# Update seed scripts
+sed -i "s/LandlordAdmin/TenantAdmin/g" database-scripts/seed/10_base_seed.sql
+sed -i "s/LandlordAdmin/TenantAdmin/g" database-scripts/seed/20_test_accounts_seed.sql
+```
+
+**Step 4: Update Documentation**
+```bash
+# Update README files
+sed -i "s/LandlordAdmin/TenantAdmin/g" README.md
+sed -i "s/LandlordAdmin/TenantAdmin/g" database-scripts/README.md
+```
+
+**Step 5: Update Database Data**
+```sql
+-- Update existing role records in database
+UPDATE roles 
+SET role_name = 'TenantAdmin' 
+WHERE role_name = 'LandlordAdmin';
+
+-- Verify no references remain
+SELECT * FROM roles WHERE role_name LIKE '%Landlord%';
+-- Should return 0 rows
+```
+
+**Step 6: Verification Checklist**
+```bash
+# 1. Check no LandlordAdmin references remain in code
+grep -r "LandlordAdmin" --exclude-dir=node_modules --exclude-dir=.git .
+# Should return: no matches
+
+# 2. Verify TypeScript compilation
+npm run build
+# Should complete without errors
+
+# 3. Check database consistency
+psql $DATABASE_URL -c "SELECT DISTINCT role_name FROM roles ORDER BY role_name;"
+# Should show: Agent, Guest, Member, SuperAdmin, TenantAdmin, Visitor
+
+# 4. Test application startup
+npm run dev
+# Should start without errors
+
+# 5. Verify role authorization still works
+# - Log in as different role types
+# - Check that TenantAdmin has correct privileges
+# - Verify UI displays "TenantAdmin" correctly
+```
+
+**Step 7: Commit Changes**
+```bash
+git add -A
+git commit -m "refactor: Replace LandlordAdmin with TenantAdmin terminology
+
+- Updated all code references from LandlordAdmin to TenantAdmin
+- Updated database scripts and seed data
+- Updated documentation
+- Verified role authorization still functions correctly
+
+Affected files:
+- Backend: routes.ts, seed-users.ts, schema.ts
+- Frontend: dashboard pages, useRoleAuth hook
+- Database: schema, tables, seed scripts
+- Documentation: README files"
+```
+
+**Testing Post-Update:**
+
+1. **Authentication Flow:**
+   - Create new TenantAdmin account
+   - Verify login works correctly
+   - Check organization assignment
+
+2. **Authorization Checks:**
+   - Test TenantAdmin can manage their organization
+   - Verify TenantAdmin cannot access other organizations
+   - Confirm SuperAdmin retains cross-org access
+
+3. **UI Display:**
+   - Check role badges show "TenantAdmin"
+   - Verify user management tables display correctly
+   - Confirm navigation permissions work
+
+4. **Database Integrity:**
+   - Verify all users previously with LandlordAdmin role now have TenantAdmin
+   - Check foreign key relationships intact
+   - Confirm no orphaned role references
+
+**Rollback Plan (if needed):**
+```bash
+# Revert all changes
+git revert HEAD
+
+# Or manually revert database only
+UPDATE roles 
+SET role_name = 'LandlordAdmin' 
+WHERE role_name = 'TenantAdmin';
+```
+
+**Estimated Time:** 2-4 hours
+**Risk Level:** LOW (simple find-replace with verification)
+**Dependencies:** None
+**Breaking Changes:** None (internal terminology only)
 
 ### 8.2 Short-Term Goals (Weeks 2-4)
 
