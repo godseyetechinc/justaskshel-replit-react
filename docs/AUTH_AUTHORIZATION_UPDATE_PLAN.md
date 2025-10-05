@@ -42,6 +42,10 @@
 
 **Remaining Work:** API endpoints, frontend UI components, integration testing
 
+**Known Issues:**
+- ⚠️ **Migration Workflow:** The `npm run db:push` command requires manual interaction due to an unrelated `achievement_shares` table prompt. Phase 2 tables exist and are functional in the current database. For fresh deployments, tables can be created via direct SQL execution or by resolving the achievement_shares conflict first.
+- **Workaround:** All Phase 2 tables verified present in database with correct schema. Application running successfully with full Phase 2 infrastructure operational.
+
 ---
 
 ### System Overview
