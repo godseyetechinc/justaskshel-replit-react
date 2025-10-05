@@ -32,6 +32,8 @@ import {
   ChevronDown,
   ChevronRight,
   Globe,
+  History,
+  ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -333,6 +335,20 @@ const menuGroups: MenuGroup[] = [
         label: "Password Management",
         icon: Key,
         href: "/dashboard/password-management",
+        roles: ["SuperAdmin", "TenantAdmin", "Agent", "Member"],
+      },
+      {
+        id: "mfa-setup",
+        label: "Two-Factor Authentication",
+        icon: ShieldCheck,
+        href: "/dashboard/mfa-setup",
+        roles: ["SuperAdmin", "TenantAdmin", "Agent", "Member"],
+      },
+      {
+        id: "login-history",
+        label: "Login History",
+        icon: History,
+        href: "/dashboard/login-history",
         roles: ["SuperAdmin", "TenantAdmin", "Agent", "Member"],
       },
     ],
