@@ -1,9 +1,9 @@
 # Authentication & Authorization System Update Plan
 **JustAskShel Insurance Platform**
 
-**Document Version:** 2.1  
+**Document Version:** 2.2  
 **Last Updated:** October 5, 2025  
-**Status:** Comprehensive Review Complete - Includes Code Quality Improvements
+**Status:** Comprehensive Review Complete - Phase-Based Roadmap
 
 ---
 
@@ -1396,7 +1396,7 @@ const authLimiter = rateLimit({
 
 ## 8. Implementation Roadmap
 
-### 8.1 Immediate Actions (Week 1)
+### Phase 1: Immediate Actions (Week 1)
 
 **Goal:** Standardize terminology and create authorization middleware
 
@@ -1407,7 +1407,7 @@ const authLimiter = rateLimit({
 - ⚠️ Terminology: "LandlordAdmin" needs replacement with "TenantAdmin"
 
 **Remaining Work:**
-1. **Day 1:** Replace "LandlordAdmin" with "TenantAdmin" throughout codebase (see Section 8.1.1)
+1. **Day 1:** Replace "LandlordAdmin" with "TenantAdmin" throughout codebase (see Phase 1.1)
 2. **Day 2-4:** Create and deploy authorization middleware (`requireRole`, `requireOwnOrgOrSuperAdmin`)
 3. **Day 4-5:** Refactor existing endpoints to use new middleware
 
@@ -1417,7 +1417,7 @@ const authLimiter = rateLimit({
 - All endpoints use consistent permission checking
 - Reduced code duplication in authorization logic
 
-#### 8.1.1 Terminology Update: LandlordAdmin → TenantAdmin
+#### Phase 1.1: Terminology Update: LandlordAdmin → TenantAdmin
 
 **Priority:** HIGH  
 **Effort:** 0.5 day  
@@ -1591,7 +1591,7 @@ WHERE role_name = 'TenantAdmin';
 **Dependencies:** None
 **Breaking Changes:** None (internal terminology only)
 
-#### 8.1.2 Code Quality: Replace Hardcoded Privilege Levels with Constants
+#### Phase 1.2: Code Quality: Replace Hardcoded Privilege Levels with Constants
 
 **Priority:** MEDIUM  
 **Effort:** 1 day  
@@ -2039,12 +2039,12 @@ if (user.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
 - Mitigated by: thorough testing, git checkpoints, automated script
 
 **Dependencies:** 
-- Must complete after 8.1.1 (terminology update)
-- Should complete before creating new authorization middleware (8.1.3)
+- Must complete after Phase 1.1 (terminology update)
+- Should complete before creating new authorization middleware (Phase 1.3)
 
 **Breaking Changes:** None (purely internal refactoring)
 
-### 8.2 Short-Term Goals (Weeks 2-4)
+### Phase 2: Short-Term Goals (Weeks 2-4)
 
 **Goal:** Complete essential authentication features
 
@@ -2059,7 +2059,7 @@ if (user.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
 - MFA available for all users (required for Agent+)
 - Login history visible to users
 
-### 8.3 Medium-Term Goals (Weeks 3-6)
+### Phase 3: Medium-Term Goals (Weeks 3-6)
 
 **Goal:** Optimize authorization and multi-tenancy
 
@@ -2075,7 +2075,7 @@ if (user.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
 - Users can switch between organizations
 - Improved access request UX with notifications
 
-### 8.4 Long-Term Goals (Weeks 7-10)
+### Phase 4: Long-Term Goals (Weeks 7-10)
 
 **Goal:** Advanced features and comprehensive auditing
 
@@ -2090,7 +2090,7 @@ if (user.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
 - User-facing session management
 - Security certification ready
 
-### 8.5 Success Metrics
+### Phase 5: Success Metrics
 
 #### Security Metrics (Target)
 - Zero unauthorized cross-organization data access
@@ -2489,6 +2489,7 @@ npm run deploy:production
 | 1.0 | Oct 5, 2025 | Replit Agent | Initial comprehensive review and recommendations |
 | 2.0 | Oct 5, 2025 | Replit Agent | **Corrected implementation assessment** - Updated to accurately reflect already-implemented features: rate limiting (✅ active), session security (✅ configured correctly), organization ID obfuscation (✅ base64 with salt). Adjusted roadmap and recommendations accordingly. |
 | 2.1 | Oct 5, 2025 | Replit Agent | **Added code quality improvements** - Added Section 8.1.1 (LandlordAdmin → TenantAdmin terminology update) and Section 8.1.2 (Replace hardcoded privilege levels with ROLE_PRIVILEGE_LEVELS constants). Includes automated scripts, verification checklists, and step-by-step implementation guides. |
+| 2.2 | Oct 5, 2025 | Replit Agent | **Phase-based roadmap structure** - Updated Section 8 (Implementation Roadmap) to use "Phase" prefix for all main operation groups (Phase 1-5). Improved clarity and structure for implementation planning. |
 
 ---
 
