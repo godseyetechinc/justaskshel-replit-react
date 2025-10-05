@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Shield, CheckCircle2, AlertCircle, Copy, Key } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import QRCode from "qrcode";
+import DashboardLayout from "@/components/dashboard-layout";
 
 type MfaSetupResponse = {
   success: boolean;
@@ -110,11 +111,12 @@ export default function MfaSetup() {
 
   if (setupStep === "start") {
     return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold" data-testid="text-page-title">Two-Factor Authentication</h1>
-          <p className="text-muted-foreground mt-1">Secure your account with an extra layer of protection</p>
-        </div>
+      <DashboardLayout title="Two-Factor Authentication" requiredRoles={["SuperAdmin", "TenantAdmin", "Agent", "Member"]}>
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-3xl font-bold" data-testid="text-page-title">Two-Factor Authentication</h1>
+            <p className="text-muted-foreground mt-1">Secure your account with an extra layer of protection</p>
+          </div>
 
         <Card data-testid="card-mfa-start">
           <CardHeader>
@@ -163,16 +165,18 @@ export default function MfaSetup() {
           </CardContent>
         </Card>
       </div>
+      </DashboardLayout>
     );
   }
 
   if (setupStep === "qrcode") {
     return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Set Up Authenticator App</h1>
-          <p className="text-muted-foreground mt-1">Scan the QR code with your authenticator app</p>
-        </div>
+      <DashboardLayout title="Two-Factor Authentication" requiredRoles={["SuperAdmin", "TenantAdmin", "Agent", "Member"]}>
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-3xl font-bold">Set Up Authenticator App</h1>
+            <p className="text-muted-foreground mt-1">Scan the QR code with your authenticator app</p>
+          </div>
 
         <Card data-testid="card-mfa-qrcode">
           <CardHeader>
@@ -228,16 +232,18 @@ export default function MfaSetup() {
           </CardContent>
         </Card>
       </div>
+      </DashboardLayout>
     );
   }
 
   if (setupStep === "verify") {
     return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Verify Setup</h1>
-          <p className="text-muted-foreground mt-1">Enter the code from your authenticator app</p>
-        </div>
+      <DashboardLayout title="Two-Factor Authentication" requiredRoles={["SuperAdmin", "TenantAdmin", "Agent", "Member"]}>
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-3xl font-bold">Verify Setup</h1>
+            <p className="text-muted-foreground mt-1">Enter the code from your authenticator app</p>
+          </div>
 
         <Card data-testid="card-mfa-verify">
           <CardHeader>
@@ -283,16 +289,18 @@ export default function MfaSetup() {
           </CardContent>
         </Card>
       </div>
+      </DashboardLayout>
     );
   }
 
   if (setupStep === "complete") {
     return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Setup Complete!</h1>
-          <p className="text-muted-foreground mt-1">Save your backup codes in a secure location</p>
-        </div>
+      <DashboardLayout title="Two-Factor Authentication" requiredRoles={["SuperAdmin", "TenantAdmin", "Agent", "Member"]}>
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-3xl font-bold">Setup Complete!</h1>
+            <p className="text-muted-foreground mt-1">Save your backup codes in a secure location</p>
+          </div>
 
         <Card className="border-green-200 dark:border-green-800" data-testid="card-mfa-complete">
           <CardHeader>
@@ -354,6 +362,7 @@ export default function MfaSetup() {
           </CardContent>
         </Card>
       </div>
+      </DashboardLayout>
     );
   }
 

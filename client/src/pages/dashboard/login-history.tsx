@@ -11,6 +11,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle, CheckCircle2, MapPin, Monitor, Clock } from "lucide-react";
 import { format } from "date-fns";
+import DashboardLayout from "@/components/dashboard-layout";
 
 type LoginHistoryEntry = {
   id: number;
@@ -54,45 +55,50 @@ export default function LoginHistory() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold" data-testid="text-page-title">Login History</h1>
-          <p className="text-muted-foreground mt-1">Loading your recent login activity...</p>
-        </div>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-            <p className="mt-4 text-muted-foreground">Loading...</p>
+      <DashboardLayout title="Login History" requiredRoles={["SuperAdmin", "TenantAdmin", "Agent", "Member"]}>
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-3xl font-bold" data-testid="text-page-title">Login History</h1>
+            <p className="text-muted-foreground mt-1">Loading your recent login activity...</p>
+          </div>
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+              <p className="mt-4 text-muted-foreground">Loading...</p>
+            </div>
           </div>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold" data-testid="text-page-title">Login History</h1>
-          <p className="text-muted-foreground mt-1">View your recent login activity</p>
+      <DashboardLayout title="Login History" requiredRoles={["SuperAdmin", "TenantAdmin", "Agent", "Member"]}>
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-3xl font-bold" data-testid="text-page-title">Login History</h1>
+            <p className="text-muted-foreground mt-1">View your recent login activity</p>
+          </div>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-center py-8">
+                <AlertCircle className="mx-auto h-12 w-12 text-red-500" />
+                <p className="mt-4 text-lg font-medium">Failed to load login history</p>
+                <p className="text-sm text-muted-foreground mt-2">Please try again later</p>
+              </div>
+            </CardContent>
+          </Card>
         </div>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center py-8">
-              <AlertCircle className="mx-auto h-12 w-12 text-red-500" />
-              <p className="mt-4 text-lg font-medium">Failed to load login history</p>
-              <p className="text-sm text-muted-foreground mt-2">Please try again later</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      </DashboardLayout>
     );
   }
 
   const history = data.history || [];
 
   return (
-    <div className="space-y-6">
+    <DashboardLayout title="Login History" requiredRoles={["SuperAdmin", "TenantAdmin", "Agent", "Member"]}>
+      <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold" data-testid="text-page-title">Login History</h1>
         <p className="text-muted-foreground mt-1" data-testid="text-page-description">
@@ -231,5 +237,6 @@ export default function LoginHistory() {
         </CardContent>
       </Card>
     </div>
+    </DashboardLayout>
   );
 }
