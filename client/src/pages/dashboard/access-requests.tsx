@@ -1,3 +1,4 @@
+import { ROLE_PRIVILEGE_LEVELS } from "@shared/schema";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import DashboardLayout from "@/components/dashboard-layout";
@@ -120,7 +121,7 @@ export default function AccessRequestsPage() {
     rejected: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
   };
 
-  if (!currentUser || currentUser.privilegeLevel > 1) {
+  if (!currentUser || currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
     return (
       <DashboardLayout title="Access Requests" requiredRoles={["SuperAdmin", "TenantAdmin"]}>
         <Card>

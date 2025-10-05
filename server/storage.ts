@@ -1,3 +1,4 @@
+import { ROLE_PRIVILEGE_LEVELS } from "../shared/schema";
 import {
   users,
   members,
@@ -532,7 +533,7 @@ interface UserContext {
 
 function resolveDataScope(userContext: UserContext): DataScope {
   // SuperAdmin (privilege level 0) sees all organizations
-  if (userContext.privilegeLevel === 0) {
+  if (userContext.privilegeLevel === ROLE_PRIVILEGE_LEVELS.SuperAdmin) {
     return { isGlobal: true };
   }
   
@@ -1617,7 +1618,7 @@ export class DatabaseStorage implements IStorage {
     
     // Regular organization-based permission checking
     // For now, use existing privilege level system
-    return user.privilegeLevel !== null && user.privilegeLevel <= 2;
+    return user.privilegeLevel !== null && user.privilegeLevel <= ROLE_PRIVILEGE_LEVELS.Agent;
   }
 
   async getTenantOrganizations(): Promise<any[]> {
@@ -1817,7 +1818,7 @@ export class DatabaseStorage implements IStorage {
     }
 
     // SuperAdmin (privilege 0) has access to all organizations
-    if (user.privilegeLevel === 0) {
+    if (user.privilegeLevel === ROLE_PRIVILEGE_LEVELS.SuperAdmin) {
       return await this.getOrganizations();
     }
 

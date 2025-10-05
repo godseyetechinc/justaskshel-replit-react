@@ -1,3 +1,4 @@
+import { ROLE_PRIVILEGE_LEVELS } from "@shared/schema";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -169,7 +170,7 @@ export default function AgentsPage() {
               Agent Directory
             </h1>
             <p className="text-muted-foreground">
-              {user?.privilegeLevel === 0 ? "Find and connect with agents across all organizations" : "Find and connect with agents in your organization"}
+              {user?.privilegeLevel === ROLE_PRIVILEGE_LEVELS.SuperAdmin ? "Find and connect with agents across all organizations" : "Find and connect with agents in your organization"}
             </p>
           </div>
         </div>
@@ -236,7 +237,7 @@ export default function AgentsPage() {
             </div>
             
             {/* SuperAdmin Organization Filter and Grouping - Phase 3 */}
-            {user?.privilegeLevel === 0 && organizations.length > 0 && (
+            {user?.privilegeLevel === ROLE_PRIVILEGE_LEVELS.SuperAdmin && organizations.length > 0 && (
               <div className="border-t pt-4 mt-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -290,7 +291,7 @@ export default function AgentsPage() {
                       {agent.email}
                     </CardTitle>
                     {/* Organization Badge - Phase 3: Enhanced UI */}
-                    {agent.organization && user?.privilegeLevel === 0 && (
+                    {agent.organization && user?.privilegeLevel === ROLE_PRIVILEGE_LEVELS.SuperAdmin && (
                       <div className="mt-1">
                         <OrganizationBadge organization={agent.organization} showIcon={false} />
                       </div>

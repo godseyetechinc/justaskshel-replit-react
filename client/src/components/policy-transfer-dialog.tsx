@@ -1,3 +1,4 @@
+import { ROLE_PRIVILEGE_LEVELS } from "@shared/schema";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -150,7 +151,7 @@ export function PolicyTransferDialog({ open, onOpenChange, policy }: PolicyTrans
                 </SelectTrigger>
                 <SelectContent>
                   {agents
-                    .filter((agent: any) => agent.id !== policy?.servicingAgentId && (agent.role === "Agent" || agent.privilegeLevel === 2))
+                    .filter((agent: any) => agent.id !== policy?.servicingAgentId && (agent.role === "Agent" || agent.privilegeLevel === ROLE_PRIVILEGE_LEVELS.Agent))
                     .map((agent: any) => (
                       <SelectItem key={agent.id} value={agent.id} data-testid={`option-agent-${agent.id}`}>
                         {agent.email}

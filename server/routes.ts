@@ -1,3 +1,4 @@
+import { ROLE_PRIVILEGE_LEVELS } from "../shared/schema";
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
@@ -87,14 +88,14 @@ async function determineSellingAgent(reqBody: any, currentUser: any): Promise<st
   // 1. Explicitly specified in request (admin override - restricted to SuperAdmin/TenantAdmin)
   if (reqBody.sellingAgentId) {
     // Only SuperAdmin (privilege 0) and TenantAdmin (privilege 1) can override agent assignment
-    if (currentUser.privilegeLevel <= 1) {
+    if (currentUser.privilegeLevel <= ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
       // Verify the agent exists and is accessible
       const agentsResult = await storage.getAgents(currentUser);
       const targetAgent = agentsResult.agents.find((a: any) => a.id === reqBody.sellingAgentId);
       
       if (targetAgent) {
         // SuperAdmin can assign any agent; TenantAdmin only within their organization
-        if (currentUser.privilegeLevel === 0 || 
+        if (currentUser.privilegeLevel === ROLE_PRIVILEGE_LEVELS.SuperAdmin || 
             targetAgent.organizationId === currentUser.organizationId) {
           return reqBody.sellingAgentId;
         }
@@ -140,14 +141,14 @@ async function determineServicingAgent(reqBody: any, currentUser: any, sellingAg
   // 1. Explicitly specified in request (admin override - restricted to SuperAdmin/TenantAdmin)
   if (reqBody.servicingAgentId) {
     // Only SuperAdmin (privilege 0) and TenantAdmin (privilege 1) can override agent assignment
-    if (currentUser.privilegeLevel <= 1) {
+    if (currentUser.privilegeLevel <= ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
       // Verify the agent exists and is accessible
       const agentsResult = await storage.getAgents(currentUser);
       const targetAgent = agentsResult.agents.find((a: any) => a.id === reqBody.servicingAgentId);
       
       if (targetAgent) {
         // SuperAdmin can assign any agent; TenantAdmin only within their organization
-        if (currentUser.privilegeLevel === 0 || 
+        if (currentUser.privilegeLevel === ROLE_PRIVILEGE_LEVELS.SuperAdmin || 
             targetAgent.organizationId === currentUser.organizationId) {
           return reqBody.servicingAgentId;
         }
@@ -302,7 +303,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           try {
             // Determine organization requirements
-            const requiresOrganization = user.privilegeLevel <= 2; // SuperAdmin, TenantAdmin, Agent
+            const requiresOrganization = user.privilegeLevel <= ROLE_PRIVILEGE_LEVELS.Agent; // SuperAdmin, TenantAdmin, Agent
 
             // Get available organizations and pending invitations
             const availableOrgs = await storage.getUserAvailableOrganizations(user.id);
@@ -314,7 +315,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
 
             // SuperAdmin (privilege 0) auto-assigned to org 0
-            if (user.privilegeLevel === 0) {
+            if (user.privilegeLevel === ROLE_PRIVILEGE_LEVELS.SuperAdmin) {
               (req.session as any).organizationId = 0;
               (req.session as any).activeOrganizationId = 0;
 
@@ -539,14 +540,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Only SuperAdmin (0) and TenantAdmin (1) can view access requests
-      if (user.privilegeLevel > 1) {
+      if (user.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
         return res.status(403).json({
           message: "Insufficient permissions",
         });
       }
 
       // TenantAdmin can only view requests for their own organization
-      if (user.privilegeLevel === 1 && user.organizationId !== realOrgId) {
+      if (user.privilegeLevel === ROLE_PRIVILEGE_LEVELS.TenantAdmin && user.organizationId !== realOrgId) {
         return res.status(403).json({
           message: "You can only view requests for your own organization",
         });
@@ -597,7 +598,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Only SuperAdmin (0) and TenantAdmin (1) can approve
-      if (user.privilegeLevel > 1) {
+      if (user.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
         return res.status(403).json({
           message: "Insufficient permissions to approve requests",
         });
@@ -609,7 +610,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // TenantAdmin can only approve requests for their own organization
-      if (user.privilegeLevel === 1 && user.organizationId !== request.organizationId) {
+      if (user.privilegeLevel === ROLE_PRIVILEGE_LEVELS.TenantAdmin && user.organizationId !== request.organizationId) {
         return res.status(403).json({
           message: "You can only approve requests for your own organization",
         });
@@ -656,7 +657,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Only SuperAdmin (0) and TenantAdmin (1) can reject
-      if (user.privilegeLevel > 1) {
+      if (user.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
         return res.status(403).json({
           message: "Insufficient permissions to reject requests",
         });
@@ -668,7 +669,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // TenantAdmin can only reject requests for their own organization
-      if (user.privilegeLevel === 1 && user.organizationId !== request.organizationId) {
+      if (user.privilegeLevel === ROLE_PRIVILEGE_LEVELS.TenantAdmin && user.organizationId !== request.organizationId) {
         return res.status(403).json({
           message: "You can only reject requests for your own organization",
         });
@@ -1363,7 +1364,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await storage.getUser(userId);
 
       // If user is Agent or higher privilege, show all policies for testing
-      if (user && user.privilegeLevel <= 2) {
+      if (user && user.privilegeLevel <= ROLE_PRIVILEGE_LEVELS.Agent) {
         const policies = await storage.getAllPolicies();
         res.json(policies);
       } else {
@@ -1783,7 +1784,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Only agents and admins can query agent policies
       const currentUser = await storage.getUser(req.user.claims.sub);
-      if (!currentUser || currentUser.privilegeLevel > 2) {
+      if (!currentUser || currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.Agent) {
         return res.status(403).json({ message: "Insufficient privileges" });
       }
 
@@ -1869,7 +1870,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Only SuperAdmin (0) and TenantAdmin (1) can transfer policies
-      if (currentUser.privilegeLevel > 1) {
+      if (currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
         return res.status(403).json({ message: "Access denied. Only admins can transfer policies." });
       }
 
@@ -1880,7 +1881,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // SuperAdmin can transfer any policy, TenantAdmin can only transfer within their org
-      if (currentUser.privilegeLevel === 1 && policy.organizationId !== currentUser.organizationId) {
+      if (currentUser.privilegeLevel === ROLE_PRIVILEGE_LEVELS.TenantAdmin && policy.organizationId !== currentUser.organizationId) {
         return res.status(403).json({ message: "Access denied. You can only transfer policies in your organization." });
       }
 
@@ -1891,7 +1892,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // TenantAdmin can only transfer to agents in their organization
-      if (currentUser.privilegeLevel === 1 && newAgent.organizationId !== currentUser.organizationId) {
+      if (currentUser.privilegeLevel === ROLE_PRIVILEGE_LEVELS.TenantAdmin && newAgent.organizationId !== currentUser.organizationId) {
         return res.status(403).json({ message: "You can only transfer to agents in your organization." });
       }
 
@@ -1949,12 +1950,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Agents can only view their own commissions, admins can view any
-      if (currentUser.privilegeLevel > 2 && currentUser.id !== agentId) {
+      if (currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.Agent && currentUser.id !== agentId) {
         return res.status(403).json({ message: "Access denied" });
       }
 
       // TenantAdmin can only view commissions for agents in their organization
-      if (currentUser.privilegeLevel === 1) {
+      if (currentUser.privilegeLevel === ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
         const targetAgent = await storage.getUser(agentId);
         if (targetAgent?.organizationId !== currentUser.organizationId) {
           return res.status(403).json({ message: "Access denied. You can only view commissions in your organization." });
@@ -1990,12 +1991,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Only the agent or admins can view commission details
-      if (currentUser.privilegeLevel > 2 && currentUser.id !== commission.agentId) {
+      if (currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.Agent && currentUser.id !== commission.agentId) {
         return res.status(403).json({ message: "Access denied" });
       }
 
       // TenantAdmin can only view commissions in their organization
-      if (currentUser.privilegeLevel === 1 && commission.organizationId !== currentUser.organizationId) {
+      if (currentUser.privilegeLevel === ROLE_PRIVILEGE_LEVELS.TenantAdmin && commission.organizationId !== currentUser.organizationId) {
         return res.status(403).json({ message: "Access denied" });
       }
 
@@ -2017,7 +2018,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Only SuperAdmin (0) and TenantAdmin (1) can approve commissions
-      if (currentUser.privilegeLevel > 1) {
+      if (currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
         return res.status(403).json({ message: "Access denied. Only admins can approve commissions." });
       }
 
@@ -2027,7 +2028,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // TenantAdmin can only approve commissions in their organization
-      if (currentUser.privilegeLevel === 1 && commission.organizationId !== currentUser.organizationId) {
+      if (currentUser.privilegeLevel === ROLE_PRIVILEGE_LEVELS.TenantAdmin && commission.organizationId !== currentUser.organizationId) {
         return res.status(403).json({ message: "Access denied. You can only approve commissions in your organization." });
       }
 
@@ -2051,7 +2052,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Only SuperAdmin (0) and TenantAdmin (1) can mark commissions as paid
-      if (currentUser.privilegeLevel > 1) {
+      if (currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
         return res.status(403).json({ message: "Access denied. Only admins can mark commissions as paid." });
       }
 
@@ -2061,7 +2062,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // TenantAdmin can only update commissions in their organization
-      if (currentUser.privilegeLevel === 1 && commission.organizationId !== currentUser.organizationId) {
+      if (currentUser.privilegeLevel === ROLE_PRIVILEGE_LEVELS.TenantAdmin && commission.organizationId !== currentUser.organizationId) {
         return res.status(403).json({ message: "Access denied. You can only update commissions in your organization." });
       }
 
@@ -2091,7 +2092,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { type } = req.query; // Optional: 'selling', 'servicing', or undefined for all
       
       const currentUser = await storage.getUser(req.user.claims.sub);
-      if (!currentUser || currentUser.privilegeLevel > 2) {
+      if (!currentUser || currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.Agent) {
         return res.status(403).json({ message: "Insufficient privileges" });
       }
 
@@ -2101,12 +2102,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Agents can only view their own summary, admins can view any
-      if (currentUser.privilegeLevel === 2 && currentUser.id !== agentId) {
+      if (currentUser.privilegeLevel === ROLE_PRIVILEGE_LEVELS.Agent && currentUser.id !== agentId) {
         return res.status(403).json({ message: "Access denied. Agents can only view their own summary." });
       }
 
       // TenantAdmin can only view summaries for agents in their organization
-      if (currentUser.privilegeLevel === 1) {
+      if (currentUser.privilegeLevel === ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
         const targetAgent = await storage.getUser(agentId);
         if (targetAgent?.organizationId !== currentUser.organizationId) {
           return res.status(403).json({ message: "Access denied. You can only view summaries for agents in your organization." });
@@ -2132,12 +2133,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Only admins can view organization summaries
-      if (currentUser.privilegeLevel > 1) {
+      if (currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
         return res.status(403).json({ message: "Insufficient privileges. Only administrators can view organization summaries." });
       }
 
       // TenantAdmin can only view their own organization's summary
-      if (currentUser.privilegeLevel === 1 && currentUser.organizationId !== organizationId) {
+      if (currentUser.privilegeLevel === ROLE_PRIVILEGE_LEVELS.TenantAdmin && currentUser.organizationId !== organizationId) {
         return res.status(403).json({ message: "Access denied. You can only view your own organization's summary." });
       }
 
@@ -2743,14 +2744,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const currentUser = await storage.getUser(userId);
 
-      if (!currentUser || currentUser.privilegeLevel > 1) {
+      if (!currentUser || currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
         return res.status(403).json({ message: "Access denied" });
       }
 
       const users = await storage.getAllUsers();
 
       // If TenantAdmin, filter to only their organization users
-      if (currentUser.privilegeLevel === 1 && currentUser.organizationId) {
+      if (currentUser.privilegeLevel === ROLE_PRIVILEGE_LEVELS.TenantAdmin && currentUser.organizationId) {
         const filteredUsers = users.filter(
           (user) => user.organizationId === currentUser.organizationId,
         );
@@ -2770,7 +2771,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const currentUser = await storage.getUser(userId);
 
-      if (!currentUser || currentUser.privilegeLevel > 1) {
+      if (!currentUser || currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
         return res.status(403).json({ message: "Access denied" });
       }
 
@@ -2778,7 +2779,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Filter users if TenantAdmin
       let filteredUsers = users;
-      if (currentUser.privilegeLevel === 1 && currentUser.organizationId) {
+      if (currentUser.privilegeLevel === ROLE_PRIVILEGE_LEVELS.TenantAdmin && currentUser.organizationId) {
         filteredUsers = users.filter(
           (user) => user.organizationId === currentUser.organizationId,
         );
@@ -2811,7 +2812,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const currentUser = await storage.getUser(userId);
 
-      if (!currentUser || currentUser.privilegeLevel > 1) {
+      if (!currentUser || currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
         return res.status(403).json({ message: "Access denied" });
       }
 
@@ -2822,7 +2823,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       // TenantAdmin can only create users in their organization
-      if (currentUser.privilegeLevel === 1) {
+      if (currentUser.privilegeLevel === ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
         userData.organizationId = currentUser.organizationId;
 
         // TenantAdmin cannot create SuperAdmin or other TenantAdmin users
@@ -2847,7 +2848,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const currentUser = await storage.getUser(userId);
       const targetUserId = req.params.id;
 
-      if (!currentUser || currentUser.privilegeLevel > 1) {
+      if (!currentUser || currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
         return res.status(403).json({ message: "Access denied" });
       }
 
@@ -2857,7 +2858,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // TenantAdmin can only edit users in their organization
-      if (currentUser.privilegeLevel === 1) {
+      if (currentUser.privilegeLevel === ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
         if (targetUser.organizationId !== currentUser.organizationId) {
           return res.status(403).json({ message: "Access denied" });
         }
@@ -2892,7 +2893,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const currentUser = await storage.getUser(userId);
       const targetUserId = req.params.id;
 
-      if (!currentUser || currentUser.privilegeLevel > 1) {
+      if (!currentUser || currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
         return res.status(403).json({ message: "Access denied" });
       }
 
@@ -2902,7 +2903,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // TenantAdmin can only edit users in their organization
-      if (currentUser.privilegeLevel === 1) {
+      if (currentUser.privilegeLevel === ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
         if (targetUser.organizationId !== currentUser.organizationId) {
           return res.status(403).json({ message: "Access denied" });
         }
@@ -2924,7 +2925,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const currentUser = await storage.getUser(userId);
       const targetUserId = req.params.id;
 
-      if (!currentUser || currentUser.privilegeLevel > 1) {
+      if (!currentUser || currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
         return res.status(403).json({ message: "Access denied" });
       }
 
@@ -2941,7 +2942,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // TenantAdmin can only delete users in their organization
-      if (currentUser.privilegeLevel === 1) {
+      if (currentUser.privilegeLevel === ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
         if (targetUser.organizationId !== currentUser.organizationId) {
           return res.status(403).json({ message: "Access denied" });
         }
@@ -3037,7 +3038,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Only TenantAdmin (privilege level 1) and SuperAdmin (privilege level 0) can access organization profile
-      if (user.privilegeLevel > 1) {
+      if (user.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
         return res
           .status(403)
           .json({ message: "Access denied. TenantAdmin or SuperAdmin role required." });
@@ -3046,7 +3047,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let organizationId = user.organizationId;
       
       // For SuperAdmin without an assigned organization, get the first available organization
-      if (!organizationId && user.privilegeLevel === 0) {
+      if (!organizationId && user.privilegeLevel === ROLE_PRIVILEGE_LEVELS.SuperAdmin) {
         const organizations = await storage.getOrganizations();
         if (organizations.length > 0) {
           organizationId = organizations[0].id;
@@ -3084,7 +3085,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Only TenantAdmin (privilege level 1) and SuperAdmin (privilege level 0) can update organization profile
-      if (user.privilegeLevel > 1) {
+      if (user.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
         return res
           .status(403)
           .json({ message: "Access denied. TenantAdmin or SuperAdmin role required." });
@@ -3093,7 +3094,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let organizationId = user.organizationId;
       
       // For SuperAdmin without an assigned organization, get the first available organization
-      if (!organizationId && user.privilegeLevel === 0) {
+      if (!organizationId && user.privilegeLevel === ROLE_PRIVILEGE_LEVELS.SuperAdmin) {
         const organizations = await storage.getOrganizations();
         if (organizations.length > 0) {
           organizationId = organizations[0].id;
@@ -3447,7 +3448,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check if user has access to this organization (TenantAdmin or SuperAdmin)
-      if (currentUser.privilegeLevel > 1 && currentUser.organizationId !== organizationId) {
+      if (currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin && currentUser.organizationId !== organizationId) {
         return res.status(403).json({ message: "Access denied. Cannot view analytics for different organizations." });
       }
 
@@ -3472,7 +3473,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check access permissions
-      if (currentUser.privilegeLevel > 1 && currentUser.organizationId !== organizationId) {
+      if (currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin && currentUser.organizationId !== organizationId) {
         return res.status(403).json({ message: "Access denied." });
       }
 
@@ -3497,7 +3498,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check access permissions
-      if (currentUser.privilegeLevel > 1 && currentUser.organizationId !== organizationId) {
+      if (currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin && currentUser.organizationId !== organizationId) {
         return res.status(403).json({ message: "Access denied." });
       }
 
@@ -3522,7 +3523,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check access permissions
-      if (currentUser.privilegeLevel > 1 && currentUser.organizationId !== organizationId) {
+      if (currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin && currentUser.organizationId !== organizationId) {
         return res.status(403).json({ message: "Access denied." });
       }
 
@@ -3546,7 +3547,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check access permissions (TenantAdmin or SuperAdmin)
-      if (currentUser.privilegeLevel > 1 && currentUser.organizationId !== organizationId) {
+      if (currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin && currentUser.organizationId !== organizationId) {
         return res.status(403).json({ message: "Access denied." });
       }
 
@@ -3572,7 +3573,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check access permissions (TenantAdmin or SuperAdmin)
-      if (currentUser.privilegeLevel > 1 && currentUser.organizationId !== organizationId) {
+      if (currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin && currentUser.organizationId !== organizationId) {
         return res.status(403).json({ message: "Access denied." });
       }
 
@@ -3596,7 +3597,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check access permissions (TenantAdmin or SuperAdmin)
-      if (currentUser.privilegeLevel > 1 && currentUser.organizationId !== organizationId) {
+      if (currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin && currentUser.organizationId !== organizationId) {
         return res.status(403).json({ message: "Access denied." });
       }
 
@@ -3620,7 +3621,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check access permissions (TenantAdmin or SuperAdmin)
-      if (currentUser.privilegeLevel > 1 && currentUser.organizationId !== organizationId) {
+      if (currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin && currentUser.organizationId !== organizationId) {
         return res.status(403).json({ message: "Access denied." });
       }
 
@@ -3644,7 +3645,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check access permissions (TenantAdmin or SuperAdmin)
-      if (currentUser.privilegeLevel > 1 && currentUser.organizationId !== organizationId) {
+      if (currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin && currentUser.organizationId !== organizationId) {
         return res.status(403).json({ message: "Access denied." });
       }
 
@@ -3671,7 +3672,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Agents can view their own history, TenantAdmin/SuperAdmin can view any agent's history
-      if (currentUser.id !== agentId && currentUser.privilegeLevel > 1) {
+      if (currentUser.id !== agentId && currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
         return res.status(403).json({ message: "Access denied." });
       }
 
@@ -3695,7 +3696,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Agents can view their own goals, TenantAdmin/SuperAdmin can view any agent's goals
-      if (currentUser.id !== agentId && currentUser.privilegeLevel > 1) {
+      if (currentUser.id !== agentId && currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
         return res.status(403).json({ message: "Access denied." });
       }
 
@@ -3719,7 +3720,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Agents can view their own productivity, TenantAdmin/SuperAdmin can view any agent's productivity
-      if (currentUser.id !== agentId && currentUser.privilegeLevel > 1) {
+      if (currentUser.id !== agentId && currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
         return res.status(403).json({ message: "Access denied." });
       }
 
@@ -3743,7 +3744,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Only TenantAdmin and SuperAdmin can generate comprehensive reports
-      if (currentUser.privilegeLevel > 1) {
+      if (currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
         return res.status(403).json({ message: "Access denied. Only administrators can generate performance reports." });
       }
 
@@ -3767,7 +3768,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check access permissions (TenantAdmin or SuperAdmin)
-      if (currentUser.privilegeLevel > 1 && currentUser.organizationId !== organizationId) {
+      if (currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin && currentUser.organizationId !== organizationId) {
         return res.status(403).json({ message: "Access denied." });
       }
 
@@ -3844,7 +3845,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check access permissions
-      if (currentUser.privilegeLevel > 2 && currentUser.organizationId !== organizationId) {
+      if (currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.Agent && currentUser.organizationId !== organizationId) {
         return res.status(403).json({ message: "Access denied." });
       }
 
@@ -3868,7 +3869,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check access permissions
-      if (currentUser.privilegeLevel > 2 && currentUser.organizationId !== organizationId) {
+      if (currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.Agent && currentUser.organizationId !== organizationId) {
         return res.status(403).json({ message: "Access denied." });
       }
 
@@ -3928,7 +3929,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Only allow agents to update their own profile or TenantAdmin/SuperAdmin to update any profile
-      if (currentUser.id !== agentId && currentUser.privilegeLevel > 1) {
+      if (currentUser.id !== agentId && currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
         return res.status(403).json({ message: "Access denied. Can only update your own profile." });
       }
 
@@ -3954,7 +3955,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check access permissions
-      if (currentUser.privilegeLevel > 1 && currentUser.organizationId !== organizationId) {
+      if (currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin && currentUser.organizationId !== organizationId) {
         return res.status(403).json({ message: "Access denied." });
       }
 
@@ -3978,7 +3979,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Only TenantAdmin and above can view unassigned clients
-      if (currentUser.privilegeLevel > 1 && currentUser.organizationId !== organizationId) {
+      if (currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin && currentUser.organizationId !== organizationId) {
         return res.status(403).json({ message: "Access denied." });
       }
 
@@ -4002,7 +4003,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Agents can only see their own clients, TenantAdmin/SuperAdmin can see any agent's clients in same org
-      if (currentUser.id !== agentId && currentUser.privilegeLevel > 1) {
+      if (currentUser.id !== agentId && currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
         return res.status(403).json({ message: "Access denied." });
       }
 
@@ -4025,7 +4026,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Only TenantAdmin and above can assign clients
-      if (currentUser.privilegeLevel > 1) {
+      if (currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
         return res.status(403).json({ message: "Access denied. Only administrators can assign clients." });
       }
 
@@ -4055,7 +4056,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Only TenantAdmin and above can transfer assignments
-      if (currentUser.privilegeLevel > 1) {
+      if (currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
         return res.status(403).json({ message: "Access denied. Only administrators can transfer assignments." });
       }
 
@@ -4079,7 +4080,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // TenantAdmin and above can update any assignment, agents can update their own assignments
-      if (currentUser.privilegeLevel > 1) {
+      if (currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
         // For regular agents, they can only update their own client assignments
         // This would require additional logic to check if the assignment belongs to them
         return res.status(403).json({ message: "Access denied." });
@@ -4111,7 +4112,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check access permissions
-      if (currentUser.privilegeLevel > 1 && 
+      if (currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin && 
           currentUser.organizationId !== assignmentDetails.client.organizationId) {
         return res.status(403).json({ message: "Access denied." });
       }
@@ -4136,7 +4137,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check access permissions
-      if (currentUser.privilegeLevel > 2 && currentUser.organizationId !== organizationId) {
+      if (currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.Agent && currentUser.organizationId !== organizationId) {
         return res.status(403).json({ message: "Access denied." });
       }
 
@@ -4161,7 +4162,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check access permissions (TenantAdmin or Agent)
-      if (currentUser.privilegeLevel > 2 && currentUser.organizationId !== organizationId) {
+      if (currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.Agent && currentUser.organizationId !== organizationId) {
         return res.status(403).json({ message: "Access denied." });
       }
 
@@ -4186,7 +4187,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check access permissions (TenantAdmin only)
-      if (currentUser.privilegeLevel > 1 && currentUser.organizationId !== organizationId) {
+      if (currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin && currentUser.organizationId !== organizationId) {
         return res.status(403).json({ message: "Access denied. TenantAdmin role required." });
       }
 
@@ -4211,7 +4212,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check access permissions
-      if (currentUser.privilegeLevel > 2 && currentUser.organizationId !== organizationId) {
+      if (currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.Agent && currentUser.organizationId !== organizationId) {
         return res.status(403).json({ message: "Access denied." });
       }
 
@@ -4235,7 +4236,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check access permissions (TenantAdmin or SuperAdmin)
-      if (currentUser.privilegeLevel > 1 && currentUser.organizationId !== organizationId) {
+      if (currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin && currentUser.organizationId !== organizationId) {
         return res.status(403).json({ message: "Access denied." });
       }
 
@@ -4395,7 +4396,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check access permissions (TenantAdmin or SuperAdmin)
-      if (currentUser.privilegeLevel > 1 && currentUser.organizationId !== organizationId) {
+      if (currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin && currentUser.organizationId !== organizationId) {
         return res.status(403).json({ message: "Access denied. Admin privileges required." });
       }
 
@@ -4428,7 +4429,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check access permissions (TenantAdmin only)
-      if (currentUser.privilegeLevel > 1 && currentUser.organizationId !== organizationId) {
+      if (currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin && currentUser.organizationId !== organizationId) {
         return res.status(403).json({ message: "Access denied. TenantAdmin role required." });
       }
 
@@ -4454,7 +4455,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check access permissions (TenantAdmin only)
-      if (currentUser.privilegeLevel > 1 && currentUser.organizationId !== organizationId) {
+      if (currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin && currentUser.organizationId !== organizationId) {
         return res.status(403).json({ message: "Access denied. TenantAdmin role required." });
       }
 
@@ -4479,7 +4480,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check access permissions (TenantAdmin only)
-      if (currentUser.privilegeLevel > 1 && currentUser.organizationId !== organizationId) {
+      if (currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin && currentUser.organizationId !== organizationId) {
         return res.status(403).json({ message: "Access denied. TenantAdmin role required." });
       }
 
@@ -4504,7 +4505,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check access permissions (TenantAdmin only)
-      if (currentUser.privilegeLevel > 1 && currentUser.organizationId !== organizationId) {
+      if (currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin && currentUser.organizationId !== organizationId) {
         return res.status(403).json({ message: "Access denied. TenantAdmin role required." });
       }
 
@@ -4529,7 +4530,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check access permissions
-      if (currentUser.privilegeLevel > 2 && currentUser.organizationId !== organizationId) {
+      if (currentUser.privilegeLevel > ROLE_PRIVILEGE_LEVELS.Agent && currentUser.organizationId !== organizationId) {
         return res.status(403).json({ message: "Access denied." });
       }
 
@@ -4556,7 +4557,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Handle SuperAdmin users (privilege level 0)
-      if (currentUser.privilegeLevel === 0) {
+      if (currentUser.privilegeLevel === ROLE_PRIVILEGE_LEVELS.SuperAdmin) {
         // SuperAdmin can access all agents, return from demo-org as default
         const organizations = await storage.getOrganizations();
         const demoOrg = organizations.find(org => org.name === 'demo-org') || organizations[0];
@@ -4689,7 +4690,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "User not found" });
       }
 
-      const canAccess = claim.userId === userId || user.privilegeLevel <= 2; // Member owns claim or Agent/Admin
+      const canAccess = claim.userId === userId || user.privilegeLevel <= ROLE_PRIVILEGE_LEVELS.Agent; // Member owns claim or Agent/Admin
       if (!canAccess) {
         return res.status(403).json({ error: "Access denied" });
       }
@@ -4744,7 +4745,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "User not found" });
       }
 
-      const canAccess = claim.userId === userId || user.privilegeLevel <= 2;
+      const canAccess = claim.userId === userId || user.privilegeLevel <= ROLE_PRIVILEGE_LEVELS.Agent;
       if (!canAccess) {
         return res.status(403).json({ error: "Access denied" });
       }
@@ -5110,7 +5111,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Points Rules Management (Admin only)
   app.get("/api/admin/points-rules", async (req: any, res) => {
     try {
-      if (req.session?.user?.privilegeLevel > 1) {
+      if (req.session?.user?.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
         return res.status(403).json({ message: "Access denied. Admin privileges required." });
       }
 
@@ -5134,7 +5135,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/admin/points-rules/:id", async (req: any, res) => {
     try {
-      if (req.session?.user?.privilegeLevel > 1) {
+      if (req.session?.user?.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
         return res.status(403).json({ message: "Access denied" });
       }
 
@@ -5152,7 +5153,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/admin/points-rules", async (req: any, res) => {
     try {
-      if (req.session?.user?.privilegeLevel > 1) {
+      if (req.session?.user?.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
         return res.status(403).json({ message: "Access denied" });
       }
 
@@ -5171,7 +5172,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/admin/points-rules/:id", async (req: any, res) => {
     try {
-      if (req.session?.user?.privilegeLevel > 1) {
+      if (req.session?.user?.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
         return res.status(403).json({ message: "Access denied" });
       }
 
@@ -5190,7 +5191,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/admin/points-rules/:id", async (req: any, res) => {
     try {
-      if (req.session?.user?.privilegeLevel > 1) {
+      if (req.session?.user?.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
         return res.status(403).json({ message: "Access denied" });
       }
 
@@ -5204,7 +5205,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/admin/points-rules/bulk-update", async (req: any, res) => {
     try {
-      if (req.session?.user?.privilegeLevel > 1) {
+      if (req.session?.user?.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
         return res.status(403).json({ message: "Access denied" });
       }
 
@@ -5220,7 +5221,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Redemption Management (Admin only)
   app.get("/api/admin/redemptions", async (req: any, res) => {
     try {
-      if (req.session?.user?.privilegeLevel > 1) {
+      if (req.session?.user?.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
         return res.status(403).json({ message: "Access denied" });
       }
 
@@ -5248,7 +5249,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/admin/redemptions/:id", async (req: any, res) => {
     try {
-      if (req.session?.user?.privilegeLevel > 1) {
+      if (req.session?.user?.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
         return res.status(403).json({ message: "Access denied" });
       }
 
@@ -5266,7 +5267,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/admin/redemptions/:id/status", async (req: any, res) => {
     try {
-      if (req.session?.user?.privilegeLevel > 1) {
+      if (req.session?.user?.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
         return res.status(403).json({ message: "Access denied" });
       }
 
@@ -5287,7 +5288,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/admin/redemptions/:id/generate-code", async (req: any, res) => {
     try {
-      if (req.session?.user?.privilegeLevel > 1) {
+      if (req.session?.user?.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
         return res.status(403).json({ message: "Access denied" });
       }
 
@@ -5301,7 +5302,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/admin/redemptions-queue", async (req: any, res) => {
     try {
-      if (req.session?.user?.privilegeLevel > 1) {
+      if (req.session?.user?.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
         return res.status(403).json({ message: "Access denied" });
       }
 
@@ -5319,7 +5320,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Bulk Operations (Admin only)
   app.post("/api/admin/bulk/award-points", async (req: any, res) => {
     try {
-      if (req.session?.user?.privilegeLevel > 1) {
+      if (req.session?.user?.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
         return res.status(403).json({ message: "Access denied" });
       }
 
@@ -5333,7 +5334,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/admin/bulk/distribute-rewards", async (req: any, res) => {
     try {
-      if (req.session?.user?.privilegeLevel > 1) {
+      if (req.session?.user?.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
         return res.status(403).json({ message: "Access denied" });
       }
 
@@ -5347,7 +5348,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/admin/bulk/campaign-distribution", async (req: any, res) => {
     try {
-      if (req.session?.user?.privilegeLevel > 1) {
+      if (req.session?.user?.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
         return res.status(403).json({ message: "Access denied" });
       }
 
@@ -5361,7 +5362,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/admin/bulk/parse-csv", async (req: any, res) => {
     try {
-      if (req.session?.user?.privilegeLevel > 1) {
+      if (req.session?.user?.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
         return res.status(403).json({ message: "Access denied" });
       }
 
@@ -5376,7 +5377,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/admin/bulk/operations-history", async (req: any, res) => {
     try {
-      if (req.session?.user?.privilegeLevel > 1) {
+      if (req.session?.user?.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
         return res.status(403).json({ message: "Access denied" });
       }
 

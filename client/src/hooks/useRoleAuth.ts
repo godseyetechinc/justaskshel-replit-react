@@ -11,14 +11,14 @@ export function useRoleAuth() {
   const hasRole = (requiredRole: UserRole): boolean => {
     if (!isAuthenticated || !user) return false;
     // SuperAdmin (privilege level 0) has access to everything
-    if (privilegeLevel === 0) return true;
+    if (privilegeLevel === ROLE_PRIVILEGE_LEVELS.SuperAdmin) return true;
     return privilegeLevel <= ROLE_PRIVILEGE_LEVELS[requiredRole];
   };
 
   const hasAnyRole = (requiredRoles: UserRole[]): boolean => {
     if (!isAuthenticated || !user) return false;
     // SuperAdmin (privilege level 0) has access to everything
-    if (privilegeLevel === 0) return true;
+    if (privilegeLevel === ROLE_PRIVILEGE_LEVELS.SuperAdmin) return true;
     return requiredRoles.some(role => hasRole(role));
   };
 
@@ -33,7 +33,7 @@ export function useRoleAuth() {
     }
     
     // SuperAdmin has access to everything
-    if (privilegeLevel === 0) return true;
+    if (privilegeLevel === ROLE_PRIVILEGE_LEVELS.SuperAdmin) return true;
     
     // For now, allow basic access for authenticated users
     return true;
@@ -43,39 +43,39 @@ export function useRoleAuth() {
     if (!isAuthenticated || !user) return false;
     
     // SuperAdmin has access to everything
-    if (privilegeLevel === 0) return true;
+    if (privilegeLevel === ROLE_PRIVILEGE_LEVELS.SuperAdmin) return true;
     
     // Allow write access based on privilege level
-    return privilegeLevel <= 2; // TenantAdmin and Agent can write
+    return privilegeLevel <= ROLE_PRIVILEGE_LEVELS.Agent; // TenantAdmin and Agent can write
   };
 
   const canDelete = (resource: string, isOwn: boolean = false): boolean => {
     if (!isAuthenticated || !user) return false;
     
     // SuperAdmin has access to everything
-    if (privilegeLevel === 0) return true;
+    if (privilegeLevel === ROLE_PRIVILEGE_LEVELS.SuperAdmin) return true;
     
     // Allow delete access for TenantAdmin and higher
-    return privilegeLevel <= 1;
+    return privilegeLevel <= ROLE_PRIVILEGE_LEVELS.TenantAdmin;
   };
 
   const canManageUsers = (): boolean => {
-    if (privilegeLevel === 0) return true; // SuperAdmin
-    return privilegeLevel <= 1; // TenantAdmin
+    if (privilegeLevel === ROLE_PRIVILEGE_LEVELS.SuperAdmin) return true; // SuperAdmin
+    return privilegeLevel <= ROLE_PRIVILEGE_LEVELS.TenantAdmin; // TenantAdmin
   };
 
   const canManageSystem = (): boolean => {
-    if (privilegeLevel === 0) return true; // SuperAdmin
-    return privilegeLevel <= 1; // TenantAdmin
+    if (privilegeLevel === ROLE_PRIVILEGE_LEVELS.SuperAdmin) return true; // SuperAdmin
+    return privilegeLevel <= ROLE_PRIVILEGE_LEVELS.TenantAdmin; // TenantAdmin
   };
 
   const canManageRoles = (): boolean => {
-    return privilegeLevel === 0; // Only SuperAdmin
+    return privilegeLevel === ROLE_PRIVILEGE_LEVELS.SuperAdmin; // Only SuperAdmin
   };
 
   const canViewAllData = (): boolean => {
-    if (privilegeLevel === 0) return true; // SuperAdmin
-    return privilegeLevel <= 1; // TenantAdmin
+    if (privilegeLevel === ROLE_PRIVILEGE_LEVELS.SuperAdmin) return true; // SuperAdmin
+    return privilegeLevel <= ROLE_PRIVILEGE_LEVELS.TenantAdmin; // TenantAdmin
   };
 
   const hasPermission = (permission: string, resource?: string, isOwn: boolean = false): boolean => {
@@ -98,7 +98,7 @@ export function useRoleAuth() {
         return canViewAllData();
       default:
         // SuperAdmin has all permissions
-        if (privilegeLevel === 0) return true;
+        if (privilegeLevel === ROLE_PRIVILEGE_LEVELS.SuperAdmin) return true;
         return false;
     }
   };
@@ -130,10 +130,10 @@ export function useRoleAuth() {
     isGuest: userRole === "Guest",
     isVisitor: userRole === "Visitor",
     // Privilege level helpers
-    hasSuperAdminPrivileges: privilegeLevel === 0,
-    hasTenantAdminPrivileges: privilegeLevel <= 1,
-    hasTenantAdminPrivileges: privilegeLevel <= 1, // Deprecated: use hasTenantAdminPrivileges
-    hasAgentPrivileges: privilegeLevel <= 2,
+    hasSuperAdminPrivileges: privilegeLevel === ROLE_PRIVILEGE_LEVELS.SuperAdmin,
+    hasTenantAdminPrivileges: privilegeLevel <= ROLE_PRIVILEGE_LEVELS.TenantAdmin,
+    hasTenantAdminPrivileges: privilegeLevel <= ROLE_PRIVILEGE_LEVELS.TenantAdmin, // Deprecated: use hasTenantAdminPrivileges
+    hasAgentPrivileges: privilegeLevel <= ROLE_PRIVILEGE_LEVELS.Agent,
     hasMemberPrivileges: privilegeLevel <= 3,
     hasGuestPrivileges: privilegeLevel <= 4,
   };
