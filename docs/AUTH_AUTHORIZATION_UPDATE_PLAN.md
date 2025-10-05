@@ -1,9 +1,9 @@
 # Authentication & Authorization System Update Plan
 **JustAskShel Insurance Platform**
 
-**Document Version:** 2.0  
+**Document Version:** 2.1  
 **Last Updated:** October 5, 2025  
-**Status:** Comprehensive Review Complete - Corrected Implementation Assessment
+**Status:** Comprehensive Review Complete - Includes Code Quality Improvements
 
 ---
 
@@ -1591,6 +1591,459 @@ WHERE role_name = 'TenantAdmin';
 **Dependencies:** None
 **Breaking Changes:** None (internal terminology only)
 
+#### 8.1.2 Code Quality: Replace Hardcoded Privilege Levels with Constants
+
+**Priority:** MEDIUM  
+**Effort:** 1 day  
+**Impact:** Code maintainability, readability, and type safety
+
+**Background:**
+The codebase currently uses hardcoded numeric privilege levels (0, 1, 2, 3, 4, 5) throughout authorization checks. While the `ROLE_PRIVILEGE_LEVELS` constants are defined in `shared/schema.ts`, many parts of the code don't use them, leading to:
+- **Magic numbers** that are hard to understand
+- **Maintenance risk** if privilege levels ever need to change
+- **Inconsistency** between files that use constants and those that don't
+- **Poor readability** - `privilegeLevel === 0` vs `privilegeLevel === ROLE_PRIVILEGE_LEVELS.SuperAdmin`
+
+**Current Constants (shared/schema.ts lines 1645-1651):**
+```typescript
+export const ROLE_PRIVILEGE_LEVELS = {
+  SuperAdmin: 0,
+  TenantAdmin: 1,
+  Agent: 2,
+  Member: 3,
+  Guest: 4,
+  Visitor: 5,
+} as const;
+```
+
+**Problem Examples:**
+
+**Current (Hard to understand):**
+```typescript
+if (user.privilegeLevel === 0) {
+  // What does 0 mean?
+}
+
+if (currentUser.privilegeLevel <= 1) {
+  // TenantAdmin and SuperAdmin, but not obvious
+}
+
+if (user.privilegeLevel > 2) {
+  // Excludes Agent and above, but requires mental mapping
+}
+```
+
+**Better (Self-documenting):**
+```typescript
+if (user.privilegeLevel === ROLE_PRIVILEGE_LEVELS.SuperAdmin) {
+  // Crystal clear: SuperAdmin only
+}
+
+if (currentUser.privilegeLevel <= ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
+  // Clear: TenantAdmin and SuperAdmin
+}
+
+if (user.privilegeLevel > ROLE_PRIVILEGE_LEVELS.Agent) {
+  // Clear: Below Agent level (Member, Guest, Visitor)
+}
+```
+
+**Files Requiring Updates:**
+
+Based on grep analysis, the following files contain hardcoded privilege level comparisons:
+
+1. **Backend Files (High Priority):**
+   - `server/routes.ts` - **~50+ occurrences** (CRITICAL)
+   - `server/storage.ts` - Multiple privilege checks
+   - `server/seed-users.ts` - Default privilege levels
+   - `server/simple-seed.ts` - Test data privilege levels
+
+2. **Frontend Files (Medium Priority):**
+   - `client/src/hooks/useRoleAuth.ts` - **~20 occurrences** (already partially uses constants)
+   - `client/src/pages/admin-provider-management.tsx` - Admin checks
+   - `client/src/pages/role-test.tsx` - Role testing page
+   - `client/src/pages/dashboard/access-requests.tsx` - Permission checks
+   - `client/src/pages/dashboard/agents.tsx` - Agent management
+   - `client/src/components/policy-transfer-dialog.tsx` - Transfer authorization
+   - `client/src/components/organization-selector.tsx` - Org selection logic
+
+3. **Database Scripts (Low Priority - Documentation Only):**
+   - Comments in SQL files can reference constants but SQL will still use numbers
+
+**Step-by-Step Implementation:**
+
+**Step 1: Import Constants Where Needed**
+
+For each file that needs updating, ensure the constant is imported:
+
+```typescript
+// Add to imports at top of file
+import { ROLE_PRIVILEGE_LEVELS } from '@shared/schema';
+// Or for server files:
+import { ROLE_PRIVILEGE_LEVELS } from '../shared/schema';
+```
+
+**Step 2: Update server/routes.ts (CRITICAL - ~50 occurrences)**
+
+This is the most important file to update. Common patterns to replace:
+
+**Pattern 1: Exact equality checks**
+```typescript
+// BEFORE
+if (user.privilegeLevel === 0) {
+  
+// AFTER
+if (user.privilegeLevel === ROLE_PRIVILEGE_LEVELS.SuperAdmin) {
+```
+
+**Pattern 2: Less-than-or-equal (minimum privilege)**
+```typescript
+// BEFORE - TenantAdmin and above
+if (user.privilegeLevel <= 1) {
+
+// AFTER
+if (user.privilegeLevel <= ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
+
+// BEFORE - Agent and above
+if (user.privilegeLevel <= 2) {
+
+// AFTER
+if (user.privilegeLevel <= ROLE_PRIVILEGE_LEVELS.Agent) {
+```
+
+**Pattern 3: Greater-than (below certain privilege)**
+```typescript
+// BEFORE - Below TenantAdmin (excludes SuperAdmin and TenantAdmin)
+if (user.privilegeLevel > 1) {
+
+// AFTER
+if (user.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
+
+// BEFORE - Below Agent (Member, Guest, Visitor)
+if (user.privilegeLevel > 2) {
+
+// AFTER  
+if (user.privilegeLevel > ROLE_PRIVILEGE_LEVELS.Agent) {
+```
+
+**Pattern 4: Complex conditions**
+```typescript
+// BEFORE
+if (currentUser.privilegeLevel === 0 || 
+    targetAgent.organizationId === currentUser.organizationId) {
+
+// AFTER
+if (currentUser.privilegeLevel === ROLE_PRIVILEGE_LEVELS.SuperAdmin || 
+    targetAgent.organizationId === currentUser.organizationId) {
+```
+
+**Step 3: Update client/src/hooks/useRoleAuth.ts**
+
+This file already uses constants in some places but still has hardcoded values:
+
+```typescript
+// BEFORE
+if (privilegeLevel === 0) return true;
+
+// AFTER
+if (privilegeLevel === ROLE_PRIVILEGE_LEVELS.SuperAdmin) return true;
+
+// BEFORE
+return privilegeLevel <= 1;
+
+// AFTER
+return privilegeLevel <= ROLE_PRIVILEGE_LEVELS.TenantAdmin;
+
+// BEFORE
+return privilegeLevel <= 2;
+
+// AFTER
+return privilegeLevel <= ROLE_PRIVILEGE_LEVELS.Agent;
+```
+
+**Step 4: Update Other Client Files**
+
+For each component file, replace hardcoded checks with constants.
+
+**Example for client/src/pages/dashboard/access-requests.tsx:**
+```typescript
+// Add import
+import { ROLE_PRIVILEGE_LEVELS } from '@shared/schema';
+
+// Replace checks
+if (user?.privilegeLevel <= ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
+  // Show admin features
+}
+```
+
+**Step 5: Add Helper Functions (Optional Enhancement)**
+
+Consider adding semantic helper functions to make code even more readable:
+
+```typescript
+// In shared/schema.ts or new shared/auth-helpers.ts
+export const canManageOrganization = (privilegeLevel: number): boolean => {
+  return privilegeLevel <= ROLE_PRIVILEGE_LEVELS.TenantAdmin;
+};
+
+export const canAssignPolicies = (privilegeLevel: number): boolean => {
+  return privilegeLevel <= ROLE_PRIVILEGE_LEVELS.Agent;
+};
+
+export const isSuperAdmin = (privilegeLevel: number): boolean => {
+  return privilegeLevel === ROLE_PRIVILEGE_LEVELS.SuperAdmin;
+};
+
+// Usage becomes even clearer:
+if (isSuperAdmin(user.privilegeLevel)) {
+  // SuperAdmin-only logic
+}
+
+if (canManageOrganization(currentUser.privilegeLevel)) {
+  // TenantAdmin and SuperAdmin logic
+}
+```
+
+**Step 6: Create Automated Find-Replace Script**
+
+To make this safer and faster, create a script:
+
+**scripts/replace-hardcoded-privileges.sh:**
+```bash
+#!/bin/bash
+
+# Backup files first
+git add -A
+git commit -m "checkpoint: Before privilege level constant replacement"
+
+# Replace privilegeLevel === 0 with constant
+find server client -type f \( -name "*.ts" -o -name "*.tsx" \) \
+  -exec sed -i 's/privilegeLevel === 0/privilegeLevel === ROLE_PRIVILEGE_LEVELS.SuperAdmin/g' {} \;
+
+# Replace privilegeLevel <= 1 with constant
+find server client -type f \( -name "*.ts" -o -name "*.tsx" \) \
+  -exec sed -i 's/privilegeLevel <= 1/privilegeLevel <= ROLE_PRIVILEGE_LEVELS.TenantAdmin/g' {} \;
+
+# Replace privilegeLevel === 1 with constant
+find server client -type f \( -name "*.ts" -o -name "*.tsx" \) \
+  -exec sed -i 's/privilegeLevel === 1/privilegeLevel === ROLE_PRIVILEGE_LEVELS.TenantAdmin/g' {} \;
+
+# Replace privilegeLevel > 1 with constant
+find server client -type f \( -name "*.ts" -o -name "*.tsx" \) \
+  -exec sed -i 's/privilegeLevel > 1/privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin/g' {} \;
+
+# Replace privilegeLevel <= 2 with constant
+find server client -type f \( -name "*.ts" -o -name "*.tsx" \) \
+  -exec sed -i 's/privilegeLevel <= 2/privilegeLevel <= ROLE_PRIVILEGE_LEVELS.Agent/g' {} \;
+
+# Replace privilegeLevel === 2 with constant
+find server client -type f \( -name "*.ts" -o -name "*.tsx" \) \
+  -exec sed -i 's/privilegeLevel === 2/privilegeLevel === ROLE_PRIVILEGE_LEVELS.Agent/g' {} \;
+
+# Replace privilegeLevel > 2 with constant
+find server client -type f \( -name "*.ts" -o -name "*.tsx" \) \
+  -exec sed -i 's/privilegeLevel > 2/privilegeLevel > ROLE_PRIVILEGE_LEVELS.Agent/g' {} \;
+
+echo "✓ Automated replacements complete"
+echo "⚠ Next steps:"
+echo "  1. Add ROLE_PRIVILEGE_LEVELS imports to files that need them"
+echo "  2. Run: npm run build"
+echo "  3. Fix any TypeScript errors"
+echo "  4. Test thoroughly"
+```
+
+**Step 7: Add Imports Automatically**
+
+After running the replacement script, add imports where needed:
+
+```bash
+# Find files that use ROLE_PRIVILEGE_LEVELS but don't import it
+for file in $(grep -rl "ROLE_PRIVILEGE_LEVELS" server client --include="*.ts" --include="*.tsx"); do
+  if ! grep -q "import.*ROLE_PRIVILEGE_LEVELS" "$file"; then
+    echo "Missing import in: $file"
+    # Determine correct import path based on file location
+    if [[ $file == server/* ]]; then
+      # Add import at top of file (after other imports)
+      sed -i "1i import { ROLE_PRIVILEGE_LEVELS } from '../shared/schema';" "$file"
+    elif [[ $file == client/* ]]; then
+      sed -i "1i import { ROLE_PRIVILEGE_LEVELS } from '@shared/schema';" "$file"
+    fi
+  fi
+done
+```
+
+**Step 8: Verification Checklist**
+
+```bash
+# 1. Check for remaining hardcoded privilege levels
+# Look for suspicious patterns (but be careful of false positives)
+grep -rn "privilegeLevel.*[=<>].*[0-5]" server client --include="*.ts" --include="*.tsx" \
+  | grep -v "ROLE_PRIVILEGE_LEVELS" \
+  | grep -v "// " \
+  | grep -v "default(4)" \
+  | grep -v "privilege_level"
+
+# Should only show false positives like:
+# - Database schema definitions (privilegeLevel: integer("privilege_level").default(4))
+# - Comments explaining the system
+# - SQL queries with numeric values
+
+# 2. Verify imports are correct
+grep -r "ROLE_PRIVILEGE_LEVELS" server client --include="*.ts" --include="*.tsx" \
+  | grep -v "import.*ROLE_PRIVILEGE_LEVELS" \
+  | grep -v "export const ROLE_PRIVILEGE_LEVELS"
+
+# Each file should have a corresponding import
+
+# 3. TypeScript compilation
+npm run build
+# Should complete with no errors
+
+# 4. Check for proper constant usage
+grep -r "ROLE_PRIVILEGE_LEVELS\." server client --include="*.ts" --include="*.tsx" | head -20
+# Should show patterns like:
+# - ROLE_PRIVILEGE_LEVELS.SuperAdmin
+# - ROLE_PRIVILEGE_LEVELS.TenantAdmin
+# - ROLE_PRIVILEGE_LEVELS.Agent
+```
+
+**Step 9: Manual Review of Complex Cases**
+
+Some patterns may require manual review:
+
+**Complex conditions with multiple comparisons:**
+```typescript
+// May need manual adjustment for clarity
+if (user.privilegeLevel >= 2 && user.privilegeLevel <= 4) {
+  // Agent through Guest (but not Visitor)
+}
+
+// Could become:
+if (user.privilegeLevel >= ROLE_PRIVILEGE_LEVELS.Agent && 
+    user.privilegeLevel <= ROLE_PRIVILEGE_LEVELS.Guest) {
+  // Much clearer!
+}
+```
+
+**Arithmetic operations:**
+```typescript
+// Review these carefully
+const requiresOrganization = user.privilegeLevel <= 2;
+
+// Should become:
+const requiresOrganization = user.privilegeLevel <= ROLE_PRIVILEGE_LEVELS.Agent;
+```
+
+**Step 10: Testing Post-Update**
+
+1. **Unit/Integration Tests:**
+   - Run existing test suite: `npm test`
+   - Verify all authorization tests pass
+   - Check no regression in role-based access
+
+2. **Manual Testing:**
+   - Log in as each role type (SuperAdmin, TenantAdmin, Agent, Member, Guest)
+   - Verify permissions work identically to before
+   - Check all privilege-gated features function correctly
+
+3. **Code Review Checklist:**
+   - [ ] All hardcoded 0, 1, 2 privilege checks replaced
+   - [ ] All files using constants have proper imports
+   - [ ] No TypeScript compilation errors
+   - [ ] Code is more readable than before
+   - [ ] Functionality unchanged (same behavior)
+
+**Step 11: Documentation Update**
+
+Update inline comments to match the new clarity:
+
+```typescript
+// BEFORE
+// Only SuperAdmin (0) and TenantAdmin (1) can approve
+if (user.privilegeLevel > 1) {
+
+// AFTER
+// Only SuperAdmin and TenantAdmin can approve
+if (user.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
+```
+
+**Step 12: Commit Changes**
+
+```bash
+git add -A
+git commit -m "refactor: Replace hardcoded privilege levels with ROLE_PRIVILEGE_LEVELS constants
+
+Improves code maintainability and readability by replacing magic numbers
+with semantic constants from shared/schema.ts.
+
+Changes:
+- Replaced ~50+ hardcoded privilege checks in server/routes.ts
+- Updated ~20 checks in client/src/hooks/useRoleAuth.ts
+- Added ROLE_PRIVILEGE_LEVELS imports where needed
+- Updated component files to use constants
+- No functional changes - behavior identical to before
+
+Benefits:
+- Self-documenting code (SuperAdmin vs 0)
+- Easier to maintain if privilege system changes
+- Better IDE autocomplete and type checking
+- Consistent with existing constants definition
+
+Files modified:
+- server/routes.ts
+- server/storage.ts
+- client/src/hooks/useRoleAuth.ts
+- client/src/pages/dashboard/*.tsx
+- client/src/components/*.tsx"
+```
+
+**Benefits After Completion:**
+
+1. **Readability:** Code clearly shows which role is being checked
+2. **Maintainability:** Changing privilege levels requires updating only one place
+3. **Type Safety:** TypeScript can help catch errors with constants
+4. **Consistency:** All code uses the same pattern
+5. **Self-Documentation:** New developers understand code faster
+6. **IDE Support:** Better autocomplete and refactoring support
+
+**Before/After Comparison:**
+
+**Before (Hard to understand):**
+```typescript
+if (user.privilegeLevel > 1) {
+  return res.status(403).json({
+    message: "Insufficient permissions",
+  });
+}
+```
+
+**After (Crystal clear):**
+```typescript
+if (user.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
+  return res.status(403).json({
+    message: "Insufficient permissions to approve requests",
+  });
+}
+```
+
+**Estimated Time:** 6-8 hours
+- 1 hour: Planning and script creation
+- 2 hours: Automated replacements and import additions
+- 2 hours: Manual review of complex cases
+- 2 hours: Testing and verification
+- 1 hour: Documentation and commit
+
+**Risk Level:** LOW-MEDIUM
+- No functional changes, only code clarity improvements
+- Risk of introducing bugs if replacements are incorrect
+- Mitigated by: thorough testing, git checkpoints, automated script
+
+**Dependencies:** 
+- Must complete after 8.1.1 (terminology update)
+- Should complete before creating new authorization middleware (8.1.3)
+
+**Breaking Changes:** None (purely internal refactoring)
+
 ### 8.2 Short-Term Goals (Weeks 2-4)
 
 **Goal:** Complete essential authentication features
@@ -2035,6 +2488,7 @@ npm run deploy:production
 |---------|------|--------|---------|
 | 1.0 | Oct 5, 2025 | Replit Agent | Initial comprehensive review and recommendations |
 | 2.0 | Oct 5, 2025 | Replit Agent | **Corrected implementation assessment** - Updated to accurately reflect already-implemented features: rate limiting (✅ active), session security (✅ configured correctly), organization ID obfuscation (✅ base64 with salt). Adjusted roadmap and recommendations accordingly. |
+| 2.1 | Oct 5, 2025 | Replit Agent | **Added code quality improvements** - Added Section 8.1.1 (LandlordAdmin → TenantAdmin terminology update) and Section 8.1.2 (Replace hardcoded privilege levels with ROLE_PRIVILEGE_LEVELS constants). Includes automated scripts, verification checklists, and step-by-step implementation guides. |
 
 ---
 
