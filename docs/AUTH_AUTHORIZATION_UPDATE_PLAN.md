@@ -1,9 +1,9 @@
 # Authentication & Authorization System Update Plan
 **JustAskShel Insurance Platform**
 
-**Document Version:** 3.0  
+**Document Version:** 3.1  
 **Last Updated:** October 5, 2025  
-**Status:** Phase 1 Complete - Code Quality Improvements Implemented
+**Status:** Phase 1 Complete - MFA Configuration Strategy Added
 
 ---
 
@@ -1312,6 +1312,61 @@ const authLimiter = rateLimit({
 4. Backup recovery codes
 5. Frontend UI integration
 6. Optional enforcement by role
+7. Development deployment configuration
+8. Runtime configuration system
+
+**Development & Runtime Configuration:**
+
+**Environment Variables:**
+- `ENABLE_MFA` - Master toggle for MFA functionality (default: `true` in production, `false` in development)
+- `MFA_ENFORCEMENT_MODE` - Controls enforcement level:
+  - `disabled` - MFA completely disabled (development/testing)
+  - `optional` - Users can enable MFA but not required (staging)
+  - `required_admins` - Required for SuperAdmin/TenantAdmin only (default)
+  - `required_all` - Required for all authenticated users (strict mode)
+- `MFA_BYPASS_EMAILS` - Comma-separated list of emails exempt from MFA (for testing/emergency access)
+
+**Development Deployment Strategy:**
+1. **Default Disabled in Development**: MFA should be disabled by default when `NODE_ENV=development`
+2. **Environment Detection**: Automatically detect environment and apply appropriate MFA settings
+3. **Testing Mode**: Provide a testing mode with mock MFA codes for automated testing
+4. **Feature Flag**: Implement feature flag that can be toggled without code deployment
+
+**Implementation Considerations:**
+- Create `server/config/mfa-config.ts` with environment-based configuration loading
+- Add MFA status check in authentication middleware (skip if disabled)
+- Frontend should detect MFA availability via `/api/auth/mfa/status` endpoint
+- Hide MFA UI components when disabled
+- Log MFA enforcement mode on server startup for visibility
+- Provide admin override capability for emergency access
+
+**Configuration Examples:**
+
+Development (`.env.development`):
+```
+ENABLE_MFA=false
+MFA_ENFORCEMENT_MODE=disabled
+```
+
+Staging (`.env.staging`):
+```
+ENABLE_MFA=true
+MFA_ENFORCEMENT_MODE=optional
+MFA_BYPASS_EMAILS=test@example.com,demo@example.com
+```
+
+Production (`.env.production`):
+```
+ENABLE_MFA=true
+MFA_ENFORCEMENT_MODE=required_admins
+# No bypass emails in production
+```
+
+**Testing Strategy:**
+- Unit tests should run with MFA disabled by default
+- Integration tests should have separate test suites for MFA enabled/disabled scenarios
+- E2E tests should test both configurations
+- Provide seed data with pre-configured MFA for testing enabled scenarios
 
 #### Task 2.3: Login Activity Tracking
 **Priority:** MEDIUM  
@@ -2078,18 +2133,30 @@ if (user.privilegeLevel > ROLE_PRIVILEGE_LEVELS.TenantAdmin) {
 
 ### Phase 2: Short-Term Goals (Weeks 2-4)
 
-**Goal:** Complete essential authentication features
+**Goal:** Complete essential authentication features with flexible deployment configuration
 
 1. **Week 2:** Account lockout mechanism
 2. **Week 2-3:** Password reset flow
-3. **Week 3-4:** Multi-factor authentication
+3. **Week 3-4:** Multi-factor authentication (with runtime configuration)
 4. **Week 4:** Login activity tracking
 
 **Deliverables:**
 - Account lockout protecting against brute force
 - Functional password reset flow
-- MFA available for all users (required for Agent+)
+- MFA available for all users (required for Agent+) with environment-based configuration
+  - Disabled by default in development environments
+  - Optional enforcement in staging environments
+  - Required enforcement configurable via environment variables
+  - Runtime toggle via `ENABLE_MFA` and `MFA_ENFORCEMENT_MODE` settings
 - Login history visible to users
+
+**MFA Configuration Strategy:**
+The MFA implementation includes comprehensive runtime configuration support to allow:
+- Development deployments to disable MFA entirely (`ENABLE_MFA=false`)
+- Staging environments to use optional MFA (`MFA_ENFORCEMENT_MODE=optional`)
+- Production environments to enforce MFA by role (`MFA_ENFORCEMENT_MODE=required_admins`)
+- Testing bypass via `MFA_BYPASS_EMAILS` for automated testing and emergency access
+- See Task 2.2 for detailed configuration options and implementation approach
 
 ### Phase 3: Medium-Term Goals (Weeks 3-6)
 
@@ -2523,6 +2590,7 @@ npm run deploy:production
 | 2.1 | Oct 5, 2025 | Replit Agent | **Added code quality improvements** - Added Section 8.1.1 (LandlordAdmin → TenantAdmin terminology update) and Section 8.1.2 (Replace hardcoded privilege levels with ROLE_PRIVILEGE_LEVELS constants). Includes automated scripts, verification checklists, and step-by-step implementation guides. |
 | 2.2 | Oct 5, 2025 | Replit Agent | **Phase-based roadmap structure** - Updated Section 8 (Implementation Roadmap) to use "Phase" prefix for all main operation groups (Phase 1-5). Improved clarity and structure for implementation planning. |
 | 3.0 | Oct 5, 2025 | Replit Agent | **Phase 1 implementation complete** - Completed Phase 1.1 (LandlordAdmin → TenantAdmin: 13 files, database constraint, 1 user record) and Phase 1.2 (70+ hardcoded privilege levels → ROLE_PRIVILEGE_LEVELS constants in 5 files). Updated Executive Summary and Phase 1 status. Zero breaking changes, all tests passing. |
+| 3.1 | Oct 5, 2025 | Replit Agent | **MFA configuration strategy added** - Updated Task 2.2 with comprehensive development deployment and runtime configuration details. Added environment variables (ENABLE_MFA, MFA_ENFORCEMENT_MODE, MFA_BYPASS_EMAILS), development strategy (default disabled in dev), implementation considerations (server/config/mfa-config.ts), configuration examples for dev/staging/prod, and testing strategy. Updated Phase 2 summary to highlight MFA configuration flexibility. |
 
 ---
 
