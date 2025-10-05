@@ -358,6 +358,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Reset failed login attempts on successful password validation
       await storage.resetFailedAttempts(user.id);
 
+      // Check if MFA is enabled for this user
+      const mfaSettings = await storage.getMfaSettings(user.id);
+      if (mfaSettings?.mfaEnabled) {
+        // MFA is enabled - set temporary session and require MFA verification
+        req.session.regenerate((err) => {
+          if (err) {
+            console.error("Session regeneration error:", err);
+            return res.status(500).json({ message: "Session creation failed" });
+          }
+
+          (req.session as any).tempUserId = user.id; // Temporary, not fully authenticated yet
+          (req.session as any).authenticated = false; // Not authenticated until MFA is verified
+          
+          req.session.save((saveErr) => {
+            if (saveErr) {
+              console.error("Session save error:", saveErr);
+              return res.status(500).json({ message: "Session save failed" });
+            }
+
+            return res.json({
+              requiresMfa: true,
+              user: {
+                id: user.id,
+                email: user.email,
+              },
+            });
+          });
+        });
+        return;
+      }
+
       // Set temporary auth session (no organization yet)
       req.session.regenerate((err) => {
         if (err) {
@@ -717,6 +748,231 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Get login history error:", error);
       res.status(500).json({ message: "Failed to fetch login history" });
+    }
+  });
+
+  // Phase 2: MFA Setup - Generate TOTP Secret
+  app.post("/api/auth/mfa/setup", auth, async (req, res) => {
+    try {
+      const userId = (req.session as any).userId;
+
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Check if MFA is already enabled
+      const existingMfa = await storage.getMfaSettings(userId);
+      if (existingMfa?.mfaEnabled) {
+        return res.status(400).json({ message: "MFA is already enabled" });
+      }
+
+      // Generate TOTP secret
+      const { authenticator } = await import("otplib");
+      const secret = authenticator.generateSecret();
+
+      // Generate OTP auth URL for QR code
+      const otpauthUrl = authenticator.keyuri(
+        user.email,
+        "JustAskShel",
+        secret
+      );
+
+      // Generate backup codes
+      const backupCodes: string[] = [];
+      for (let i = 0; i < 8; i++) {
+        const code = Math.random().toString(36).substring(2, 10).toUpperCase();
+        backupCodes.push(code);
+      }
+
+      // Hash backup codes for storage
+      const hashedBackupCodes = await Promise.all(
+        backupCodes.map(code => bcrypt.hash(code, 10))
+      );
+
+      // Store MFA settings (not enabled yet)
+      await storage.createOrUpdateMfaSettings({
+        userId,
+        mfaEnabled: false,
+        totpSecret: secret, // TODO: Encrypt this in production
+        backupCodes: hashedBackupCodes,
+        enabledAt: null,
+        lastVerifiedAt: null,
+      });
+
+      res.json({
+        success: true,
+        secret,
+        otpauthUrl,
+        backupCodes, // Return plain codes for user to save
+      });
+    } catch (error) {
+      console.error("MFA setup error:", error);
+      res.status(500).json({ message: "Failed to set up MFA" });
+    }
+  });
+
+  // Phase 2: MFA Setup - Verify and Enable
+  app.post("/api/auth/mfa/verify-setup", auth, async (req, res) => {
+    try {
+      const userId = (req.session as any).userId;
+      const { token } = req.body;
+
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      if (!token || token.length !== 6) {
+        return res.status(400).json({ message: "Invalid verification code" });
+      }
+
+      // Get MFA settings
+      const mfaSettings = await storage.getMfaSettings(userId);
+      if (!mfaSettings || !mfaSettings.totpSecret) {
+        return res.status(400).json({ message: "MFA setup not initiated" });
+      }
+
+      if (mfaSettings.mfaEnabled) {
+        return res.status(400).json({ message: "MFA is already enabled" });
+      }
+
+      // Verify TOTP token
+      const { authenticator } = await import("otplib");
+      const isValid = authenticator.verify({
+        token,
+        secret: mfaSettings.totpSecret,
+      });
+
+      if (!isValid) {
+        return res.status(400).json({ message: "Invalid verification code" });
+      }
+
+      // Enable MFA
+      await storage.createOrUpdateMfaSettings({
+        ...mfaSettings,
+        mfaEnabled: true,
+        enabledAt: new Date(),
+        lastVerifiedAt: new Date(),
+      });
+
+      res.json({
+        success: true,
+        message: "MFA has been enabled successfully",
+      });
+    } catch (error) {
+      console.error("MFA verify setup error:", error);
+      res.status(500).json({ message: "Failed to verify MFA setup" });
+    }
+  });
+
+  // Phase 2: MFA Verification for Login
+  app.post("/api/auth/mfa/verify", async (req, res) => {
+    try {
+      const { token, useBackupCode } = req.body;
+      const userId = (req.session as any).tempUserId; // Temporary user ID during MFA challenge
+
+      if (!userId) {
+        return res.status(401).json({ message: "MFA session not found" });
+      }
+
+      if (!token) {
+        return res.status(400).json({ message: "Verification code is required" });
+      }
+
+      const ipAddress = (req.headers['x-forwarded-for'] as string)?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+      const userAgent = req.headers['user-agent'] || 'unknown';
+
+      // Get MFA settings
+      const mfaSettings = await storage.getMfaSettings(userId);
+      if (!mfaSettings || !mfaSettings.mfaEnabled) {
+        return res.status(400).json({ message: "MFA is not enabled" });
+      }
+
+      let isValid = false;
+      let attemptType: "totp" | "sms" | "recovery" = "totp";
+
+      if (useBackupCode) {
+        // Verify backup code
+        attemptType = "recovery";
+        const backupCodes = (mfaSettings.backupCodes as string[]) || [];
+        
+        for (const hashedCode of backupCodes) {
+          if (await bcrypt.compare(token, hashedCode)) {
+            isValid = true;
+            // Remove used backup code
+            const newBackupCodes = backupCodes.filter(c => c !== hashedCode);
+            await storage.createOrUpdateMfaSettings({
+              ...mfaSettings,
+              backupCodes: newBackupCodes,
+              lastVerifiedAt: new Date(),
+            });
+            break;
+          }
+        }
+      } else {
+        // Verify TOTP token
+        const { authenticator } = await import("otplib");
+        isValid = authenticator.verify({
+          token,
+          secret: mfaSettings.totpSecret || "",
+        });
+
+        if (isValid) {
+          await storage.createOrUpdateMfaSettings({
+            ...mfaSettings,
+            lastVerifiedAt: new Date(),
+          });
+        }
+      }
+
+      // Record verification attempt
+      await storage.recordMfaVerificationAttempt({
+        userId,
+        attemptType,
+        success: isValid,
+        ipAddress,
+        userAgent,
+      });
+
+      if (!isValid) {
+        return res.status(400).json({ message: "Invalid verification code" });
+      }
+
+      // MFA verification successful - complete login
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Set authenticated session
+      (req.session as any).authenticated = true;
+      (req.session as any).userId = userId;
+      delete (req.session as any).tempUserId;
+
+      // Get available organizations
+      const availableOrgs = await storage.getUserAvailableOrganizations(userId);
+
+      res.json({
+        success: true,
+        user: {
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          privilegeLevel: user.privilegeLevel,
+        },
+        requiresOrganizationSelection: availableOrgs.length > 1,
+        availableOrganizations: availableOrgs.map(org => ({
+          id: obfuscateOrgId(org.id),
+          displayName: org.displayName,
+        })),
+      });
+    } catch (error) {
+      console.error("MFA verification error:", error);
+      res.status(500).json({ message: "Failed to verify MFA" });
     }
   });
 
