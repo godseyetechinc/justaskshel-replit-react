@@ -49,7 +49,7 @@ type Organization = {
   userRole?: string;
 };
 
-type AuthStage = 'credentials' | 'organization' | 'no-access';
+type AuthStage = 'credentials' | 'mfa' | 'organization' | 'no-access';
 
 export default function Login() {
   const [, setLocation] = useLocation();
@@ -61,6 +61,8 @@ export default function Login() {
   const [availableOrganizations, setAvailableOrganizations] = useState<Organization[]>([]);
   const [selectedOrganization, setSelectedOrganization] = useState<string>("");
   const [showAccessRequestForm, setShowAccessRequestForm] = useState(false);
+  const [mfaCode, setMfaCode] = useState("");
+  const [useBackupCode, setUseBackupCode] = useState(false);
 
   const credentialsForm = useForm<CredentialsFormData>({
     resolver: zodResolver(credentialsSchema),
@@ -87,6 +89,17 @@ export default function Login() {
         body: JSON.stringify(data),
       }),
     onSuccess: (data) => {
+      // Check if MFA is required
+      if (data.requiresMfa) {
+        setAuthenticatedUser(data.user);
+        setAuthStage('mfa');
+        toast({
+          title: "MFA Required",
+          description: "Please enter your authentication code to continue.",
+        });
+        return;
+      }
+
       if (data.requiresOrganization === false) {
         // Auto-assigned (SuperAdmin or single org)
         toast({
@@ -126,6 +139,45 @@ export default function Login() {
       toast({
         title: "Login Failed",
         description: error.message || "Invalid email or password",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // MFA verification mutation
+  const mfaVerificationMutation = useMutation({
+    mutationFn: (code: string) =>
+      apiRequest("/api/auth/mfa/verify", {
+        method: "POST",
+        body: JSON.stringify({ token: code, useBackupCode }),
+      }),
+    onSuccess: (data) => {
+      toast({
+        title: "MFA Verified",
+        description: "Two-factor authentication successful",
+      });
+      
+      // Check if organization selection is needed
+      if (data.requiresOrganizationSelection && data.availableOrganizations) {
+        setAuthenticatedUser(data.user);
+        setAvailableOrganizations(data.availableOrganizations);
+        setAuthStage('organization');
+        toast({
+          title: "Select Organization",
+          description: "Please select your organization to continue.",
+        });
+      } else {
+        // Login complete
+        queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+        setTimeout(() => {
+          setLocation("/dashboard");
+        }, 200);
+      }
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Verification Failed",
+        description: error.message || "Invalid verification code",
         variant: "destructive",
       });
     },
@@ -183,6 +235,13 @@ export default function Login() {
 
   const handleCredentialsSubmit = (data: CredentialsFormData) => {
     loginMutation.mutate(data);
+  };
+
+  const handleMfaSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (mfaCode.length === 6 || (useBackupCode && mfaCode.length >= 8)) {
+      mfaVerificationMutation.mutate(mfaCode);
+    }
   };
 
   const handleOrganizationSelect = (orgId: string) => {
@@ -324,6 +383,76 @@ export default function Login() {
                 </div>
               </AlertDescription>
             </Alert>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Render MFA verification form
+  if (authStage === 'mfa') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 px-4">
+        <Card className="w-full max-w-md" data-testid="card-mfa-verification">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl font-bold">Two-Factor Authentication</CardTitle>
+            <CardDescription>
+              Enter the 6-digit code from your authenticator app
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleMfaSubmit} className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="mfaCode">
+                  {useBackupCode ? "Backup Code" : "Verification Code"}
+                </Label>
+                <Input
+                  id="mfaCode"
+                  type="text"
+                  placeholder={useBackupCode ? "XXXXXXXX" : "000000"}
+                  value={mfaCode}
+                  onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, "").slice(0, useBackupCode ? 12 : 6).toUpperCase())}
+                  maxLength={useBackupCode ? 12 : 6}
+                  className="text-center text-2xl tracking-widest font-mono"
+                  data-testid="input-mfa-code"
+                  autoFocus
+                  required
+                />
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={mfaVerificationMutation.isPending || (useBackupCode ? mfaCode.length < 8 : mfaCode.length !== 6)}
+                data-testid="button-verify-mfa"
+              >
+                {mfaVerificationMutation.isPending ? "Verifying..." : "Verify"}
+              </Button>
+
+              <div className="text-center">
+                <Button
+                  type="button"
+                  variant="link"
+                  className="text-sm"
+                  onClick={() => {
+                    setUseBackupCode(!useBackupCode);
+                    setMfaCode("");
+                  }}
+                  data-testid="button-toggle-backup-code"
+                >
+                  {useBackupCode ? "Use authenticator code instead" : "Use a backup code"}
+                </Button>
+              </div>
+
+              <Alert>
+                <AlertDescription className="text-sm">
+                  {useBackupCode 
+                    ? "Enter one of your backup recovery codes. Each code can only be used once."
+                    : "Open your authenticator app to get your current 6-digit code."
+                  }
+                </AlertDescription>
+              </Alert>
+            </form>
           </CardContent>
         </Card>
       </div>

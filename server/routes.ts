@@ -956,6 +956,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get available organizations
       const availableOrgs = await storage.getUserAvailableOrganizations(userId);
 
+      // SuperAdmin (privilege 0) auto-assigned to org 0
+      if (user.privilegeLevel === ROLE_PRIVILEGE_LEVELS.SuperAdmin) {
+        (req.session as any).organizationId = 0;
+        (req.session as any).activeOrganizationId = 0;
+
+        // Record successful login
+        await storage.recordLoginAttempt({
+          userId: user.id,
+          email: user.email,
+          success: true,
+          ipAddress,
+          userAgent,
+          organizationId: 0,
+        });
+
+        // Award daily login points
+        try {
+          await pointsService.awardDailyLoginPoints(user.id);
+        } catch (error) {
+          console.error("Error awarding daily login points:", error);
+        }
+
+        return res.json({
+          success: true,
+          user: {
+            id: user.id,
+            email: user.email,
+            role: user.role,
+            privilegeLevel: user.privilegeLevel,
+            organizationId: 0,
+          },
+          requiresOrganizationSelection: false,
+          redirectTo: "/dashboard",
+        });
+      }
+
+      // Auto-assign if user has single organization
+      if (user.organizationId && availableOrgs.length === 1) {
+        (req.session as any).organizationId = user.organizationId;
+        (req.session as any).activeOrganizationId = user.organizationId;
+
+        // Record successful login
+        await storage.recordLoginAttempt({
+          userId: user.id,
+          email: user.email,
+          success: true,
+          ipAddress,
+          userAgent,
+          organizationId: user.organizationId,
+        });
+
+        // Award daily login points
+        try {
+          await pointsService.awardDailyLoginPoints(user.id);
+        } catch (error) {
+          console.error("Error awarding daily login points:", error);
+        }
+
+        return res.json({
+          success: true,
+          user: {
+            id: user.id,
+            email: user.email,
+            role: user.role,
+            privilegeLevel: user.privilegeLevel,
+            organizationId: user.organizationId,
+          },
+          requiresOrganizationSelection: false,
+          organization: {
+            id: obfuscateOrgId(availableOrgs[0].id),
+            displayName: availableOrgs[0].displayName,
+          },
+          redirectTo: "/dashboard",
+        });
+      }
+
+      // Record successful credentials validation (organization selection still required)
+      await storage.recordLoginAttempt({
+        userId: user.id,
+        email: user.email,
+        success: true,
+        ipAddress,
+        userAgent,
+        organizationId: null,
+      });
+
+      // Multiple organizations - require selection
       res.json({
         success: true,
         user: {
@@ -964,7 +1051,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           role: user.role,
           privilegeLevel: user.privilegeLevel,
         },
-        requiresOrganizationSelection: availableOrgs.length > 1,
+        requiresOrganizationSelection: true,
         availableOrganizations: availableOrgs.map(org => ({
           id: obfuscateOrgId(org.id),
           displayName: org.displayName,
