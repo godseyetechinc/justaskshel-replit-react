@@ -247,6 +247,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Traditional login endpoint - Phase 1: Two-stage authentication (credentials only)
   app.post("/api/auth/login", async (req, res) => {
+    const ipAddress = (req.headers['x-forwarded-for'] as string)?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+    const userAgent = req.headers['user-agent'] || 'unknown';
+    
     try {
       // Phase 1: Validate credentials only (no organization required yet)
       const { email, password } = req.body;
@@ -258,11 +261,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Find user by email
       const user = await storage.getUserByEmail(email);
       if (!user) {
+        // Record failed login attempt for unknown email
+        await storage.recordLoginAttempt({
+          userId: null,
+          email,
+          success: false,
+          ipAddress,
+          userAgent,
+          failureReason: 'invalid_credentials',
+        });
         return res.status(401).json({ message: "Invalid email or password" });
+      }
+
+      // Phase 2: Check if account is locked
+      const isLocked = await storage.isAccountLocked(user.id);
+      if (isLocked) {
+        const lockout = await storage.getAccountLockout(user.id);
+        const lockoutMinutes = lockout?.lockedUntil 
+          ? Math.ceil((new Date(lockout.lockedUntil).getTime() - Date.now()) / 60000)
+          : 15;
+        
+        await storage.recordLoginAttempt({
+          userId: user.id,
+          email: user.email,
+          success: false,
+          ipAddress,
+          userAgent,
+          failureReason: 'account_locked',
+        });
+        
+        return res.status(423).json({ 
+          message: `Account is locked due to too many failed login attempts. Please try again in ${lockoutMinutes} minutes.`,
+          lockedUntil: lockout?.lockedUntil,
+        });
       }
 
       // Check password
       if (!user.password) {
+        await storage.recordLoginAttempt({
+          userId: user.id,
+          email: user.email,
+          success: false,
+          ipAddress,
+          userAgent,
+          failureReason: 'oauth_account',
+        });
+        
         return res
           .status(401)
           .json({
@@ -273,15 +317,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const isValidPassword = await bcrypt.compare(password, user.password);
       if (!isValidPassword) {
+        // Record failed login attempt and increment lockout counter
+        await storage.recordFailedLoginAttempt(user.id, ipAddress, userAgent);
+        await storage.recordLoginAttempt({
+          userId: user.id,
+          email: user.email,
+          success: false,
+          ipAddress,
+          userAgent,
+          failureReason: 'invalid_password',
+        });
+        
+        // Check if account is now locked after this failed attempt
+        const nowLocked = await storage.isAccountLocked(user.id);
+        if (nowLocked) {
+          return res.status(423).json({ 
+            message: "Too many failed login attempts. Your account has been locked for 15 minutes.",
+          });
+        }
+        
         return res.status(401).json({ message: "Invalid email or password" });
       }
 
       // Check if user is active
       if (!user.isActive) {
+        await storage.recordLoginAttempt({
+          userId: user.id,
+          email: user.email,
+          success: false,
+          ipAddress,
+          userAgent,
+          failureReason: 'account_inactive',
+        });
+        
         return res
           .status(401)
           .json({ message: "Account is inactive. Please contact support." });
       }
+      
+      // Reset failed login attempts on successful password validation
+      await storage.resetFailedAttempts(user.id);
 
       // Set temporary auth session (no organization yet)
       req.session.regenerate((err) => {
@@ -319,6 +394,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
               (req.session as any).organizationId = 0;
               (req.session as any).activeOrganizationId = 0;
 
+              // Record successful login
+              await storage.recordLoginAttempt({
+                userId: user.id,
+                email: user.email,
+                success: true,
+                ipAddress,
+                userAgent,
+                organizationId: 0,
+              });
+
               // Award daily login points
               try {
                 await pointsService.awardDailyLoginPoints(user.id);
@@ -345,6 +430,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
               (req.session as any).organizationId = user.organizationId;
               (req.session as any).activeOrganizationId = user.organizationId;
 
+              // Record successful login
+              await storage.recordLoginAttempt({
+                userId: user.id,
+                email: user.email,
+                success: true,
+                ipAddress,
+                userAgent,
+                organizationId: user.organizationId,
+              });
+
               // Award daily login points
               try {
                 await pointsService.awardDailyLoginPoints(user.id);
@@ -369,6 +464,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 redirectTo: "/dashboard",
               });
             }
+
+            // Record successful credentials validation (organization selection still required)
+            await storage.recordLoginAttempt({
+              userId: user.id,
+              email: user.email,
+              success: true,
+              ipAddress,
+              userAgent,
+              organizationId: null,
+            });
 
             // Return organization selection required
             res.json({
@@ -463,6 +568,133 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Organization selection error:", error);
       res.status(500).json({ message: "Failed to set organization" });
+    }
+  });
+
+  // Phase 2: Password Reset - Request Token
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    const ipAddress = (req.headers['x-forwarded-for'] as string)?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+    const userAgent = req.headers['user-agent'] || 'unknown';
+    
+    try {
+      const { email } = req.body;
+
+      if (!email) {
+        return res.status(400).json({ message: "Email is required" });
+      }
+
+      // Find user by email
+      const user = await storage.getUserByEmail(email);
+      
+      // Always return success to prevent email enumeration
+      if (!user) {
+        return res.json({ 
+          message: "If an account with that email exists, a password reset link has been sent.",
+          success: true 
+        });
+      }
+
+      // Check if account is locked
+      const isLocked = await storage.isAccountLocked(user.id);
+      if (isLocked) {
+        return res.status(423).json({ 
+          message: "Account is locked. Please wait before requesting a password reset."
+        });
+      }
+
+      // Create password reset token
+      const resetToken = await storage.createPasswordResetToken(user.id, ipAddress, userAgent);
+
+      // In production, send email with reset link
+      // For now, return token in development mode (remove in production!)
+      console.log(`Password reset token for ${email}: ${resetToken.token}`);
+      console.log(`Reset link: ${process.env.BASE_URL || 'http://localhost:5000'}/reset-password?token=${resetToken.token}`);
+
+      res.json({ 
+        message: "If an account with that email exists, a password reset link has been sent.",
+        success: true,
+        // TODO: Remove in production - only for development
+        ...(process.env.NODE_ENV === 'development' && { 
+          token: resetToken.token,
+          expiresAt: resetToken.expiresAt 
+        })
+      });
+    } catch (error) {
+      console.error("Forgot password error:", error);
+      res.status(500).json({ message: "Failed to process password reset request" });
+    }
+  });
+
+  // Phase 2: Password Reset - Validate Token and Reset Password
+  app.post("/api/auth/reset-password", async (req, res) => {
+    const ipAddress = (req.headers['x-forwarded-for'] as string)?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+    const userAgent = req.headers['user-agent'] || 'unknown';
+    
+    try {
+      const { token, newPassword } = req.body;
+
+      if (!token || !newPassword) {
+        return res.status(400).json({ message: "Token and new password are required" });
+      }
+
+      if (newPassword.length < 8) {
+        return res.status(400).json({ message: "Password must be at least 8 characters" });
+      }
+
+      // Get and validate token
+      const resetToken = await storage.getPasswordResetToken(token);
+      
+      if (!resetToken) {
+        return res.status(400).json({ message: "Invalid or expired reset token" });
+      }
+
+      if (resetToken.used) {
+        return res.status(400).json({ message: "This reset token has already been used" });
+      }
+
+      if (new Date() > new Date(resetToken.expiresAt)) {
+        return res.status(400).json({ message: "Reset token has expired" });
+      }
+
+      if (!resetToken.userId) {
+        return res.status(400).json({ message: "Invalid reset token" });
+      }
+
+      // Get user
+      const user = await storage.getUser(resetToken.userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Hash new password
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+      // Update user password
+      await storage.updateUser(user.id, { password: hashedPassword });
+
+      // Mark token as used
+      await storage.markPasswordResetTokenUsed(token);
+
+      // Reset any account lockouts
+      await storage.resetFailedAttempts(user.id);
+
+      // Record successful password reset in login history
+      await storage.recordLoginAttempt({
+        userId: user.id,
+        email: user.email,
+        success: true,
+        ipAddress,
+        userAgent,
+        failureReason: null,
+      });
+
+      res.json({ 
+        message: "Password has been reset successfully",
+        success: true 
+      });
+    } catch (error) {
+      console.error("Reset password error:", error);
+      res.status(500).json({ message: "Failed to reset password" });
     }
   });
 
