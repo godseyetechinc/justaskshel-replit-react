@@ -123,7 +123,6 @@ export function useRoleAuth() {
     // Role-specific helpers
     isSuperAdmin: userRole === "SuperAdmin",
     isTenantAdmin: userRole === "TenantAdmin",
-    isTenantAdmin: userRole === "TenantAdmin", // Deprecated: use isTenantAdmin
     isAdmin: userRole === "TenantAdmin" || userRole === "SuperAdmin",
     isAgent: userRole === "Agent" || userRole === "TenantAdmin" || userRole === "SuperAdmin",
     isMember: ["Member", "Agent", "TenantAdmin", "SuperAdmin"].includes(userRole),
@@ -132,7 +131,6 @@ export function useRoleAuth() {
     // Privilege level helpers
     hasSuperAdminPrivileges: privilegeLevel === ROLE_PRIVILEGE_LEVELS.SuperAdmin,
     hasTenantAdminPrivileges: privilegeLevel <= ROLE_PRIVILEGE_LEVELS.TenantAdmin,
-    hasTenantAdminPrivileges: privilegeLevel <= ROLE_PRIVILEGE_LEVELS.TenantAdmin, // Deprecated: use hasTenantAdminPrivileges
     hasAgentPrivileges: privilegeLevel <= ROLE_PRIVILEGE_LEVELS.Agent,
     hasMemberPrivileges: privilegeLevel <= 3,
     hasGuestPrivileges: privilegeLevel <= 4,
