@@ -250,6 +250,17 @@ export default function Login() {
                     {credentialsForm.formState.errors.password.message}
                   </p>
                 )}
+                <div className="flex justify-end">
+                  <Link href="/forgot-password">
+                    <Button
+                      variant="link"
+                      className="p-0 h-auto text-sm font-medium"
+                      data-testid="link-forgot-password"
+                    >
+                      Forgot password?
+                    </Button>
+                  </Link>
+                </div>
               </div>
 
               <Button

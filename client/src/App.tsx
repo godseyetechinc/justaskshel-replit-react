@@ -14,6 +14,8 @@ import Home from "@/pages/home";
 import Login from "@/pages/login";
 import Signup from "@/pages/signup";
 import AcceptInvitation from "@/pages/accept-invitation";
+import ForgotPassword from "@/pages/forgot-password";
+import ResetPassword from "@/pages/reset-password";
 // Lazy-loaded dashboard components for performance optimization
 const Dashboard = lazy(() => import("@/pages/dashboard"));
 const MembersPage = lazy(() => import("@/pages/dashboard/members"));
@@ -131,6 +133,8 @@ function Router() {
           <Route path="/terms-of-service" component={TermsOfService} />
           <Route path="/login" component={Login} />
           <Route path="/signup" component={Signup} />
+          <Route path="/forgot-password" component={ForgotPassword} />
+          <Route path="/reset-password" component={ResetPassword} />
           <Route path="/accept-invitation/:token" component={AcceptInvitation} />
         </>
       ) : (
